@@ -1,0 +1,623 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ============================================================
+// BETTER AUTH — Core tables (jangan diubah strukturnya)
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Better Auth relations
+  sessions      Session[]
+  accounts      Account[]
+
+  // Custom relations
+  companyMembers CompanyMember[]
+  employees      Employee[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
+}
+
+// ============================================================
+// SAAS LAYER — Platform level (dikelola oleh Anda)
+// ============================================================
+
+model SubscriptionPlan {
+  id                String    @id @default(cuid())
+  name              String    // Basic, Professional, Enterprise
+  maxEmployees      Int       // -1 = unlimited
+  maxStorage        BigInt    // dalam bytes
+  features          Json      // {"payroll": true, "recruitment": false, ...}
+  priceMonthly      Decimal   @db.Decimal(12, 2)
+  priceYearly       Decimal   @db.Decimal(12, 2)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  companies         Company[]
+
+  @@map("subscription_plans")
+}
+
+// ============================================================
+// COMPANY (Tenant)
+// ============================================================
+
+model Company {
+  id                   String            @id @default(cuid())
+  name                 String
+  legalName            String?           // nama PT resmi
+  slug                 String            @unique // untuk subdomain: slug.yourhris.com
+  logo                 String?
+  industry             String?
+  companySize          CompanySize?
+  taxId                String?           // NPWP perusahaan
+  phone                String?
+  email                String?
+  website              String?
+  address              String?
+  city                 String?
+  province             String?
+  postalCode           String?
+  country              String            @default("ID")
+
+  // SaaS subscription
+  subscriptionPlanId   String?
+  subscriptionPlan     SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  subscriptionStatus   SubscriptionStatus @default(TRIAL)
+  trialEndsAt          DateTime?
+  subscriptionEndsAt   DateTime?
+
+  // Settings
+  settings             Json?             // timezone, currency, language, dll
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  // Relations
+  members              CompanyMember[]
+  organizationalUnits  OrganizationalUnit[]
+  positions            Position[]
+  workLocations        WorkLocation[]
+  employees            Employee[]
+  jobGrades            JobGrade[]
+
+  @@map("companies")
+}
+
+enum CompanySize {
+  MICRO        // < 10
+  SMALL        // 10 - 50
+  MEDIUM       // 51 - 250
+  LARGE        // > 250
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  SUSPENDED
+}
+
+// ============================================================
+// COMPANY MEMBER — Bridge User ↔ Company (Multi-tenant access)
+// ============================================================
+
+model CompanyMember {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role        CompanyMemberRole @default(EMPLOYEE)
+  isActive    Boolean           @default(true)
+  joinedAt    DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([userId, companyId])
+  @@map("company_members")
+}
+
+enum CompanyMemberRole {
+  OWNER       // Pemilik akun SaaS (bisa 1-2 orang)
+  ADMIN       // Admin HR perusahaan
+  HR_STAFF    // Staff HR (akses terbatas)
+  MANAGER     // Manager (approve cuti/lembur dll)
+  EMPLOYEE    // Karyawan biasa (ESS only)
+}
+
+// ============================================================
+// ORGANIZATIONAL UNIT — Tree structure (unlimited depth)
+// ============================================================
+
+model OrganizationalUnit {
+  id          String              @id @default(cuid())
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parentId    String?             // null = root node
+  parent      OrganizationalUnit? @relation("OrgUnitTree", fields: [parentId], references: [id])
+  children    OrganizationalUnit[] @relation("OrgUnitTree")
+
+  name        String
+  code        String?             // kode unik per company, misal: DIV-001
+  type        OrgUnitType
+  description String?
+  level       Int                 @default(0) // 0=root, 1=child, dst — di-compute saat insert
+  path        String?             // materialized path: "id1.id2.id3" untuk query tree efisien
+  order       Int                 @default(0) // urutan tampil di org chart
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  positions   Position[]
+  employees   EmployeePosition[]
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@index([companyId, path])
+  @@map("organizational_units")
+}
+
+enum OrgUnitType {
+  DIVISION      // Divisi
+  DIRECTORATE   // Direktorat
+  DEPARTMENT    // Departemen
+  SECTION       // Seksi
+  UNIT          // Unit
+  TEAM          // Tim
+  BRANCH        // Cabang
+  OTHER
+}
+
+// ============================================================
+// JOB GRADE — Golongan/Grade jabatan
+// ============================================================
+
+model JobGrade {
+  id          String     @id @default(cuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String     // "Grade A", "Golongan III/b", dll
+  code        String?
+  level       Int        // angka untuk sorting & hierarki approval
+  minSalary   Decimal?   @db.Decimal(15, 2)
+  maxSalary   Decimal?   @db.Decimal(15, 2)
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  positions   Position[]
+
+  @@unique([companyId, code])
+  @@map("job_grades")
+}
+
+// ============================================================
+// POSITION / JABATAN
+// ============================================================
+
+model Position {
+  id                   String              @id @default(cuid())
+  companyId            String
+  company              Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organizationalUnitId String?
+  organizationalUnit   OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
+  jobGradeId           String?
+  jobGrade             JobGrade?           @relation(fields: [jobGradeId], references: [id])
+
+  name                 String
+  code                 String?
+  description          String?
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  employees            EmployeePosition[]
+
+  @@unique([companyId, code])
+  @@map("positions")
+}
+
+// ============================================================
+// WORK LOCATION — Lokasi kantor / cabang
+// ============================================================
+
+model WorkLocation {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  code          String?
+  address       String?
+  city          String?
+  province      String?
+  postalCode    String?
+  latitude      Float?    // untuk validasi geo-absensi
+  longitude     Float?
+  radiusMeters  Int?      @default(100)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employees     EmployeePosition[]
+
+  @@map("work_locations")
+}
+
+// ============================================================
+// EMPLOYEE — Data utama karyawan
+// ============================================================
+
+model Employee {
+  id               String           @id @default(cuid())
+  companyId        String
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId           String?          // null jika belum punya akses login
+  user             User?            @relation(fields: [userId], references: [id])
+  employeeNumber   String           // NIK karyawan (unik per company)
+
+  // --- Data Pribadi ---
+  fullName         String
+  nickname         String?
+  gender           Gender
+  birthPlace       String?
+  birthDate        DateTime?
+  nationalId       String?          // NIK KTP
+  taxId            String?          // NPWP
+  religion         Religion?
+  bloodType        BloodType?
+  maritalStatus    MaritalStatus?
+  photo            String?
+
+  // --- Kontak ---
+  personalEmail    String?
+  workEmail        String?
+  phone            String?
+  emergencyContact Json?            // {name, phone, relation}
+
+  // --- Alamat ---
+  currentAddress   String?
+  currentCity      String?
+  currentProvince  String?
+  currentPostal    String?
+  idAddress        String?          // alamat sesuai KTP (bisa beda)
+  idCity           String?
+  idProvince       String?
+  idPostal         String?
+
+  // --- Status Kepegawaian ---
+  status           EmployeeStatus   @default(ACTIVE)
+  employmentType   EmploymentType
+  joinDate         DateTime
+  probationEndDate DateTime?
+  contractEndDate  DateTime?
+  resignDate       DateTime?
+  resignReason     String?
+  terminationNote  String?
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // --- Relations ---
+  positions        EmployeePosition[]
+  families         EmployeeFamily[]
+  educations       EmployeeEducation[]
+  workHistories    EmployeeWorkHistory[]
+  bankAccounts     EmployeeBankAccount[]
+  bpjs             EmployeeBpjs?
+  documents        EmployeeDocument[]
+
+  @@unique([companyId, employeeNumber])
+  @@index([companyId, status])
+  @@map("employees")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Religion {
+  ISLAM
+  PROTESTANT
+  CATHOLIC
+  HINDU
+  BUDDHIST
+  CONFUCIAN
+  OTHER
+}
+
+enum BloodType {
+  A
+  B
+  AB
+  O
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  PROBATION
+  RESIGNED
+  TERMINATED
+  RETIRED
+}
+
+enum EmploymentType {
+  PERMANENT       // Karyawan Tetap
+  CONTRACT        // PKWT
+  INTERN          // Magang
+  FREELANCE       // Freelance
+  OUTSOURCING     // Outsourcing
+}
+
+// ============================================================
+// EMPLOYEE POSITION — Penempatan (bisa punya histori)
+// ============================================================
+
+model EmployeePosition {
+  id                   String              @id @default(cuid())
+  employeeId           String
+  employee             Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organizationalUnitId String?
+  organizationalUnit   OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
+  positionId           String?
+  position             Position?           @relation(fields: [positionId], references: [id])
+  workLocationId       String?
+  workLocation         WorkLocation?       @relation(fields: [workLocationId], references: [id])
+
+  isPrimary            Boolean             @default(true)  // jabatan utama
+  isCurrent            Boolean             @default(true)
+  effectiveDate        DateTime
+  endDate              DateTime?
+  note                 String?             // misal: "Promosi dari Staff ke Supervisor"
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([employeeId, isCurrent])
+  @@map("employee_positions")
+}
+
+// ============================================================
+// EMPLOYEE FAMILY — Data keluarga & ahli waris
+// ============================================================
+
+model EmployeeFamily {
+  id             String         @id @default(cuid())
+  employeeId     String
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name           String
+  relation       FamilyRelation
+  gender         Gender
+  birthDate      DateTime?
+  nationalId     String?        // KTP anggota keluarga
+  occupation     String?
+  isDependent    Boolean        @default(false)  // tanggungan pajak
+  isBpjsDependent Boolean      @default(false)  // tanggungan BPJS
+  isHeir         Boolean        @default(false)  // ahli waris
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("employee_families")
+}
+
+enum FamilyRelation {
+  SPOUSE
+  CHILD
+  PARENT
+  SIBLING
+  OTHER
+}
+
+// ============================================================
+// EMPLOYEE EDUCATION
+// ============================================================
+
+model EmployeeEducation {
+  id            String         @id @default(cuid())
+  employeeId    String
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  degree        EducationDegree
+  institution   String
+  major         String?
+  startYear     Int?
+  graduationYear Int?
+  gpa           Float?
+  isHighest     Boolean        @default(false)
+  documentUrl   String?        // scan ijazah
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("employee_educations")
+}
+
+enum EducationDegree {
+  SD
+  SMP
+  SMA_SMK
+  D1
+  D2
+  D3
+  D4
+  S1
+  S2
+  S3
+  OTHER
+}
+
+// ============================================================
+// EMPLOYEE WORK HISTORY — Riwayat pekerjaan sebelumnya
+// ============================================================
+
+model EmployeeWorkHistory {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyName    String
+  position       String?
+  startDate      DateTime?
+  endDate        DateTime?
+  lastSalary     Decimal? @db.Decimal(15, 2)
+  reasonLeaving  String?
+  referencePhone String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("employee_work_histories")
+}
+
+// ============================================================
+// EMPLOYEE BANK ACCOUNT — Untuk keperluan payroll
+// ============================================================
+
+model EmployeeBankAccount {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  bankName      String
+  bankCode      String?  // kode bank BI
+  accountNumber String
+  accountName   String   // nama pemilik rekening
+  isPrimary     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("employee_bank_accounts")
+}
+
+// ============================================================
+// EMPLOYEE BPJS
+// ============================================================
+
+model EmployeeBpjs {
+  id               String   @id @default(cuid())
+  employeeId       String   @unique
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // BPJS Kesehatan
+  bpjsHealthNumber String?
+  bpjsHealthClass  Int?     // 1, 2, atau 3
+  bpjsHealthDate   DateTime? // tanggal aktif
+
+  // BPJS Ketenagakerjaan
+  bpjsTkNumber     String?  // nomor KPJ
+  bpjsJhtDate      DateTime? // tanggal aktif JHT
+  bpjsJpDate       DateTime? // tanggal aktif JP (Jaminan Pensiun)
+  bpjsJkkDate      DateTime? // Jaminan Kecelakaan Kerja
+  bpjsJkmDate      DateTime? // Jaminan Kematian
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("employee_bpjs")
+}
+
+// ============================================================
+// EMPLOYEE DOCUMENT
+// ============================================================
+
+model EmployeeDocument {
+  id           String       @id @default(cuid())
+  employeeId   String
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentType DocumentType
+  name         String       // nama file / label
+  fileUrl      String
+  fileSize     BigInt?
+  mimeType     String?
+  expiredAt    DateTime?    // untuk dokumen yang ada masa berlakunya
+  note         String?
+  uploadedAt   DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("employee_documents")
+}
+
+enum DocumentType {
+  KTP
+  NPWP
+  IJAZAH
+  TRANSKRIP
+  SERTIFIKAT
+  KONTRAK_KERJA
+  FOTO
+  KARTU_KELUARGA
+  BPJS_KESEHATAN
+  BPJS_KETENAGAKERJAAN
+  CV
+  OTHER
+}
