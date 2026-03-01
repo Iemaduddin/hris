@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuChevronDown, LuFileText, LuHouse, LuLogOut, LuUsers, LuCircleDot } from "react-icons/lu";
+import { LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUsers } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Button from "../../ui/button";
 
@@ -15,15 +15,37 @@ type SidebarItem = {
 	children?: SidebarItem[];
 };
 
-const sidebarItems: SidebarItem[] = [
-	{ id: "dashboard", label: "Dashboard", href: "/", icon: LuHouse },
+type SidebarSection = {
+	id: string;
+	label: string;
+	items: SidebarItem[];
+};
+
+const sidebarSections: SidebarSection[] = [
 	{
-		id: "employees",
-		label: "Employees",
-		href: "/employees",
-		icon: LuUsers,
-		children: [
-			{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuFileText },
+		id: "main",
+		label: "Main",
+		items: [{ id: "dashboard", label: "Dashboard", href: "/", icon: LuHouse }],
+	},
+	{
+		id: "master-data",
+		label: "Master Data",
+		items: [
+			{
+				id: "employees",
+				label: "Employees",
+				href: "/employees",
+				icon: LuUsers,
+				children: [
+					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuFileText },
+				],
+			},
+		],
+	},
+	{
+		id: "transactions",
+		label: "Transactions",
+		items: [
 			{
 				id: "attendance",
 				label: "Attendance",
@@ -43,15 +65,22 @@ const sidebarItems: SidebarItem[] = [
 						id: "payslip",
 						label: "Payslip",
 						icon: LuFileText,
-						children: [
-							{ id: "download", label: "Download", href: "/employees/payroll/payslip/download", icon: LuFileText },
-						],
+						children: [{ id: "download", label: "Download", href: "/employees/payroll/payslip/download", icon: LuFileText }],
 					},
 				],
 			},
 		],
 	},
-	{ id: "reports", label: "Reports", href: "/reports", icon: LuFileText },
+	{
+		id: "reports",
+		label: "Reports",
+		items: [{ id: "reports-item", label: "Reports", href: "/reports", icon: LuFileText }],
+	},
+	{
+		id: "settings",
+		label: "Settings",
+		items: [{ id: "company-data", label: "Company Data", href: "/settings/company-data", icon: LuSettings }],
+	},
 ];
 
 const normalizePath = (path: string) => (path === "/" ? "/" : path.replace(/\/$/, ""));
@@ -101,8 +130,9 @@ function SidebarEntry({ item, depth, pathname, openItems, setOpenItems }: Sideba
 			<span className="flex-1 truncate text-left font-medium">{item.label}</span>
 			{hasChildren && (
 				<LuChevronDown
-					className={`h-5 w-5 mr-1 transition-transform ${opened ? "rotate-180" : ""} ${active ? "text-white" : "text-slate-500 dark:text-slate-400"
-						}`}
+					className={`mr-1 h-5 w-5 transition-transform ${opened ? "rotate-180" : ""} ${
+						active ? "text-white" : "text-slate-500 dark:text-slate-400"
+					}`}
 				/>
 			)}
 		</>
@@ -157,7 +187,10 @@ export default function Sidebar() {
 			}
 		};
 
-		walk(sidebarItems);
+		for (const section of sidebarSections) {
+			walk(section.items);
+		}
+
 		return open;
 	}, [pathname]);
 
@@ -168,36 +201,38 @@ export default function Sidebar() {
 	}, [defaultOpenState]);
 
 	return (
-		<aside className="flex h-screen w-72 flex-col border-r border-blue-100 bg-white dark:border-blue-900/60 dark:bg-slate-900">
+		<aside className="flex h-full w-72 shrink-0 flex-col border-r border-blue-100 bg-white dark:border-blue-900/60 dark:bg-slate-900">
 			<div className="p-6">
-				<h1 className="text-xl text-center font-bold tracking-tight text-slate-900 dark:text-slate-100">H R I S</h1>
+				<h1 className="text-center text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">H R I S</h1>
 			</div>
 
 			<nav className="flex-1 overflow-y-auto px-4 py-4">
-				<ul className="space-y-1">
-					{sidebarItems.map((item) => (
-						<SidebarEntry
-							key={item.id}
-							item={item}
-							depth={0}
-							pathname={pathname}
-							openItems={openItems}
-							setOpenItems={setOpenItems}
-						/>
+				<div className="space-y-5">
+					{sidebarSections.map((section) => (
+						<div key={section.id}>
+							<p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+								{section.label}
+							</p>
+							<ul className="space-y-1">
+								{section.items.map((item) => (
+									<SidebarEntry
+										key={item.id}
+										item={item}
+										depth={0}
+										pathname={pathname}
+										openItems={openItems}
+										setOpenItems={setOpenItems}
+									/>
+								))}
+							</ul>
+						</div>
 					))}
-				</ul>
+				</div>
 			</nav>
 
-			<div className="border-t border-blue-100 px-4 py-4 dark:border-blue-900/60">
-				<Button
-					variant="danger"
-					title="Logout"
-					aria-label="Logout"
-					rightIcon={<LuLogOut className="h-4 w-4" />}
-					fullWidth
-				>
+			<div className="px-4 py-4">
+				<Button variant="danger" title="Logout" aria-label="Logout" rightIcon={<LuLogOut className="h-4 w-4" />} fullWidth>
 					Logout
-				
 				</Button>
 			</div>
 		</aside>

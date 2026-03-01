@@ -56,7 +56,7 @@ export default function Topbar() {
     setOpenMenu((prev) => (prev === menu ? null : menu));
   };
   const iconTriggerClass =
-    "inline-flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60";
+    "inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition hover:bg-blue-100  dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60";
 
   const isDark = mounted && resolvedTheme === "dark";
 
@@ -95,7 +95,7 @@ export default function Topbar() {
             <LuBell className="h-4 w-4" />
           </button>
           {openMenu === "notification" && (
-            <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-blue-200 bg-blue-50 p-3 shadow-sm dark:border-blue-800 dark:bg-blue-900/30">
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl bg-blue-50 p-3 shadow-sm  dark:bg-blue-900/30">
               <p className="text-sm text-slate-600 dark:text-slate-300">No new notifications</p>
             </div>
           )}
@@ -104,18 +104,18 @@ export default function Topbar() {
         <div className="relative">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 transition hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60"
+            className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 transition hover:bg-blue-100  dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60"
             onClick={() => toggleMenu("avatar")}
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-200 text-xs font-semibold text-blue-800 dark:bg-blue-800 dark:text-blue-100">
-                AD
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-200 text-sm font-semibold text-blue-800 dark:bg-blue-800 dark:text-blue-100">
+                ID
               </span>
               <div className="flex flex-col gap-1 text-left">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Admin
+                  Iemaduddin
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Iemaduddin</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">iemaduddin@mail.com</span>
               </div>
             </div>
             <LuChevronDown
