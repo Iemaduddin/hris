@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
+import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { submitCompanyDataAction } from "../actions/company-data.actions";
@@ -28,6 +30,7 @@ type CompanyDataFormProps = {
 
 export default function CompanyDataForm({ company, locationOptions }: CompanyDataFormProps) {
 	const [state, formAction] = useActionState<CompanyActionResult | null, FormData>(submitCompanyDataAction, null);
+	const router = useRouter();
 	const formRef = useRef<HTMLFormElement>(null);
 	const [provinceId, setProvinceId] = useState(company?.provinceId ?? "");
 	const [cityId, setCityId] = useState(company?.cityId ?? "");
@@ -95,6 +98,14 @@ export default function CompanyDataForm({ company, locationOptions }: CompanyDat
 				return;
 			}
 		}
+	}, [state]);
+
+	useEffect(() => {
+		if (!state?.success) return;
+
+		toast.success(state.message || "Data perusahaan berhasil disimpan.");
+		router.refresh();
+
 	}, [state]);
 
 	return (

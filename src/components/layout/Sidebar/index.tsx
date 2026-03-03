@@ -6,6 +6,12 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUsers } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Button from "../../ui/button";
+import Image from "next/image";
+
+type SidebarCompany = {
+	name: string;
+	logo: string | null;
+} | null;
 
 type SidebarItem = {
 	id: string;
@@ -172,7 +178,11 @@ function SidebarEntry({ item, depth, pathname, openItems, setOpenItems }: Sideba
 	);
 }
 
-export default function Sidebar() {
+type SidebarProps = {
+	company: SidebarCompany;
+};
+
+export default function Sidebar({ company }: SidebarProps) {
 	const pathname = usePathname();
 
 	const defaultOpenState = useMemo(() => {
@@ -202,8 +212,18 @@ export default function Sidebar() {
 
 	return (
 		<aside className="flex h-full w-72 shrink-0 flex-col border-r border-blue-100 bg-white dark:border-blue-900/60 dark:bg-slate-900">
-			<div className="p-6">
-				<h1 className="text-center text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">H R I S</h1>
+			<div className="flex items-center gap-2 p-4">
+				{company?.logo ? (
+					<Image src={company.logo} alt="Company Logo" width={32} height={32} className="h-12 w-12 rounded-2xl object-cover" />
+				) : (
+					<div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+						HR
+					</div>
+				)}
+				<div className="flex flex-col">
+				<h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">H R I S</h1>
+				<p className="text-sm text-slate-500 dark:text-slate-400">{company?.name || "Nama Perusahaan"}</p>
+				</div>
 			</div>
 
 			<nav className="flex-1 overflow-y-auto px-4 py-4">

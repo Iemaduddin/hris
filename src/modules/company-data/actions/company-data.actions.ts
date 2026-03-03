@@ -206,14 +206,14 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 	if (!companyId) {
 		return {
 			success: false,
-			message: "Simpan data company terlebih dahulu sebelum upload avatar.",
+			message: "Simpan data company terlebih dahulu sebelum upload logo.",
 		};
 	}
 
 	if (!(file instanceof File)) {
 		return {
 			success: false,
-			message: "File avatar tidak valid.",
+			message: "File logo tidak valid.",
 		};
 	}
 
@@ -245,7 +245,7 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 
 	return {
 		success: true,
-		message: "Avatar berhasil disimpan.",
+		message: "Logo berhasil disimpan.",
 		logo: relativePath,
 	};
 }

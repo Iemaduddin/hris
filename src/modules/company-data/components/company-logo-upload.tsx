@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { FiEdit2 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { uploadCompanyLogoAction } from "../actions/company-data.actions";
@@ -66,6 +67,7 @@ async function compressImage(file: File): Promise<File> {
 }
 
 export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUploadProps) {
+	const router = useRouter();
 	const isUploadDisabled = !companyId;
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [currentLogo, setCurrentLogo] = useState(logo ?? "");
@@ -94,7 +96,8 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 	};
 
 	const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-		const file = event.currentTarget.files?.[0];
+		const inputElement = event.currentTarget;
+		const file = inputElement.files?.[0];
 		if (!file) return;
 
 		setError(null);
@@ -104,7 +107,7 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 			const messageText = "File harus berupa gambar.";
 			setError(messageText);
 			toast.error(messageText);
-			event.currentTarget.value = "";
+			inputElement.value = "";
 			return;
 		}
 
@@ -112,7 +115,7 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 			const messageText = "Ukuran file maksimal 2MB.";
 			setError(messageText);
 			toast.error(messageText);
-			event.currentTarget.value = "";
+			inputElement.value = "";
 			return;
 		}
 
@@ -131,7 +134,7 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 			toast.error(messageText);
 		}
 
-		event.currentTarget.value = "";
+		inputElement.value = "";
 	};
 
 	const handleSave = async () => {
@@ -164,6 +167,7 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 		setCurrentLogo(result.logo ?? "");
 		setMessage(result.message);
 		toast.success(result.message);
+		router.refresh();
 		resetDialogState();
 	};
 
