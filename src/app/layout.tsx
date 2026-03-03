@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ThemeProvider from "@/src/components/providers/theme-provider";
+import ToastProvider from "@/src/components/providers/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <ToastProvider />
         </ThemeProvider>
       </body>
     </html>
