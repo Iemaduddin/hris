@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUsers } from "react-icons/lu";
+import { LuBuilding, LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUsers } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Button from "../../ui/button";
 import Image from "next/image";
@@ -85,7 +85,20 @@ const sidebarSections: SidebarSection[] = [
 	{
 		id: "settings",
 		label: "Settings",
-		items: [{ id: "company-data", label: "Company Data", href: "/settings/company-data", icon: LuSettings }],
+		items: [
+			{ 
+				id: "company-data", 
+				label: "Data Perusahaan",
+				icon: LuSettings,
+				children:[
+					{ id: "company-data-item", label: "Profil", href: "/settings/company-data", icon: LuBuilding },
+					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit", icon: LuBuilding },
+					{ id: "job-grade-item", label: "Job Grade", href: "/settings/job-grade", icon: LuFileText },
+					{ id: "position-item", label: "Position", href: "/settings/position", icon: LuFileText },
+					{ id: "work-location-item", label: "Work Location", href: "/settings/work-location", icon: LuFileText },
+				]
+			 }
+		],
 	},
 ];
 
@@ -131,14 +144,12 @@ function SidebarEntry({ item, depth, pathname, openItems, setOpenItems }: Sideba
 		<>
 			<span className={lineClass} />
 			<span className={active ? "text-blue-700 dark:text-blue-100" : "text-slate-500 dark:text-slate-400"}>
-				<ItemIcon className={depth === 0 ? "h-4 w-4" : "h-3.5 w-3.5"} />
+				<ItemIcon className={depth === 0 ? "h-5 w-5" : "h-4.5 w-4.5"} />
 			</span>
 			<span className="flex-1 truncate text-left font-medium">{item.label}</span>
 			{hasChildren && (
 				<LuChevronDown
-					className={`mr-1 h-5 w-5 transition-transform ${opened ? "rotate-180" : ""} ${
-						active ? "text-white" : "text-slate-500 dark:text-slate-400"
-					}`}
+					className={`mr-1 h-5 w-5 transition-transform ${opened ? "rotate-180" : ""}`}
 				/>
 			)}
 		</>
