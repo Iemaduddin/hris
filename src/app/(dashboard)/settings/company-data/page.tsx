@@ -2,11 +2,6 @@ import { getCompanyData, getCompanyLocationOptions } from "@/src/modules/company
 import CompanyDataForm from "@/src/modules/company-data/components/company-data-form";
 import CompanyLogoUpload from "@/src/modules/company-data/components/company-logo-upload";
 
-function displayValue(value?: string | null) {
-    if (!value || !value.trim()) return "-";
-    return value;
-}
-
 export default async function CompanyDataPage() {
     const [company, locationOptions] = await Promise.all([getCompanyData(), getCompanyLocationOptions()]);
     return (
