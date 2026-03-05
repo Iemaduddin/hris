@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { LuArrowDown, LuArrowUp, LuChevronDown, LuChevronUp } from "react-icons/lu";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { LuArrowDown, LuArrowUp, LuArrowUpDown, LuChevronDown, LuChevronUp } from "react-icons/lu";
 import Button from "./button";
 
 type SortDirection = "asc" | "desc";
@@ -28,10 +28,14 @@ export type DataTableProps<TData> = {
 	columns: DataTableColumn<TData>[];
 	getRowId: (row: TData) => string;
 	emptyMessage?: string;
+	sortable?: boolean;
+	searchable?: boolean;
 	searchPlaceholder?: string;
 	pageSizeOptions?: number[];
 	initialPageSize?: number;
+	initialSortState?: { columnId: string; direction: SortDirection } | null;
 	onSelectionChange?: (selectedIds: string[]) => void;
+	selectionResetKey?: string | number;
 };
 
 function toSearchText(value: unknown): string {
@@ -69,25 +73,29 @@ export default function DataTable<TData>({
 	columns,
 	getRowId,
 	emptyMessage = "No data found.",
+	sortable = true,
+	searchable = true,
 	searchPlaceholder = "Search...",
 	pageSizeOptions = [10, 20, 50],
 	initialPageSize = 10,
+	initialSortState = null,
 	onSelectionChange,
+	selectionResetKey,
 }: DataTableProps<TData>) {
 	const [query, setQuery] = useState("");
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(initialPageSize);
-	const [sortState, setSortState] = useState<{ columnId: string; direction: SortDirection } | null>(null);
+	const [sortState, setSortState] = useState<{ columnId: string; direction: SortDirection } | null>(initialSortState);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-	const searchableColumns = useMemo(
-		() => columns.filter((column) => column.searchable || (!column.render && column.accessor)),
-		[columns],
-	);
+	const searchableColumns = useMemo(() => {
+		if (!searchable) return [];
+		return columns.filter((column) => column.searchable || (!column.render && column.accessor));
+	}, [columns, searchable]);
 
 	const filteredRows = useMemo(() => {
-		if (!query.trim()) return data;
+		if (!searchable || !query.trim()) return data;
 		const q = query.trim().toLowerCase();
 
 		return data.filter((row) =>
@@ -101,11 +109,11 @@ export default function DataTable<TData>({
 	}, [data, query, searchableColumns]);
 
 	const sortedRows = useMemo(() => {
-		if (!sortState) return filteredRows;
+		if (!sortable || !sortState) return filteredRows;
 		const column = columns.find((item) => item.id === sortState.columnId);
 		if (!column) return filteredRows;
 		return sortRows(filteredRows, column, sortState.direction);
-	}, [columns, filteredRows, sortState]);
+	}, [columns, filteredRows, sortState, sortable]);
 
 	const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
 
@@ -127,6 +135,10 @@ export default function DataTable<TData>({
 	}, [onSelectionChange, selectedIds]);
 
 	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [selectionResetKey]);
+
+	useEffect(() => {
 		setExpandedRows((prev) => {
 			const next = new Set<string>();
 			for (const id of prev) {
@@ -143,6 +155,8 @@ export default function DataTable<TData>({
 	const somePageSelected = pageRowIds.some((id) => selectedIds.has(id));
 
 	const toggleSort = (columnId: string) => {
+		if (!sortable) return;
+
 		setSortState((prev) => {
 			if (!prev || prev.columnId !== columnId) {
 				return { columnId, direction: "asc" };
@@ -188,16 +202,18 @@ export default function DataTable<TData>({
 		<div className="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900/60 dark:bg-slate-900">
 			<div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="flex flex-1 items-center gap-2">
-					<input
-						type="text"
-						value={query}
-						onChange={(event) => {
-							setQuery(event.target.value);
-							setPage(1);
-						}}
-						placeholder={searchPlaceholder}
-						className="h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 dark:border-blue-800 dark:bg-blue-900/30 dark:text-slate-100 dark:placeholder:text-slate-500"
-					/>
+					{searchable && (
+						<input
+							type="text"
+							value={query}
+							onChange={(event) => {
+								setQuery(event.target.value);
+								setPage(1);
+							}}
+							placeholder={searchPlaceholder}
+							className="h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 dark:border-blue-800 dark:bg-blue-900/30 dark:text-slate-100 dark:placeholder:text-slate-500"
+						/>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2">
@@ -248,7 +264,7 @@ export default function DataTable<TData>({
 											isHiddenMobile ? "hidden md:table-cell" : ""
 										} ${column.headerClassName ?? ""}`}
 									>
-										{column.sortable ? (
+										{sortable && column.sortable ? (
 											<button
 												type="button"
 												onClick={() => toggleSort(column.id)}
@@ -261,7 +277,9 @@ export default function DataTable<TData>({
 													) : (
 														<LuArrowDown className="h-4 w-4" />
 													)
-												) : null}
+												) : (
+													<LuArrowUpDown className="h-4 w-4 opacity-60" />
+												)}
 											</button>
 										) : (
 											column.header
@@ -289,8 +307,8 @@ export default function DataTable<TData>({
 								const isExpanded = expandedRows.has(rowId);
 
 								return (
-									<>
-										<tr key={rowId} className="hover:bg-blue-50/60 dark:hover:bg-blue-900/20">
+									<Fragment key={rowId}>
+										<tr className="hover:bg-blue-50/60 dark:hover:bg-blue-900/20">
 											<td className="border-b border-blue-100 px-2 py-3 align-top dark:border-blue-900/60">
 												<input
 													type="checkbox"
@@ -334,7 +352,7 @@ export default function DataTable<TData>({
 										</tr>
 
 										{hiddenColumns.length > 0 && isExpanded && (
-											<tr key={`${rowId}-expanded`} className="md:hidden">
+											<tr className="md:hidden">
 												<td colSpan={columns.length + 2} className="border-b border-blue-100 px-3 py-3 dark:border-blue-900/60">
 													<div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 dark:border-blue-900/60 dark:bg-blue-900/20">
 														<div className="space-y-2">
@@ -358,7 +376,7 @@ export default function DataTable<TData>({
 												</td>
 											</tr>
 										)}
-									</>
+									</Fragment>
 								);
 							})
 						)}

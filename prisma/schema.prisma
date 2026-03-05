@@ -22,6 +22,7 @@ model User {
   id            String    @id @default(cuid())
   name          String
   email         String    @unique
+  role          UserRole  @default(EMPLOYEE)
   emailVerified Boolean   @default(false)
   image         String?
   createdAt     DateTime  @default(now())
@@ -35,6 +36,14 @@ model User {
   employees      Employee[]
 
   @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  HR_MANAGER
+  MANAGER
+  EMPLOYEE
 }
 
 model Session {
