@@ -40,11 +40,7 @@ export default function LoginForm() {
 	};
 
 	return (
-		<form onSubmit={handleSubmit} className="w-full max-w-md space-y-5 rounded-2xl border border-blue-100 bg-white p-7 shadow-sm dark:border-blue-900/60 dark:bg-slate-900">
-			<div>
-				<h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Login</h2>
-				<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Masuk ke akun Anda untuk melanjutkan.</p>
-			</div>
+		<form onSubmit={handleSubmit} className="mt-6 w-full space-y-5 rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
 			<FloatingInput
 				name="email"
 				type="email"
@@ -63,6 +59,7 @@ export default function LoginForm() {
 				onChange={(event) => setPassword(event.currentTarget.value)}
 				required
 			/>
+			<p className="text-xs text-slate-500 dark:text-slate-400">Pastikan email dan password sesuai dengan akun yang telah dibuat.</p>
 			<Button type="submit" variant="primary" fullWidth disabled={isPending}>
 				{isPending ? "Memproses..." : "Masuk"}
 			</Button>

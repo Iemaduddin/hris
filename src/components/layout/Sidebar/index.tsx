@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { LuBuilding, LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUserRoundCog, LuUsers } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Button from "../../ui/button";
 import Image from "next/image";
+import { authClient } from "@/src/lib/auth-client";
+import { toast } from "react-toastify";
 
 type SidebarCompany = {
 	name: string;
@@ -300,7 +302,7 @@ type SidebarProps = {
 
 export default function Sidebar({ company, collapsed = false }: SidebarProps) {
 	const pathname = usePathname();
-
+	const  router = useRouter();
 	const defaultOpenState = useMemo(() => {
 		const open: Record<string, boolean> = {};
 
@@ -331,6 +333,16 @@ export default function Sidebar({ company, collapsed = false }: SidebarProps) {
 		setOpenFlyoutId(null);
 	}, [pathname, collapsed]);
 
+	  const handleSignOut = async () => {
+		try {
+		  await authClient.signOut();
+		  router.push("/login");
+		  router.refresh();
+		}catch (error) {
+		  console.error("Error during sign out:", error);
+		  toast.error("Gagal melakukan logout. Silakan coba lagi.");
+		}
+	  }
 	return (
 		<aside className="relative z-20 flex h-full w-full shrink-0 flex-col border-r border-blue-100 bg-white dark:border-blue-900/60 dark:bg-slate-900">
 			<div className={`flex items-center p-4 ${collapsed ? "justify-center" : "gap-2"}`}>
@@ -380,6 +392,7 @@ export default function Sidebar({ company, collapsed = false }: SidebarProps) {
 
 			<div className={`py-4 ${collapsed ? "px-2" : "px-4"}`}>
 				<Button
+				onClick={handleSignOut}
 					variant="danger"
 					title="Logout"
 					aria-label="Logout"
