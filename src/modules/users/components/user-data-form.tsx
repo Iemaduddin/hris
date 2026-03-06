@@ -127,7 +127,7 @@ export default function UserDataForm({ roles, users }: UserDataFormProps) {
 				<FloatingSelect
 					name="role"
 					label="Role"
-					defaultValue={editingUser?.role ?? roles[0]?.value ?? "EMPLOYEE"}
+					defaultValue={editingUser?.role ?? "EMPLOYEE"}
 					options={roles.map((item) => ({ value: item.value, label: item.label }))}
 					errorText={state?.errors?.role}
 					searchable={false}

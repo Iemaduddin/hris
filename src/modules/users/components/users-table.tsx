@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
+import ConfirmDialog from "@/src/components/ui/confirm-dialog";
 import {
 	bulkDeleteUsersAction,
 	bulkUpdateUserRoleAction,
@@ -22,11 +23,11 @@ const dateFormatter = new Intl.DateTimeFormat("id-ID", {
 });
 
 const roleLabel: Record<UserSummary["role"], string> = {
-	SUPER_ADMIN: "Super Admin",
-	ADMIN: "Admin",
+	EMPLOYEE: "Employee",
 	HR_MANAGER: "HR Manager",
 	MANAGER: "Manager",
-	EMPLOYEE: "Employee",
+	ADMIN: "Admin",
+	SUPER_ADMIN: "Super Admin",
 };
 
 function getColumns(roles: UserRoleOption[]): DataTableColumn<UserSummary>[] {
@@ -82,6 +83,7 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [bulkRole, setBulkRole] = useState<UserSummary["role"]>(roles[0]?.value ?? "EMPLOYEE");
 	const [selectionResetKey, setSelectionResetKey] = useState(0);
+	const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
 	const handleBulkUpdateRole = () => {
 		if (selectedIds.length === 0) {
@@ -102,11 +104,22 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 		});
 	};
 
+	const openBulkDeleteDialog = () => {
+		if (selectedIds.length === 0) {
+			toast.error("Pilih minimal satu user.");
+			return;
+		}
+
+		setIsBulkDeleteDialogOpen(true);
+	};
+
 	const handleBulkDelete = () => {
 		if (selectedIds.length === 0) {
 			toast.error("Pilih minimal satu user.");
 			return;
 		}
+
+		setIsBulkDeleteDialogOpen(false);
 
 		startTransition(async () => {
 			const result = await bulkDeleteUsersAction(selectedIds);
@@ -152,7 +165,7 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 					</button>
 					<button
 						type="button"
-						onClick={handleBulkDelete}
+						onClick={openBulkDeleteDialog}
 						disabled={isPending || selectedIds.length === 0}
 						className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
 					>
@@ -174,6 +187,17 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 				initialSortState={{ columnId: "createdAt", direction: "desc" }}
 				onSelectionChange={setSelectedIds}
 				selectionResetKey={selectionResetKey}
+			/>
+
+			<ConfirmDialog
+				open={isBulkDeleteDialogOpen}
+				title="Konfirmasi Hapus User Terpilih"
+				description={`${selectedIds.length} user terpilih akan dihapus permanen. Lanjutkan?`}
+				confirmText="Ya, Hapus Semua"
+				cancelText="Batal"
+				isLoading={isPending}
+				onCancel={() => setIsBulkDeleteDialogOpen(false)}
+				onConfirm={handleBulkDelete}
 			/>
 		</div>
 	);

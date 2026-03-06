@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
+import ConfirmDialog from "@/src/components/ui/confirm-dialog";
 import {
   deleteUserAction,
 } from "../actions/user.actions";
 import type { UserSummary } from "../types/user.type";
+import Button from "@/src/components/ui/button";
 
 type UserActionsCellProps = {
   user: UserSummary;
@@ -17,6 +19,7 @@ export default function UserActionsCell({ user }: UserActionsCellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleEditUser = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -24,11 +27,17 @@ export default function UserActionsCell({ user }: UserActionsCellProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const handleDeleteUser = () => {
+  const openDeleteDialog = () => {
     if (user.role === "SUPER_ADMIN") {
       toast.error("User dengan role Super Admin tidak boleh dihapus.");
       return;
     }
+
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = () => {
+    setIsDeleteDialogOpen(false);
 
     startTransition(async () => {
       const formData = new FormData();
@@ -48,23 +57,38 @@ export default function UserActionsCell({ user }: UserActionsCellProps) {
   return (
     <div className="flex min-w-40 items-center gap-2">
 
-      <button
+      <Button
+        variant="soft"
+        styleMode="outline"
         type="button"
         onClick={handleEditUser}
         disabled={isPending}
         className="inline-flex h-9 items-center justify-center rounded-lg bg-amber-500 px-3 text-xs font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
       >
         Edit
-      </button>
+      </Button>
 
-      <button
+      <Button
+        variant="danger"
+        styleMode="outline"
         type="button"
-        onClick={handleDeleteUser}
+        onClick={openDeleteDialog}
         disabled={isPending || user.role === "SUPER_ADMIN"}
         className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-3 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
       >
         Hapus
-      </button>
+      </Button>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title="Konfirmasi Hapus User"
+        description={`User ${user.name} akan dihapus permanen. Lanjutkan?`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        isLoading={isPending}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteUser}
+      />
     </div>
   );
 }
