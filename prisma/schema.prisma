@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -13,37 +7,25 @@ datasource db {
   provider = "postgresql"
 }
 
-
 // ============================================================
-// BETTER AUTH — Core tables 
+// BETTER AUTH — Core tables
 // ============================================================
 
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
-  email         String    @unique
-  role          UserRole  @default(EMPLOYEE)
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  role          String   @default("EMPLOYEE")
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  // Better Auth relations
-  sessions      Session[]
-  accounts      Account[]
-
-  // Custom relations
-  employees      Employee[]
+  sessions Session[]
+  accounts Account[]
+  karyawan Karyawan[]
 
   @@map("users")
-}
-
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-  HR_MANAGER
-  MANAGER
-  EMPLOYEE
 }
 
 model Session {
@@ -90,377 +72,346 @@ model Verification {
   @@map("verifications")
 }
 
-
-
 // ============================================================
-// PROVINSI, KOTA/KABUPATEN, KECAMATAN, DESA/KELURAHAN
+// MASTER DATA WILAYAH
 // ============================================================
-model Province {
-  id        String   @id @default(cuid())
-  name      String
 
-  cities     City[]
-  @@map("provinces")
+model Provinsi {
+  id   String @id @default(cuid())
+  nama String
+
+  kota Kota[]
+
+  @@map("provinsi")
 }
 
-model City {
-  id          String   @id @default(cuid())
-  provinceId  String
-  name        String
-  province    Province @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+model Kota {
+  id         String   @id @default(cuid())
+  provinsiId String
+  nama       String
+  provinsi   Provinsi @relation(fields: [provinsiId], references: [id], onDelete: Cascade)
 
-  districts   District[]
-  @@index([provinceId])
-  @@map("cities")
+  kecamatan Kecamatan[]
+
+  @@index([provinsiId])
+  @@map("kota")
 }
 
-model District {
-  id        String   @id @default(cuid())
-  cityId    String
-  name      String
-  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+model Kecamatan {
+  id     String @id @default(cuid())
+  kotaId String
+  nama   String
+  kota   Kota   @relation(fields: [kotaId], references: [id], onDelete: Cascade)
 
-  villages   Village[]
-  @@index([cityId])
-  @@map("districts")
+  desa Desa[]
+
+  @@index([kotaId])
+  @@map("kecamatan")
 }
 
-model Village {
-  id          String   @id @default(cuid())
-  districtId  String
-  name        String
-  district    District @relation(fields: [districtId], references: [id], onDelete: Cascade)
-  @@index([districtId])
-  @@map("villages")
+model Desa {
+  id          String    @id @default(cuid())
+  kecamatanId String
+  nama        String
+  kecamatan   Kecamatan @relation(fields: [kecamatanId], references: [id], onDelete: Cascade)
+
+  @@index([kecamatanId])
+  @@map("desa")
 }
 
 // ============================================================
 // COMPANY — profil perusahaan
 // ============================================================
 
-model Company {
+model Perusahaan {
   id          String   @id @default(cuid())
-  name        String
+  nama        String
+  namaSingkat String?
   logo        String?
-  taxId       String?  // NPWP perusahaan
-  phone       String?
+  npwp        String?
+  telepon     String?
   email       String?
   website     String?
-  provinceId  String?
-  cityId      String?
-  districtId  String?
-  villageId   String?
-  address     String?  
-  postalCode  String?
+  provinsiId  String?
+  kotaId      String?
+  kecamatanId String?
+  desaId      String?
+  alamat      String?
+  kodePos     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("company")
+  @@map("perusahaan")
 }
 
 // ============================================================
-// ORGANIZATIONAL UNIT — Tree structure (unlimited depth)
+// UNIT ORGANISASI — struktur unit kerja yang sederhana
 // ============================================================
 
-model OrganizationalUnit {
-  id          String              @id @default(cuid())
-  parentId    String?             // null = root node
-  parent      OrganizationalUnit? @relation("OrgUnitTree", fields: [parentId], references: [id])
-  children    OrganizationalUnit[] @relation("OrgUnitTree")
+model UnitOrganisasi {
+  id       String           @id @default(cuid())
+  parentId String?
+  parent   UnitOrganisasi?  @relation("UnitTree", fields: [parentId], references: [id])
+  children UnitOrganisasi[] @relation("UnitTree")
 
-  name        String
-  code        String?             // kode unik unit, misal: DIV-001
-  type        OrgUnitType
-  description String?
-  level       Int                 @default(0) // 0=root, 1=child, dst — di-compute saat insert
-  path        String?             // materialized path: "id1.id2.id3" untuk query tree efisien
-  order       Int                 @default(0) // urutan tampil di org chart
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  nama      String
+  kode      String?
+  deskripsi String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  positions   Position[]
-  employees   EmployeePosition[]
+  posisi         Posisi[]
+  posisiKaryawan PosisiKaryawan[]
 
-  @@unique([code])
   @@index([parentId])
-  @@index([path])
-  @@map("organizational_units")
-}
-
-enum OrgUnitType {
-  DIVISION      // Divisi
-  DIRECTORATE   // Direktorat
-  DEPARTMENT    // Departemen
-  SECTION       // Seksi
-  UNIT          // Unit
-  TEAM          // Tim
-  BRANCH        // Cabang
-  OTHER
+  @@map("unit_organisasi")
 }
 
 // ============================================================
-// JOB GRADE — Golongan/Grade jabatan
+// GOLONGAN POSISI — grade posisi
 // ============================================================
 
-model JobGrade {
-  id          String     @id @default(cuid())
-  name        String     // "Grade A", "Golongan III/b", dll
-  code        String?
-  level       Int        // angka untuk sorting & hierarki approval
-  minSalary   Decimal?   @db.Decimal(15, 2)
-  maxSalary   Decimal?   @db.Decimal(15, 2)
-  description String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+model GolonganPosisi {
+  id        String   @id @default(cuid())
+  nama      String
+  kode      String?  @unique
+  deskripsi String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  positions   Position[]
+  posisi Posisi[]
 
-  @@unique([code])
-  @@map("job_grades")
+  @@map("golongan_posisi")
 }
 
 // ============================================================
-// POSITION / JABATAN
+// POSISI
 // ============================================================
 
-model Position {
-  id                   String              @id @default(cuid())
-  organizationalUnitId String?
-  organizationalUnit   OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
-  jobGradeId           String?
-  jobGrade             JobGrade?           @relation(fields: [jobGradeId], references: [id])
+model Posisi {
+  id                String           @id @default(cuid())
+  unitOrganisasiId  String?
+  unitOrganisasi    UnitOrganisasi?  @relation(fields: [unitOrganisasiId], references: [id])
+  golonganPosisiId String?
+  golonganPosisi   GolonganPosisi? @relation(fields: [golonganPosisiId], references: [id])
 
-  name                 String
-  code                 String?
-  description          String?
-  isActive             Boolean             @default(true)
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  nama      String
+  kode      String?  @unique
+  deskripsi String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  employees            EmployeePosition[]
+  posisiKaryawan PosisiKaryawan[]
 
-  @@unique([code])
-  @@map("positions")
+  @@map("posisi")
 }
 
 // ============================================================
-// WORK LOCATION — Lokasi kantor / cabang
+// LOKASI KERJA — cabang / kantor / lokasi kerja
 // ============================================================
 
-model WorkLocation {
-  id            String    @id @default(cuid())
-  name          String
-  code          String?
-  address       String?
-  city          String?
-  province      String?
-  postalCode    String?
-  latitude      Float?    // untuk validasi geo-absensi
-  longitude     Float?
-  radiusMeters  Int?      @default(100)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+model LokasiKerja {
+  id        String   @id @default(cuid())
+  nama      String
+  kode      String?
+  alamat    String?
+  kota      String?
+  provinsi  String?
+  kodePos   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  employees     EmployeePosition[]
+  posisiKaryawan PosisiKaryawan[]
 
-  @@map("work_locations")
+  @@map("lokasi_kerja")
 }
 
 // ============================================================
-// EMPLOYEE — Data utama karyawan
+// KARYAWAN — Data utama karyawan
 // ============================================================
 
-model Employee {
-  id               String           @id @default(cuid())
-  userId           String?          // null jika belum punya akses login
-  user             User?            @relation(fields: [userId], references: [id])
-  employeeNumber   String           // NIK karyawan
+model Karyawan {
+  id            String  @id @default(cuid())
+  userId        String?
+  user          User?   @relation(fields: [userId], references: [id])
+  nomorKaryawan String
 
-  // --- Data Pribadi ---
-  fullName         String
-  nickname         String?
-  gender           Gender
-  birthPlace       String?
-  birthDate        DateTime?
-  nationalId       String?          // NIK KTP
-  taxId            String?          // NPWP
-  religion         Religion?
-  bloodType        BloodType?
-  maritalStatus    MaritalStatus?
-  photo            String?
+  namaLengkap  String
+  gender       JenisKelamin
+  tanggalLahir DateTime?
+  nik          String?
+  npwp         String?
+  telepon      String?
+  email        String?
+  alamat       String?
 
-  // --- Kontak ---
-  personalEmail    String?
-  workEmail        String?
-  phone            String?
-  emergencyContact Json?            // {name, phone, relation}
+  status         StatusKaryawan @default(AKTIF)
+  tanggalMasuk   DateTime
+  tanggalResign  DateTime?
 
-  // --- Alamat ---
-  currentAddress   String?
-  currentCity      String?
-  currentProvince  String?
-  currentPostal    String?
-  idAddress        String?          // alamat sesuai KTP (bisa beda)
-  idCity           String?
-  idProvince       String?
-  idPostal         String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // --- Status Kepegawaian ---
-  status           EmployeeStatus   @default(ACTIVE)
-  employmentType   EmploymentType
-  joinDate         DateTime
-  probationEndDate DateTime?
-  contractEndDate  DateTime?
-  resignDate       DateTime?
-  resignReason     String?
-  terminationNote  String?
+  kontrakKerja       KontrakKerja[]
+  posisiKaryawan    PosisiKaryawan[]
+  keluargaKaryawan   KeluargaKaryawan[]
+  pendidikanKaryawan PendidikanKaryawan[]
+  riwayatPekerjaan   RiwayatPekerjaan[]
+  dokumenKaryawan    DokumenKaryawan[]
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  // --- Relations ---
-  positions        EmployeePosition[]
-  families         EmployeeFamily[]
-  educations       EmployeeEducation[]
-  workHistories    EmployeeWorkHistory[]
-  bankAccounts     EmployeeBankAccount[]
-  bpjs             EmployeeBpjs?
-  documents        EmployeeDocument[]
-
-  @@unique([employeeNumber])
+  @@unique([nomorKaryawan])
   @@index([status])
-  @@map("employees")
-}
-
-enum Gender {
-  MALE
-  FEMALE
-}
-
-enum Religion {
-  ISLAM
-  PROTESTANT
-  CATHOLIC
-  HINDU
-  BUDDHIST
-  CONFUCIAN
-  OTHER
-}
-
-enum BloodType {
-  A
-  B
-  AB
-  O
-}
-
-enum MaritalStatus {
-  SINGLE
-  MARRIED
-  DIVORCED
-  WIDOWED
-}
-
-enum EmployeeStatus {
-  ACTIVE
-  INACTIVE
-  PROBATION
-  RESIGNED
-  TERMINATED
-  RETIRED
-}
-
-enum EmploymentType {
-  PERMANENT       // Karyawan Tetap
-  CONTRACT        // PKWT
-  INTERN          // Magang
-  FREELANCE       // Freelance
-  OUTSOURCING     // Outsourcing
+  @@map("karyawan")
 }
 
 // ============================================================
-// EMPLOYEE POSITION — Penempatan (bisa punya histori)
+// KONTRAK KERJA — Histori hubungan kerja employee
 // ============================================================
 
-model EmployeePosition {
-  id                   String              @id @default(cuid())
-  employeeId           String
-  employee             Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  organizationalUnitId String?
-  organizationalUnit   OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
-  positionId           String?
-  position             Position?           @relation(fields: [positionId], references: [id])
-  workLocationId       String?
-  workLocation         WorkLocation?       @relation(fields: [workLocationId], references: [id])
+model KontrakKerja {
+  id         String   @id @default(cuid())
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId],references: [id], onDelete: Cascade)
+  nomorKontrak String       @unique
+  jenisKontrak JenisKontrak
+  tanggalMulai   DateTime
+  tanggalSelesai DateTime?
+  status StatusKontrak @default(DRAFT)
+  gajiPokok Decimal? @db.Decimal(15, 2)
+  urlDokumen String?
+  catatan    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  isPrimary            Boolean             @default(true)  // jabatan utama
-  isCurrent            Boolean             @default(true)
-  effectiveDate        DateTime
-  endDate              DateTime?
-  note                 String?             // misal: "Promosi dari Staff ke Supervisor"
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  @@index([karyawanId])
+  @@index([karyawanId, status])
+  @@index([tanggalMulai])
+  @@index([tanggalSelesai])
 
-  @@index([employeeId, isCurrent])
-  @@map("employee_positions")
+  @@map("kontrak_kerja")
+}
+
+
+// ============================================================
+// ENUM — JENIS KONTRAK
+// ============================================================
+
+enum JenisKontrak {
+  PKWT
+  PKWTT
+  MAGANG
+  FREELANCE
+  OUTSOURCING
+}
+
+
+// ============================================================
+// ENUM — STATUS KONTRAK
+// ============================================================
+
+enum StatusKontrak {
+  DRAFT
+  AKTIF
+  AKAN_BERAKHIR
+  BERAKHIR
+  DIBATALKAN
+}
+
+enum JenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+enum StatusKaryawan {
+  AKTIF
+  TIDAK_AKTIF
+  PROBASI
+  RESIGN
+  DIHENTIKAN
+  PENSIUN
+}
+
+
+
+// ============================================================
+// POSISI KARYAWAN — riwayat posisi yang pernah/terpilih
+// ============================================================
+
+model PosisiKaryawan {
+  id               String          @id @default(cuid())
+  karyawanId       String
+  karyawan         Karyawan        @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  unitOrganisasiId String?
+  unitOrganisasi   UnitOrganisasi? @relation(fields: [unitOrganisasiId], references: [id])
+  posisiId        String?
+  posisi          Posisi?        @relation(fields: [posisiId], references: [id])
+  lokasiKerjaId    String?
+  lokasiKerja      LokasiKerja?    @relation(fields: [lokasiKerjaId], references: [id])
+
+  isPrimary       Boolean   @default(true)
+  isCurrent       Boolean   @default(true)
+  tanggalEfektif  DateTime
+  tanggalBerakhir DateTime?
+  catatan         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([karyawanId, isCurrent])
+  @@map("posisi_karyawan")
 }
 
 // ============================================================
-// EMPLOYEE FAMILY — Data keluarga & ahli waris
+// KELUARGA KARYAWAN — Data keluarga & ahli waris
 // ============================================================
 
-model EmployeeFamily {
-  id             String         @id @default(cuid())
-  employeeId     String
-  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  name           String
-  relation       FamilyRelation
-  gender         Gender
-  birthDate      DateTime?
-  nationalId     String?        // KTP anggota keluarga
-  occupation     String?
-  isDependent    Boolean        @default(false)  // tanggungan pajak
-  isBpjsDependent Boolean      @default(false)  // tanggungan BPJS
-  isHeir         Boolean        @default(false)  // ahli waris
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+model KeluargaKaryawan {
+  id           String           @id @default(cuid())
+  karyawanId   String
+  karyawan     Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  nama         String
+  hubungan     HubunganKeluarga
+  gender       JenisKelamin
+  tanggalLahir DateTime?
+  nik          String?
+  pekerjaan    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  @@map("employee_families")
+  @@map("keluarga_karyawan")
 }
 
-enum FamilyRelation {
-  SPOUSE
-  CHILD
-  PARENT
-  SIBLING
-  OTHER
+enum HubunganKeluarga {
+  PASANGAN
+  ANAK
+  ORANG_TUA
+  SAUDARA
+  LAINNYA
 }
 
 // ============================================================
-// EMPLOYEE EDUCATION
+// PENDIDIKAN KARYAWAN
 // ============================================================
 
-model EmployeeEducation {
-  id            String         @id @default(cuid())
-  employeeId    String
-  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  degree        EducationDegree
-  institution   String
-  major         String?
-  startYear     Int?
-  graduationYear Int?
-  gpa           Float?
-  isHighest     Boolean        @default(false)
-  documentUrl   String?        // scan ijazah
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+model PendidikanKaryawan {
+  id          String          @id @default(cuid())
+  karyawanId  String
+  karyawan    Karyawan        @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  gelar       GelarPendidikan
+  institusi   String
+  jurusan     String?
+  tahunMulai  Int?
+  tahunLulus  Int?
+  ipk         Float?
+  isHighest   Boolean         @default(false)
+  urlDokumen  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  @@map("employee_educations")
+  @@map("pendidikan_karyawan")
 }
 
-enum EducationDegree {
+enum GelarPendidikan {
   SD
   SMP
   SMA_SMK
@@ -471,103 +422,58 @@ enum EducationDegree {
   S1
   S2
   S3
-  OTHER
+  LAINNYA
 }
 
 // ============================================================
-// EMPLOYEE WORK HISTORY — Riwayat pekerjaan sebelumnya
+// RIWAYAT PEKERJAAN — Riwayat pekerjaan sebelumnya
 // ============================================================
 
-model EmployeeWorkHistory {
-  id             String   @id @default(cuid())
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  companyName    String
-  position       String?
-  startDate      DateTime?
-  endDate        DateTime?
-  lastSalary     Decimal? @db.Decimal(15, 2)
-  reasonLeaving  String?
-  referencePhone String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model RiwayatPekerjaan {
+  id               String    @id @default(cuid())
+  karyawanId       String
+  karyawan         Karyawan  @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  namaPerusahaan   String
+  posisi          String?
+  tanggalMulai     DateTime?
+  tanggalSelesai   DateTime?
+  gajiTerakhir     Decimal?  @db.Decimal(15, 2)
+  alasanKeluar     String?
+  teleponReferensi String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  @@map("employee_work_histories")
+  @@map("riwayat_pekerjaan")
 }
 
 // ============================================================
-// EMPLOYEE BANK ACCOUNT — Untuk keperluan payroll
+// DOKUMEN KARYAWAN
 // ============================================================
 
-model EmployeeBankAccount {
-  id            String   @id @default(cuid())
-  employeeId    String
-  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  bankName      String
-  bankCode      String?  // kode bank BI
-  accountNumber String
-  accountName   String   // nama pemilik rekening
-  isPrimary     Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model DokumenKaryawan {
+  id                String       @id @default(cuid())
+  karyawanId        String
+  karyawan          Karyawan     @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  jenisDokumen      JenisDokumen
+  nama              String
+  urlFile           String
+  ukuranFile        BigInt?
+  tipeFile          String?
+  tanggalKadaluarsa DateTime?
+  catatan           String?
+  tanggalUnggah     DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  @@map("employee_bank_accounts")
+  @@map("dokumen_karyawan")
 }
 
-// ============================================================
-// EMPLOYEE BPJS
-// ============================================================
-
-model EmployeeBpjs {
-  id               String   @id @default(cuid())
-  employeeId       String   @unique
-  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  // BPJS Kesehatan
-  bpjsHealthNumber String?
-  bpjsHealthClass  Int?     // 1, 2, atau 3
-  bpjsHealthDate   DateTime? // tanggal aktif
-
-  // BPJS Ketenagakerjaan
-  bpjsTkNumber     String?  // nomor KPJ
-  bpjsJhtDate      DateTime? // tanggal aktif JHT
-  bpjsJpDate       DateTime? // tanggal aktif JP (Jaminan Pensiun)
-  bpjsJkkDate      DateTime? // Jaminan Kecelakaan Kerja
-  bpjsJkmDate      DateTime? // Jaminan Kematian
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("employee_bpjs")
-}
-
-// ============================================================
-// EMPLOYEE DOCUMENT
-// ============================================================
-
-model EmployeeDocument {
-  id           String       @id @default(cuid())
-  employeeId   String
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  documentType DocumentType
-  name         String       // nama file / label
-  fileUrl      String
-  fileSize     BigInt?
-  mimeType     String?
-  expiredAt    DateTime?    // untuk dokumen yang ada masa berlakunya
-  note         String?
-  uploadedAt   DateTime     @default(now())
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  @@map("employee_documents")
-}
-
-enum DocumentType {
+enum JenisDokumen {
   KTP
   NPWP
   IJAZAH
   TRANSKRIP
+  PAKLARING
   SERTIFIKAT
   KONTRAK_KERJA
   FOTO
@@ -575,5 +481,5 @@ enum DocumentType {
   BPJS_KESEHATAN
   BPJS_KETENAGAKERJAAN
   CV
-  OTHER
+  LAINNYA
 }
