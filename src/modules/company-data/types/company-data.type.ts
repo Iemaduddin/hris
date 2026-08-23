@@ -14,7 +14,7 @@ export type CompanyFormValues = {
 	postalCode: string | null;
 };
 
-export type CompanyValidationErrors = Partial<Record<keyof CompanyFormValues | "currency" | "language" | "timezone", string>>;
+export type CompanyValidationErrors = Partial<Record<keyof CompanyFormValues, string>>;
 
 export type CompanyValidationResult =
 	| {

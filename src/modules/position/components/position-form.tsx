@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
+import { AddButton, EditButton } from "@/src/components/ui/button";
 import { submitPositionAction } from "../actions/position.actions";
 import type {
 	PositionActionResult,
@@ -18,25 +19,20 @@ import type {
 
 const EMPTY_FORM: PositionFormValues = {
 	id: "",
-	organizationalUnitId: null,
-	jobGradeId: null,
-	name: "",
-	code: null,
-	description: null,
-	isActive: true,
+	unitOrganisasiId: null,
+	golonganPosisiId: null,
+	nama: "",
+	kode: null,
+	deskripsi: null,
 };
 
 function SubmitButton({ hasId }: { hasId: boolean }) {
 	const { pending } = useFormStatus();
 
 	return (
-		<button
-			type="submit"
-			disabled={pending}
-			className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-		>
+		<AddButton type="submit" disabled={pending} withIcon={false}>
 			{pending ? "Menyimpan..." : hasId ? "Update Position" : "Simpan Position"}
-		</button>
+		</AddButton>
 	);
 }
 
@@ -46,19 +42,18 @@ type PositionFormProps = {
 };
 
 function toPositionLabel(position: PositionOption) {
-	const codeSuffix = position.code ? ` (${position.code})` : "";
-	return `${position.name}${codeSuffix}`;
+	const kodeSuffix = position.kode ? ` (${position.kode})` : "";
+	return `${position.nama}${kodeSuffix}`;
 }
 
 function toUnitLabel(unit: PositionSelectOption) {
-	const codeSuffix = unit.code ? ` (${unit.code})` : "";
-	const indent = "— ".repeat(Math.max(unit.level ?? 0, 0));
-	return `${indent}${unit.name}${codeSuffix}`;
+	const kodeSuffix = unit.kode ? ` (${unit.kode})` : "";
+	return `${unit.nama}${kodeSuffix}`;
 }
 
 function toGradeLabel(grade: PositionSelectOption) {
-	const codeSuffix = grade.code ? ` (${grade.code})` : "";
-	return `${grade.name}${codeSuffix}`;
+	const kodeSuffix = grade.kode ? ` (${grade.kode})` : "";
+	return `${grade.nama}${kodeSuffix}`;
 }
 
 function toFormValues(position?: PositionOption): PositionFormValues {
@@ -66,12 +61,11 @@ function toFormValues(position?: PositionOption): PositionFormValues {
 
 	return {
 		id: position.id,
-		organizationalUnitId: position.organizationalUnitId,
-		jobGradeId: position.jobGradeId,
-		name: position.name,
-		code: position.code,
-		description: position.description,
-		isActive: position.isActive,
+		unitOrganisasiId: position.unitOrganisasiId,
+		golonganPosisiId: position.golonganPosisiId,
+		nama: position.nama,
+		kode: position.kode,
+		deskripsi: position.deskripsi,
 	};
 }
 
@@ -110,7 +104,7 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
-		const orderedFields = ["name", "code", "organizationalUnitId", "jobGradeId", "description"] as const;
+		const orderedFields = ["nama", "kode", "unitOrganisasiId", "golonganPosisiId", "deskripsi"] as const;
 
 		for (const field of orderedFields) {
 			if (!state.errors[field]) continue;
@@ -132,12 +126,21 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 	}, [state]);
 
 	useEffect(() => {
-		if (!state?.success) return;
+		if (!state) return;
 
-		toast.success(state.message || "Data position berhasil disimpan.");
-		if (state.id) setSelectedPositionId(state.id);
-		router.refresh();
-	}, [router, state]);
+		if (state.success) {
+			toast.success(state.message || "Data position berhasil disimpan.");
+			if (state.id) setSelectedPositionId(state.id);
+		} else {
+			toast.error(state.message || "Gagal menyimpan data position.");
+		}
+	}, [state]);
+
+	useEffect(() => {
+		if (state?.success) {
+			router.refresh();
+		}
+	}, [state, router]);
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">
@@ -145,88 +148,73 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 				<div className="flex-1">
 					<FloatingSelect
 						name="selectedPosition"
-						label="Pilih Position (Edit)"
+						label="Pilih Posisi (Edit)"
 						value={selectedPositionId}
 						onValueChange={(nextValue) => setSelectedPositionId(nextValue)}
 						options={positionSelectOptions}
-						placeholder="Buat position baru"
+						placeholder="Buat posisi baru"
 						searchable
 					/>
 				</div>
-				<button
-					type="button"
-					onClick={() => setSelectedPositionId("")}
-					className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
+				<EditButton type="button" onClick={() => setSelectedPositionId("")} withIcon={false}>
 					Buat Baru
-				</button>
+				</EditButton>
 			</div>
 
 			<input type="hidden" name="id" value={formValues.id ?? ""} readOnly />
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<FloatingInput
-					name="name"
-					label="Nama Position"
-					value={formValues.name}
+					name="nama"
+					label="Nama Posisi"
+					value={formValues.nama}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || "";
-						setFormValues((prev) => ({ ...prev, name: nextValue }));
+						setFormValues((prev) => ({ ...prev, nama: nextValue }));
 					}}
-					errorText={state?.errors?.name}
+					errorText={state?.errors?.nama}
 					required
 				/>
 				<FloatingInput
-					name="code"
+					name="kode"
 					label="Kode"
-					value={formValues.code ?? ""}
+					value={formValues.kode ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, code: nextValue }));
+						setFormValues((prev) => ({ ...prev, kode: nextValue }));
 					}}
-					errorText={state?.errors?.code}
-				/>
-				<FloatingSelect
-					name="isActive"
-					label="Status"
-					value={formValues.isActive ? "true" : "false"}
-					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, isActive: nextValue !== "false" }))}
-					options={[
-						{ label: "Aktif", value: "true" },
-						{ label: "Tidak Aktif", value: "false" },
-					]}
-					errorText={state?.errors?.isActive}
+					errorText={state?.errors?.kode}
 				/>
 
 				<FloatingSelect
-					name="organizationalUnitId"
+					name="unitOrganisasiId"
 					label="Unit Organisasi"
-					value={formValues.organizationalUnitId ?? ""}
-					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, organizationalUnitId: nextValue || null }))}
+					value={formValues.unitOrganisasiId ?? ""}
+					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, unitOrganisasiId: nextValue || null }))}
 					options={organizationalUnitOptions}
-					errorText={state?.errors?.organizationalUnitId}
+					errorText={state?.errors?.unitOrganisasiId}
 					placeholder="Tanpa unit"
 					searchable
 				/>
 				<FloatingSelect
-					name="jobGradeId"
-					label="Job Grade"
-					value={formValues.jobGradeId ?? ""}
-					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, jobGradeId: nextValue || null }))}
+					name="golonganPosisiId"
+					label="Golongan Posisi"
+					value={formValues.golonganPosisiId ?? ""}
+					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, golonganPosisiId: nextValue || null }))}
 					options={jobGradeOptions}
-					errorText={state?.errors?.jobGradeId}
+					errorText={state?.errors?.golonganPosisiId}
 					placeholder="Tanpa grade"
 					searchable
 				/>
 				<FloatingTextarea
-					name="description"
+					name="deskripsi"
 					label="Deskripsi"
-					value={formValues.description ?? ""}
+					value={formValues.deskripsi ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, description: nextValue }));
+						setFormValues((prev) => ({ ...prev, deskripsi: nextValue }));
 					}}
-					errorText={state?.errors?.description}
+					errorText={state?.errors?.deskripsi}
 				/>
 			</div>
 
@@ -236,7 +224,7 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 
 			<div className="mt-6 rounded-xl border border-blue-100 dark:border-blue-900/60">
 				<div className="border-b border-blue-100 px-4 py-3 dark:border-blue-900/60">
-					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Position</h3>
+					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Posisi</h3>
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
@@ -248,15 +236,14 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Unit</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Grade</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Status</th>
 								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
 							</tr>
 						</thead>
 						<tbody>
 							{positions.length === 0 ? (
 								<tr>
-									<td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada position.
+									<td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+										Belum ada posisi.
 									</td>
 								</tr>
 							) : (
@@ -265,22 +252,22 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 										key={position.id}
 										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedPositionId === position.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
 									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.name}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.code ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.organizationalUnitName ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.jobGradeName ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.isActive ? "Aktif" : "Tidak Aktif"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.nama}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.kode ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.unitOrganisasiNama ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.golonganPosisiNama ?? "-"}</td>
 										<td className="px-4 py-3 text-right">
-											<button
-												type="button"
-												onClick={() => {
-													setSelectedPositionId(position.id);
-													formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-												}}
-												className="inline-flex h-8 items-center justify-center rounded-lg border border-blue-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-											>
-												Edit
-											</button>
+												<EditButton
+													type="button"
+													size="xs"
+													withIcon={false}
+													onClick={() => {
+														setSelectedPositionId(position.id);
+														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+													}}
+												>
+													Edit
+												</EditButton>
 										</td>
 									</tr>
 								))

@@ -1,11 +1,8 @@
 export type JobGradeFormValues = {
 	id?: string;
-	name: string;
-	code: string | null;
-	level: number;
-	minSalary: string | null;
-	maxSalary: string | null;
-	description: string | null;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };
 
 export type JobGradeValidationErrors = Partial<Record<keyof JobGradeFormValues, string>>;
@@ -29,10 +26,7 @@ export type JobGradeActionResult = {
 
 export type JobGradeOption = {
 	id: string;
-	name: string;
-	code: string | null;
-	level: number;
-	minSalary: string | null;
-	maxSalary: string | null;
-	description: string | null;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };

@@ -58,13 +58,6 @@ export default function CompanyDataForm({ company, locationOptions }: CompanyDat
 	);
 
 	useEffect(() => {
-		setProvinceId(company?.provinceId ?? "");
-		setCityId(company?.cityId ?? "");
-		setDistrictId(company?.districtId ?? "");
-		setVillageId(company?.villageId ?? "");
-	}, [company?.provinceId, company?.cityId, company?.districtId, company?.villageId]);
-
-	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
 		const orderedFields = [
@@ -101,12 +94,20 @@ export default function CompanyDataForm({ company, locationOptions }: CompanyDat
 	}, [state]);
 
 	useEffect(() => {
-		if (!state?.success) return;
+		if (!state) return;
 
-		toast.success(state.message || "Data perusahaan berhasil disimpan.");
-		router.refresh();
-
+		if (state.success) {
+			toast.success(state.message || "Data perusahaan berhasil disimpan.");
+		} else {
+			toast.error(state.message || "Gagal menyimpan data perusahaan.");
+		}
 	}, [state]);
+
+	useEffect(() => {
+		if (state?.success) {
+			router.refresh();
+		}
+	}, [state, router]);
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">

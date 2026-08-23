@@ -46,7 +46,7 @@ export default function FloatingSelect({
 	helperText,
 	errorText,
 	containerClassName,
-	searchable = true,
+	searchable = false,
 	emptySearchText = "Data tidak ditemukan",
 	disabled,
 	required,
@@ -74,15 +74,10 @@ export default function FloatingSelect({
 	}, [options, search, searchable]);
 
 	useEffect(() => {
-		if (!isOpen) {
-			setSearch("");
-		}
-	}, [isOpen]);
-
-	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
 				setIsOpen(false);
+				setSearch("");
 			}
 		};
 
@@ -109,6 +104,7 @@ export default function FloatingSelect({
 		}
 
 		setIsOpen(false);
+		setSearch("");
 	};
 
 	const shouldFloat = isOpen || Boolean(selectedValue);
@@ -175,6 +171,7 @@ export default function FloatingSelect({
 					)}
 				>
 					{label}
+					{required && <span className="ml-0.5 text-red-500">*</span>}
 				</label>
 
 				{isOpen && (

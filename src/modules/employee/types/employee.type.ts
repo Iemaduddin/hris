@@ -4,8 +4,7 @@ export const EMPLOYEE_WIZARD_STEPS = [
 	"family",
 	"education",
 	"workHistory",
-	"bankAccount",
-	"bpjs",
+	"kontrak",
 	"document",
 ] as const;
 
@@ -26,24 +25,17 @@ export type EmployeeWizardOption = {
 
 export type EmployeeWizardReferenceOptions = {
 	users: EmployeeWizardOption[];
+	userNames: Record<string, string>;
 	organizationalUnits: EmployeeWizardOption[];
 	positions: EmployeeWizardOption[];
+	positionUnitMap: Record<string, string>;
 	workLocations: EmployeeWizardOption[];
-	genders: EmployeeWizardOption[];
-	religions: EmployeeWizardOption[];
-	bloodTypes: EmployeeWizardOption[];
-	maritalStatuses: EmployeeWizardOption[];
-	employeeStatuses: EmployeeWizardOption[];
-	employmentTypes: EmployeeWizardOption[];
-	familyRelations: EmployeeWizardOption[];
-	educationDegrees: EmployeeWizardOption[];
-	documentTypes: EmployeeWizardOption[];
-};
-
-export type EmployeeEmergencyContact = {
-	name: string;
-	phone: string;
-	relation: string;
+	jenisKelamin: EmployeeWizardOption[];
+	statusKaryawan: EmployeeWizardOption[];
+	jenisKontrak: EmployeeWizardOption[];
+	hubunganKeluarga: EmployeeWizardOption[];
+	gelarPendidikan: EmployeeWizardOption[];
+	jenisDokumen: EmployeeWizardOption[];
 };
 
 export type EmployeePersonalPayload = {
@@ -51,36 +43,16 @@ export type EmployeePersonalPayload = {
 	userId: string;
 	employeeNumber: string;
 	fullName: string;
-	nickname: string;
 	gender: string;
-	birthPlace: string;
 	birthDate: string;
 	nationalId: string;
 	taxId: string;
-	religion: string;
-	bloodType: string;
-	maritalStatus: string;
-	photo: string;
-	personalEmail: string;
 	workEmail: string;
 	phone: string;
-	emergencyContact: EmployeeEmergencyContact;
-	currentAddress: string;
-	currentCity: string;
-	currentProvince: string;
-	currentPostal: string;
-	idAddress: string;
-	idCity: string;
-	idProvince: string;
-	idPostal: string;
+	address: string;
 	status: string;
-	employmentType: string;
 	joinDate: string;
-	probationEndDate: string;
-	contractEndDate: string;
 	resignDate: string;
-	resignReason: string;
-	terminationNote: string;
 };
 
 export type EmployeePositionPayload = {
@@ -90,7 +62,6 @@ export type EmployeePositionPayload = {
 	isPrimary: boolean;
 	isCurrent: boolean;
 	effectiveDate: string;
-	endDate: string;
 	note: string;
 };
 
@@ -101,9 +72,6 @@ export type EmployeeFamilyPayload = {
 	birthDate: string;
 	nationalId: string;
 	occupation: string;
-	isDependent: boolean;
-	isBpjsDependent: boolean;
-	isHeir: boolean;
 };
 
 export type EmployeeEducationPayload = {
@@ -127,23 +95,15 @@ export type EmployeeWorkHistoryPayload = {
 	referencePhone: string;
 };
 
-export type EmployeeBankAccountPayload = {
-	bankName: string;
-	bankCode: string;
-	accountNumber: string;
-	accountName: string;
-	isPrimary: boolean;
-};
-
-export type EmployeeBpjsPayload = {
-	bpjsHealthNumber: string;
-	bpjsHealthClass: string;
-	bpjsHealthDate: string;
-	bpjsTkNumber: string;
-	bpjsJhtDate: string;
-	bpjsJpDate: string;
-	bpjsJkkDate: string;
-	bpjsJkmDate: string;
+export type EmployeeKontrakPayload = {
+	contractNumber: string;
+	contractType: string;
+	startDate: string;
+	endDate: string;
+	status: string;
+	baseSalary: string;
+	documentUrl: string;
+	note: string;
 };
 
 export type EmployeeDocumentPayload = {
@@ -154,7 +114,6 @@ export type EmployeeDocumentPayload = {
 	mimeType: string;
 	expiredAt: string;
 	note: string;
-	uploadedAt: string;
 };
 
 export type EmployeeWizardDetail = {
@@ -164,8 +123,7 @@ export type EmployeeWizardDetail = {
 	families: EmployeeFamilyPayload[];
 	educations: EmployeeEducationPayload[];
 	workHistories: EmployeeWorkHistoryPayload[];
-	bankAccounts: EmployeeBankAccountPayload[];
-	bpjs: EmployeeBpjsPayload;
+	kontrak: EmployeeKontrakPayload[];
 	documents: EmployeeDocumentPayload[];
 };
 
@@ -175,8 +133,7 @@ export type EmployeeWizardStepPayloadMap = {
 	family: EmployeeFamilyPayload[];
 	education: EmployeeEducationPayload[];
 	workHistory: EmployeeWorkHistoryPayload[];
-	bankAccount: EmployeeBankAccountPayload[];
-	bpjs: EmployeeBpjsPayload;
+	kontrak: EmployeeKontrakPayload[];
 	document: EmployeeDocumentPayload[];
 };
 
@@ -184,5 +141,6 @@ export type EmployeeWizardActionResult = {
 	success: boolean;
 	message: string;
 	employeeId?: string;
+	employeeNumber?: string;
 	errors?: Record<string, string>;
 };

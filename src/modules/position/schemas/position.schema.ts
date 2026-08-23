@@ -11,23 +11,21 @@ function toNullable(value: string) {
 
 const positionSchema = z.object({
 	id: z.string().optional(),
-	organizationalUnitId: z.string().nullable(),
-	jobGradeId: z.string().nullable(),
-	name: z.string().min(1, "Nama jabatan wajib diisi."),
-	code: z.string().max(50, "Kode maksimal 50 karakter.").nullable(),
-	description: z.string().max(500, "Deskripsi maksimal 500 karakter.").nullable(),
-	isActive: z.boolean(),
+	unitOrganisasiId: z.string().nullable(),
+	golonganPosisiId: z.string().nullable(),
+	nama: z.string().min(1, "Nama jabatan wajib diisi."),
+	kode: z.string().max(50, "Kode maksimal 50 karakter.").nullable(),
+	deskripsi: z.string().max(500, "Deskripsi maksimal 500 karakter.").nullable(),
 });
 
 export function parseAndValidatePositionData(formData: FormData): PositionValidationResult {
 	const rawData = {
 		id: toStringValue(formData, "id") || undefined,
-		organizationalUnitId: toNullable(toStringValue(formData, "organizationalUnitId")),
-		jobGradeId: toNullable(toStringValue(formData, "jobGradeId")),
-		name: toStringValue(formData, "name"),
-		code: toNullable(toStringValue(formData, "code")),
-		description: toNullable(toStringValue(formData, "description")),
-		isActive: toStringValue(formData, "isActive") !== "false",
+		unitOrganisasiId: toNullable(toStringValue(formData, "unitOrganisasiId")),
+		golonganPosisiId: toNullable(toStringValue(formData, "golonganPosisiId")),
+		nama: toStringValue(formData, "nama"),
+		kode: toNullable(toStringValue(formData, "kode")),
+		deskripsi: toNullable(toStringValue(formData, "deskripsi")),
 	};
 
 	const parsed = positionSchema.safeParse(rawData);

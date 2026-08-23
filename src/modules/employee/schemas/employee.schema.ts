@@ -1,67 +1,32 @@
 import {
-	BloodType,
-	DocumentType,
-	EducationDegree,
-	EmployeeStatus,
-	EmploymentType,
-	FamilyRelation,
-	Gender,
-	MaritalStatus,
-	Religion,
+	JenisKelamin,
+	StatusKaryawan,
+	JenisKontrak,
+	HubunganKeluarga,
+	GelarPendidikan,
+	JenisDokumen,
+	StatusKontrak,
 } from "@/generated/prisma/client";
 import { z } from "zod";
 import type { EmployeeWizardStepKey, EmployeeWizardStepPayloadMap } from "../types/employee.type";
 
 const nullableText = z.string().trim();
 
-const emergencyContactSchema = z.object({
-	name: nullableText,
-	phone: nullableText,
-	relation: nullableText,
-});
-
-function optionalEnumString<T extends string>(values: readonly T[], message: string) {
-	return z
-		.string()
-		.trim()
-		.refine((value) => !value || values.includes(value as T), { message });
-}
-
 const personalSchema = z.object({
 	id: z.string().optional(),
 	userId: z.string().trim(),
-	employeeNumber: z.string().trim().min(1, "NIK karyawan wajib diisi."),
+	employeeNumber: nullableText,
 	fullName: z.string().trim().min(1, "Nama lengkap wajib diisi."),
-	nickname: nullableText,
-	gender: z.nativeEnum(Gender, { message: "Gender tidak valid." }),
-	birthPlace: nullableText,
+	gender: z.nativeEnum(JenisKelamin, { message: "Pilihan jenis kelamin tidak tersedia." }),
 	birthDate: nullableText,
 	nationalId: nullableText,
 	taxId: nullableText,
-	religion: optionalEnumString(Object.values(Religion), "Agama tidak valid."),
-	bloodType: optionalEnumString(Object.values(BloodType), "Golongan darah tidak valid."),
-	maritalStatus: optionalEnumString(Object.values(MaritalStatus), "Status pernikahan tidak valid."),
-	photo: nullableText,
-	personalEmail: nullableText,
 	workEmail: nullableText,
 	phone: nullableText,
-	emergencyContact: emergencyContactSchema,
-	currentAddress: nullableText,
-	currentCity: nullableText,
-	currentProvince: nullableText,
-	currentPostal: nullableText,
-	idAddress: nullableText,
-	idCity: nullableText,
-	idProvince: nullableText,
-	idPostal: nullableText,
-	status: z.nativeEnum(EmployeeStatus, { message: "Status karyawan tidak valid." }),
-	employmentType: z.nativeEnum(EmploymentType, { message: "Jenis kepegawaian tidak valid." }),
-	joinDate: z.string().trim().min(1, "Tanggal join wajib diisi."),
-	probationEndDate: nullableText,
-	contractEndDate: nullableText,
+	address: nullableText,
+	status: z.nativeEnum(StatusKaryawan, { message: "Pilihan status karyawan tidak tersedia." }),
+	joinDate: z.string().trim().min(1, "Tanggal masuk wajib diisi."),
 	resignDate: nullableText,
-	resignReason: nullableText,
-	terminationNote: nullableText,
 });
 
 const positionSchema = z.object({
@@ -70,25 +35,21 @@ const positionSchema = z.object({
 	workLocationId: nullableText,
 	isPrimary: z.boolean(),
 	isCurrent: z.boolean(),
-	effectiveDate: z.string().trim().min(1, "Tanggal efektif wajib diisi."),
-	endDate: nullableText,
 	note: nullableText,
+	effectiveDate: z.string().trim().min(1, "Tanggal efektif wajib diisi."),
 });
 
 const familySchema = z.object({
 	name: z.string().trim().min(1, "Nama anggota keluarga wajib diisi."),
-	relation: z.nativeEnum(FamilyRelation, { message: "Relasi keluarga tidak valid." }),
-	gender: z.nativeEnum(Gender, { message: "Gender tidak valid." }),
+	relation: z.nativeEnum(HubunganKeluarga, { message: "Pilihan hubungan keluarga tidak tersedia." }),
+	gender: z.nativeEnum(JenisKelamin, { message: "Pilihan jenis kelamin tidak tersedia." }),
 	birthDate: nullableText,
 	nationalId: nullableText,
 	occupation: nullableText,
-	isDependent: z.boolean(),
-	isBpjsDependent: z.boolean(),
-	isHeir: z.boolean(),
 });
 
 const educationSchema = z.object({
-	degree: z.nativeEnum(EducationDegree, { message: "Jenjang pendidikan tidak valid." }),
+	degree: z.nativeEnum(GelarPendidikan, { message: "Pilihan gelar pendidikan tidak tersedia." }),
 	institution: z.string().trim().min(1, "Nama institusi wajib diisi."),
 	major: nullableText,
 	startYear: nullableText,
@@ -108,34 +69,25 @@ const workHistorySchema = z.object({
 	referencePhone: nullableText,
 });
 
-const bankAccountSchema = z.object({
-	bankName: z.string().trim().min(1, "Nama bank wajib diisi."),
-	bankCode: nullableText,
-	accountNumber: z.string().trim().min(1, "Nomor rekening wajib diisi."),
-	accountName: z.string().trim().min(1, "Nama pemilik rekening wajib diisi."),
-	isPrimary: z.boolean(),
-});
-
-const bpjsSchema = z.object({
-	bpjsHealthNumber: nullableText,
-	bpjsHealthClass: nullableText,
-	bpjsHealthDate: nullableText,
-	bpjsTkNumber: nullableText,
-	bpjsJhtDate: nullableText,
-	bpjsJpDate: nullableText,
-	bpjsJkkDate: nullableText,
-	bpjsJkmDate: nullableText,
+const kontrakSchema = z.object({
+	contractNumber: z.string().trim().min(1, "Nomor kontrak wajib diisi."),
+	contractType: z.nativeEnum(JenisKontrak, { message: "Pilihan jenis kontrak tidak tersedia." }),
+	startDate: z.string().trim().min(1, "Tanggal mulai kontrak wajib diisi."),
+	endDate: nullableText,
+	status: z.nativeEnum(StatusKontrak, { message: "Pilihan status kontrak tidak tersedia." }),
+	baseSalary: nullableText,
+	documentUrl: nullableText,
+	note: nullableText,
 });
 
 const documentSchema = z.object({
-	documentType: z.nativeEnum(DocumentType, { message: "Tipe dokumen tidak valid." }),
+	documentType: z.nativeEnum(JenisDokumen, { message: "Pilihan jenis dokumen tidak tersedia." }),
 	name: z.string().trim().min(1, "Nama dokumen wajib diisi."),
 	fileUrl: z.string().trim().min(1, "URL file wajib diisi."),
 	fileSize: nullableText,
 	mimeType: nullableText,
 	expiredAt: nullableText,
 	note: nullableText,
-	uploadedAt: nullableText,
 });
 
 const stepSchemaMap: {
@@ -146,9 +98,78 @@ const stepSchemaMap: {
 	family: z.array(familySchema),
 	education: z.array(educationSchema),
 	workHistory: z.array(workHistorySchema),
-	bankAccount: z.array(bankAccountSchema),
-	bpjs: bpjsSchema,
+	kontrak: z.array(kontrakSchema),
 	document: z.array(documentSchema),
+};
+
+const STEP_FIELD_LABELS: Record<EmployeeWizardStepKey, Record<string, string>> = {
+	personal: {
+		userId: "Akun User",
+		employeeNumber: "Nomor Karyawan",
+		fullName: "Nama Lengkap",
+		gender: "Jenis Kelamin",
+		birthDate: "Tanggal Lahir",
+		nationalId: "NIK KTP",
+		taxId: "NPWP",
+		workEmail: "Email Kantor",
+		phone: "No. HP",
+		address: "Alamat",
+		status: "Status Karyawan",
+		joinDate: "Tanggal Masuk",
+		resignDate: "Tanggal Resign",
+	},
+	position: {
+		organizationalUnitId: "Unit Organisasi",
+		positionId: "Posisi",
+		workLocationId: "Lokasi Kerja",
+		effectiveDate: "Tanggal Efektif",
+		note: "Catatan",
+	},
+	family: {
+		name: "Nama",
+		relation: "Hubungan",
+		gender: "Jenis Kelamin",
+		birthDate: "Tanggal Lahir",
+		nationalId: "NIK",
+		occupation: "Pekerjaan",
+	},
+	education: {
+		degree: "Jenjang",
+		institution: "Institusi",
+		major: "Jurusan",
+		startYear: "Tahun Masuk",
+		graduationYear: "Tahun Lulus",
+		gpa: "IPK",
+		documentUrl: "URL Dokumen",
+	},
+	workHistory: {
+		companyName: "Nama Perusahaan",
+		position: "Posisi",
+		startDate: "Tanggal Mulai",
+		endDate: "Tanggal Selesai",
+		lastSalary: "Gaji Terakhir",
+		reasonLeaving: "Alasan Berhenti",
+		referencePhone: "No. Referensi",
+	},
+	kontrak: {
+		contractNumber: "Nomor Kontrak",
+		contractType: "Jenis Kontrak",
+		startDate: "Tanggal Mulai",
+		endDate: "Tanggal Selesai",
+		status: "Status",
+		baseSalary: "Gaji Pokok",
+		documentUrl: "URL Dokumen",
+		note: "Catatan",
+	},
+	document: {
+		documentType: "Jenis Dokumen",
+		name: "Nama Dokumen",
+		fileUrl: "URL File",
+		fileSize: "Ukuran File",
+		mimeType: "Tipe File",
+		expiredAt: "Tanggal Kadaluarsa",
+		note: "Catatan",
+	},
 };
 
 export function parseEmployeeStepPayload<T extends EmployeeWizardStepKey>(
@@ -167,12 +188,14 @@ export function parseEmployeeStepPayload<T extends EmployeeWizardStepKey>(
 		};
 	}
 
+	const fieldLabels = STEP_FIELD_LABELS[step];
 	const errors: Record<string, string> = {};
 
 	for (const issue of result.error.issues) {
 		const path = issue.path.join(".");
 		if (path && !errors[path]) {
-			errors[path] = issue.message;
+			const label = fieldLabels[path] ?? path;
+			errors[path] = `${label}: ${issue.message}`;
 		}
 	}
 

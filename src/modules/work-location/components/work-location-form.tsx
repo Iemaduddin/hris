@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
+import { AddButton, EditButton } from "@/src/components/ui/button";
 import { submitWorkLocationAction } from "../actions/work-location.actions";
 import type {
 	WorkLocationActionResult,
@@ -16,15 +17,12 @@ import type {
 
 const EMPTY_FORM: WorkLocationFormValues = {
 	id: "",
-	name: "",
-	code: null,
-	address: null,
-	city: null,
-	province: null,
-	postalCode: null,
-	latitude: null,
-	longitude: null,
-	radiusMeters: 100,
+	nama: "",
+	kode: null,
+	alamat: null,
+	kota: null,
+	provinsi: null,
+	kodePos: null,
 	isActive: true,
 };
 
@@ -32,13 +30,9 @@ function SubmitButton({ hasId }: { hasId: boolean }) {
 	const { pending } = useFormStatus();
 
 	return (
-		<button
-			type="submit"
-			disabled={pending}
-			className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-		>
-			{pending ? "Menyimpan..." : hasId ? "Update Work Location" : "Simpan Work Location"}
-		</button>
+		<AddButton type="submit" disabled={pending} withIcon={false}>
+			{pending ? "Menyimpan..." : hasId ? "Update Lokasi" : "Simpan Lokasi"}
+		</AddButton>
 	);
 }
 
@@ -47,8 +41,8 @@ type WorkLocationFormProps = {
 };
 
 function toLocationLabel(location: WorkLocationOption) {
-	const codeSuffix = location.code ? ` (${location.code})` : "";
-	return `${location.name}${codeSuffix}`;
+	const kodeSuffix = location.kode ? ` (${location.kode})` : "";
+	return `${location.nama}${kodeSuffix}`;
 }
 
 function toFormValues(location?: WorkLocationOption): WorkLocationFormValues {
@@ -56,15 +50,12 @@ function toFormValues(location?: WorkLocationOption): WorkLocationFormValues {
 
 	return {
 		id: location.id,
-		name: location.name,
-		code: location.code,
-		address: location.address,
-		city: location.city,
-		province: location.province,
-		postalCode: location.postalCode,
-		latitude: location.latitude,
-		longitude: location.longitude,
-		radiusMeters: location.radiusMeters ?? 100,
+		nama: location.nama,
+		kode: location.kode,
+		alamat: location.alamat,
+		kota: location.kota,
+		provinsi: location.provinsi,
+		kodePos: location.kodePos,
 		isActive: location.isActive,
 	};
 }
@@ -94,17 +85,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
-		const orderedFields = [
-			"name",
-			"code",
-			"address",
-			"city",
-			"province",
-			"postalCode",
-			"latitude",
-			"longitude",
-			"radiusMeters",
-		] as const;
+		const orderedFields = ["nama", "kode", "alamat", "kota", "provinsi", "kodePos"] as const;
 
 		for (const field of orderedFields) {
 			if (!state.errors[field]) continue;
@@ -126,12 +107,21 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 	}, [state]);
 
 	useEffect(() => {
-		if (!state?.success) return;
+		if (!state) return;
 
-		toast.success(state.message || "Data work location berhasil disimpan.");
-		if (state.id) setSelectedLocationId(state.id);
-		router.refresh();
-	}, [router, state]);
+		if (state.success) {
+			toast.success(state.message || "Data lokasi berhasil disimpan.");
+			if (state.id) setSelectedLocationId(state.id);
+		} else {
+			toast.error(state.message || "Gagal menyimpan data lokasi.");
+		}
+	}, [state]);
+
+	useEffect(() => {
+		if (state?.success) {
+			router.refresh();
+		}
+	}, [state, router]);
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">
@@ -139,46 +129,42 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 				<div className="flex-1">
 					<FloatingSelect
 						name="selectedLocation"
-						label="Pilih Work Location (Edit)"
+						label="Pilih Lokasi (Edit)"
 						value={selectedLocationId}
 						onValueChange={(nextValue) => setSelectedLocationId(nextValue)}
 						options={locationSelectOptions}
-						placeholder="Buat work location baru"
+						placeholder="Buat lokasi baru"
 						searchable
 					/>
 				</div>
-				<button
-					type="button"
-					onClick={() => setSelectedLocationId("")}
-					className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
+				<EditButton type="button" onClick={() => setSelectedLocationId("")} withIcon={false}>
 					Buat Baru
-				</button>
+				</EditButton>
 			</div>
 
 			<input type="hidden" name="id" value={formValues.id ?? ""} readOnly />
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<FloatingInput
-					name="name"
+					name="nama"
 					label="Nama Lokasi"
-					value={formValues.name}
+					value={formValues.nama}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || "";
-						setFormValues((prev) => ({ ...prev, name: nextValue }));
+						setFormValues((prev) => ({ ...prev, nama: nextValue }));
 					}}
-					errorText={state?.errors?.name}
+					errorText={state?.errors?.nama}
 					required
 				/>
 				<FloatingInput
-					name="code"
+					name="kode"
 					label="Kode"
-					value={formValues.code ?? ""}
+					value={formValues.kode ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, code: nextValue }));
+						setFormValues((prev) => ({ ...prev, kode: nextValue }));
 					}}
-					errorText={state?.errors?.code}
+					errorText={state?.errors?.kode}
 				/>
 				<FloatingSelect
 					name="isActive"
@@ -193,80 +179,45 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 				/>
 
 				<FloatingInput
-					name="city"
+					name="kota"
 					label="Kota"
-					value={formValues.city ?? ""}
+					value={formValues.kota ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, city: nextValue }));
+						setFormValues((prev) => ({ ...prev, kota: nextValue }));
 					}}
-					errorText={state?.errors?.city}
+					errorText={state?.errors?.kota}
 				/>
 				<FloatingInput
-					name="province"
+					name="provinsi"
 					label="Provinsi"
-					value={formValues.province ?? ""}
+					value={formValues.provinsi ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, province: nextValue }));
+						setFormValues((prev) => ({ ...prev, provinsi: nextValue }));
 					}}
-					errorText={state?.errors?.province}
+					errorText={state?.errors?.provinsi}
 				/>
 				<FloatingInput
-					name="postalCode"
+					name="kodePos"
 					label="Kode Pos"
-					value={formValues.postalCode ?? ""}
+					value={formValues.kodePos ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, postalCode: nextValue }));
+						setFormValues((prev) => ({ ...prev, kodePos: nextValue }));
 					}}
-					errorText={state?.errors?.postalCode}
-				/>
-
-				<FloatingInput
-					name="latitude"
-					label="Latitude"
-					value={formValues.latitude?.toString() ?? ""}
-					onChange={(event) => {
-						const raw = event.currentTarget.value.trim();
-						const parsed = raw ? Number.parseFloat(raw) : null;
-						setFormValues((prev) => ({ ...prev, latitude: parsed === null || Number.isNaN(parsed) ? null : parsed }));
-					}}
-					errorText={state?.errors?.latitude}
-				/>
-				<FloatingInput
-					name="longitude"
-					label="Longitude"
-					value={formValues.longitude?.toString() ?? ""}
-					onChange={(event) => {
-						const raw = event.currentTarget.value.trim();
-						const parsed = raw ? Number.parseFloat(raw) : null;
-						setFormValues((prev) => ({ ...prev, longitude: parsed === null || Number.isNaN(parsed) ? null : parsed }));
-					}}
-					errorText={state?.errors?.longitude}
-				/>
-				<FloatingInput
-					name="radiusMeters"
-					label="Radius (meter)"
-					type="number"
-					min={1}
-					value={String(formValues.radiusMeters)}
-					onChange={(event) => {
-						const parsed = Number.parseInt(event.currentTarget.value || "100", 10);
-						setFormValues((prev) => ({ ...prev, radiusMeters: Number.isNaN(parsed) ? 100 : parsed }));
-					}}
-					errorText={state?.errors?.radiusMeters}
+					errorText={state?.errors?.kodePos}
 				/>
 
 				<FloatingTextarea
-					name="address"
+					name="alamat"
 					label="Alamat"
-					value={formValues.address ?? ""}
+					value={formValues.alamat ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, address: nextValue }));
+						setFormValues((prev) => ({ ...prev, alamat: nextValue }));
 					}}
-					errorText={state?.errors?.address}
+					errorText={state?.errors?.alamat}
 					containerClassName="md:col-span-3"
 				/>
 			</div>
@@ -277,7 +228,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 
 			<div className="mt-6 rounded-xl border border-blue-100 dark:border-blue-900/60">
 				<div className="border-b border-blue-100 px-4 py-3 dark:border-blue-900/60">
-					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Work Location</h3>
+					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Lokasi Kerja</h3>
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
@@ -297,7 +248,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 							{locations.length === 0 ? (
 								<tr>
 									<td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada work location.
+										Belum ada lokasi kerja.
 									</td>
 								</tr>
 							) : (
@@ -306,22 +257,23 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 										key={location.id}
 										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedLocationId === location.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
 									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.name}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.code ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.city ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.province ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.nama}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kode ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kota ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.provinsi ?? "-"}</td>
 										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.isActive ? "Aktif" : "Tidak Aktif"}</td>
 										<td className="px-4 py-3 text-right">
-											<button
-												type="button"
-												onClick={() => {
-													setSelectedLocationId(location.id);
-													formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-												}}
-												className="inline-flex h-8 items-center justify-center rounded-lg border border-blue-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-											>
-												Edit
-											</button>
+												<EditButton
+													type="button"
+													size="xs"
+													withIcon={false}
+													onClick={() => {
+														setSelectedLocationId(location.id);
+														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+													}}
+												>
+													Edit
+												</EditButton>
 										</td>
 									</tr>
 								))

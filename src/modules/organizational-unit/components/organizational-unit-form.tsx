@@ -3,11 +3,11 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { OrgUnitType } from "@/generated/prisma/enums";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
+import { AddButton, EditButton } from "@/src/components/ui/button";
 import { submitOrganizationalUnitAction } from "../actions/organizational-unit.actions";
 import type {
 	OrganizationalUnitActionResult,
@@ -18,36 +18,18 @@ import type {
 const EMPTY_FORM: OrganizationalUnitFormValues = {
 	id: "",
 	parentId: null,
-	name: "",
-	code: null,
-	type: OrgUnitType.OTHER,
-	description: null,
-	order: 0,
-	isActive: true,
+	nama: "",
+	kode: null,
+	deskripsi: null,
 };
-
-const TYPE_OPTIONS = [
-	{ value: OrgUnitType.DIRECTORATE, label: "Direktorat" },
-	{ value: OrgUnitType.DIVISION, label: "Divisi" },
-	{ value: OrgUnitType.DEPARTMENT, label: "Departemen" },
-	{ value: OrgUnitType.SECTION, label: "Seksi" },
-	{ value: OrgUnitType.UNIT, label: "Unit" },
-	{ value: OrgUnitType.TEAM, label: "Tim" },
-	{ value: OrgUnitType.BRANCH, label: "Cabang" },
-	{ value: OrgUnitType.OTHER, label: "Lainnya" },
-];
 
 function SubmitButton({ hasId }: { hasId: boolean }) {
 	const { pending } = useFormStatus();
 
 	return (
-		<button
-			type="submit"
-			disabled={pending}
-			className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-		>
+		<AddButton type="submit" disabled={pending} withIcon={false}>
 			{pending ? "Menyimpan..." : hasId ? "Update Unit" : "Simpan Unit"}
-		</button>
+		</AddButton>
 	);
 }
 
@@ -55,10 +37,18 @@ type OrganizationalUnitFormProps = {
 	units: OrganizationalUnitOption[];
 };
 
-function toDisplayLabel(unit: OrganizationalUnitOption) {
-	const indent = "— ".repeat(Math.max(unit.level, 0));
-	const codeSuffix = unit.code ? ` (${unit.code})` : "";
-	return `${indent}${unit.name}${codeSuffix}`;
+function toDisplayLabel(unit: OrganizationalUnitOption, allUnits: OrganizationalUnitOption[]) {
+	const depth = getDepth(unit, allUnits);
+	const indent = "— ".repeat(depth);
+	const kodeSuffix = unit.kode ? ` (${unit.kode})` : "";
+	return `${indent}${unit.nama}${kodeSuffix}`;
+}
+
+function getDepth(unit: OrganizationalUnitOption, allUnits: OrganizationalUnitOption[]): number {
+	if (!unit.parentId) return 0;
+	const parent = allUnits.find((u) => u.id === unit.parentId);
+	if (!parent) return 0;
+	return 1 + getDepth(parent, allUnits);
 }
 
 function toFormValues(unit?: OrganizationalUnitOption): OrganizationalUnitFormValues {
@@ -67,12 +57,9 @@ function toFormValues(unit?: OrganizationalUnitOption): OrganizationalUnitFormVa
 	return {
 		id: unit.id,
 		parentId: unit.parentId,
-		name: unit.name,
-		code: unit.code,
-		type: unit.type,
-		description: unit.description,
-		order: unit.order,
-		isActive: unit.isActive,
+		nama: unit.nama,
+		kode: unit.kode,
+		deskripsi: unit.deskripsi,
 	};
 }
 
@@ -94,7 +81,7 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 	}, [selectedUnit]);
 
 	const unitSelectOptions = useMemo(
-		() => units.map((item) => ({ label: toDisplayLabel(item), value: item.id })),
+		() => units.map((item) => ({ label: toDisplayLabel(item, units), value: item.id })),
 		[units],
 	);
 
@@ -103,32 +90,16 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 			units
 				.filter((item) => item.id !== formValues.id)
 				.map((item) => ({
-					label: toDisplayLabel(item),
+					label: toDisplayLabel(item, units),
 					value: item.id,
 				})),
 		[formValues.id, units],
 	);
 
-	const sortedUnitRows = useMemo(
-		() =>
-			[...units].sort((left, right) => {
-				const leftPath = left.path ?? left.id;
-				const rightPath = right.path ?? right.id;
-				const pathCompare = leftPath.localeCompare(rightPath);
-				if (pathCompare !== 0) return pathCompare;
-
-				const orderCompare = left.order - right.order;
-				if (orderCompare !== 0) return orderCompare;
-
-				return left.name.localeCompare(right.name);
-			}),
-		[units],
-	);
-
 	const parentNameMap = useMemo(() => {
 		const map = new Map<string, string>();
 		for (const unit of units) {
-			map.set(unit.id, unit.name);
+			map.set(unit.id, unit.nama);
 		}
 		return map;
 	}, [units]);
@@ -136,7 +107,7 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
-		const orderedFields = ["name", "code", "parentId", "type", "order", "description"] as const;
+		const orderedFields = ["nama", "kode", "parentId", "deskripsi"] as const;
 
 		for (const field of orderedFields) {
 			if (!state.errors[field]) continue;
@@ -158,16 +129,23 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 	}, [state]);
 
 	useEffect(() => {
-		if (!state?.success) return;
+		if (!state) return;
 
-		toast.success(state.message || "Data unit organisasi berhasil disimpan.");
-
-		if (state.id) {
-			setSelectedUnitId(state.id);
+		if (state.success) {
+			toast.success(state.message || "Data unit organisasi berhasil disimpan.");
+			if (state.id) {
+				setSelectedUnitId(state.id);
+			}
+		} else {
+			toast.error(state.message || "Gagal menyimpan data unit organisasi.");
 		}
+	}, [state]);
 
-		router.refresh();
-	}, [router, state]);
+	useEffect(() => {
+		if (state?.success) {
+			router.refresh();
+		}
+	}, [state, router]);
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">
@@ -183,47 +161,34 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 						searchable
 					/>
 				</div>
-				<button
-					type="button"
-					onClick={() => setSelectedUnitId("")}
-					className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
+				<EditButton type="button" onClick={() => setSelectedUnitId("")} withIcon={false}>
 					Buat Baru
-				</button>
+				</EditButton>
 			</div>
 
 			<input type="hidden" name="id" value={formValues.id ?? ""} readOnly />
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<FloatingInput
-					name="name"
+					name="nama"
 					label="Nama Unit"
-					value={formValues.name}
+					value={formValues.nama}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || "";
-						setFormValues((prev) => ({ ...prev, name: nextValue }));
+						setFormValues((prev) => ({ ...prev, nama: nextValue }));
 					}}
-					errorText={state?.errors?.name}
+					errorText={state?.errors?.nama}
 					required
 				/>
 				<FloatingInput
-					name="code"
+					name="kode"
 					label="Kode Unit"
-					value={formValues.code ?? ""}
+					value={formValues.kode ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, code: nextValue }));
+						setFormValues((prev) => ({ ...prev, kode: nextValue }));
 					}}
-					errorText={state?.errors?.code}
-				/>
-				<FloatingSelect
-					name="type"
-					label="Tipe Unit"
-					value={formValues.type}
-					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, type: nextValue as OrgUnitType }))}
-					options={TYPE_OPTIONS}
-					errorText={state?.errors?.type}
-					required
+					errorText={state?.errors?.kode}
 				/>
 
 				<FloatingSelect
@@ -236,40 +201,16 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 					placeholder="Root Unit"
 					searchable
 				/>
-				<FloatingInput
-					name="order"
-					label="Urutan"
-					type="number"
-					min={0}
-					value={String(formValues.order)}
-					onChange={(event) => {
-						const rawValue = event.currentTarget.value;
-						const parsed = Number.parseInt(rawValue || "0", 10);
-						setFormValues((prev) => ({ ...prev, order: Number.isNaN(parsed) ? 0 : parsed }));
-					}}
-					errorText={state?.errors?.order}
-				/>
-				<FloatingSelect
-					name="isActive"
-					label="Status"
-					value={formValues.isActive ? "true" : "false"}
-					onValueChange={(nextValue) => setFormValues((prev) => ({ ...prev, isActive: nextValue !== "false" }))}
-					options={[
-						{ label: "Aktif", value: "true" },
-						{ label: "Tidak Aktif", value: "false" },
-					]}
-					errorText={state?.errors?.isActive}
-				/>
 
 				<FloatingTextarea
-					name="description"
+					name="deskripsi"
 					label="Deskripsi"
-					value={formValues.description ?? ""}
+					value={formValues.deskripsi ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, description: nextValue }));
+						setFormValues((prev) => ({ ...prev, deskripsi: nextValue }));
 					}}
-					errorText={state?.errors?.description}
+					errorText={state?.errors?.deskripsi}
 					containerClassName="md:col-span-3"
 				/>
 			</div>
@@ -289,48 +230,47 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 						<thead>
 							<tr className="border-b border-blue-100 dark:border-blue-900/60">
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama Unit</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Tipe</th>
+								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Parent</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Status</th>
 								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
 							</tr>
 						</thead>
 						<tbody>
-							{sortedUnitRows.length === 0 ? (
+							{units.length === 0 ? (
 								<tr>
-									<td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+									<td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
 										Belum ada unit organisasi.
 									</td>
 								</tr>
 							) : (
-								sortedUnitRows.map((unit) => {
+								units.map((unit) => {
 									const isSelected = selectedUnitId === unit.id;
+									const depth = getDepth(unit, units);
 									return (
 										<tr
 											key={unit.id}
 											className={`border-b border-blue-100 dark:border-blue-900/60 ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
 										>
 											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-												<span style={{ paddingLeft: `${unit.level * 16}px` }} className="inline-flex items-center gap-2">
-													{unit.level > 0 ? <span className="text-slate-400 dark:text-slate-500">↳</span> : null}
-													<span>{unit.name}</span>
-													{unit.code ? <span className="text-xs text-slate-500 dark:text-slate-400">({unit.code})</span> : null}
+												<span style={{ paddingLeft: `${depth * 16}px` }} className="inline-flex items-center gap-2">
+													{depth > 0 ? <span className="text-slate-400 dark:text-slate-500">↳</span> : null}
+													<span>{unit.nama}</span>
 												</span>
 											</td>
-											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.type}</td>
+											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.kode ?? "-"}</td>
 											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.parentId ? (parentNameMap.get(unit.parentId) ?? "-") : "Root"}</td>
-											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.isActive ? "Aktif" : "Tidak Aktif"}</td>
 											<td className="px-4 py-3 text-right">
-												<button
+												<EditButton
 													type="button"
+													size="xs"
+													withIcon={false}
 													onClick={() => {
 														setSelectedUnitId(unit.id);
 														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 													}}
-													className="inline-flex h-8 items-center justify-center rounded-lg border border-blue-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
 												>
 													Edit
-												</button>
+												</EditButton>
 											</td>
 										</tr>
 									);

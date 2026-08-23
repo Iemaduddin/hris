@@ -1,11 +1,10 @@
 export type PositionFormValues = {
 	id?: string;
-	organizationalUnitId: string | null;
-	jobGradeId: string | null;
-	name: string;
-	code: string | null;
-	description: string | null;
-	isActive: boolean;
+	unitOrganisasiId: string | null;
+	golonganPosisiId: string | null;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };
 
 export type PositionValidationErrors = Partial<Record<keyof PositionFormValues, string>>;
@@ -29,21 +28,19 @@ export type PositionActionResult = {
 
 export type PositionOption = {
 	id: string;
-	organizationalUnitId: string | null;
-	organizationalUnitName: string | null;
-	jobGradeId: string | null;
-	jobGradeName: string | null;
-	name: string;
-	code: string | null;
-	description: string | null;
-	isActive: boolean;
+	unitOrganisasiId: string | null;
+	unitOrganisasiNama: string | null;
+	golonganPosisiId: string | null;
+	golonganPosisiNama: string | null;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };
 
 export type PositionSelectOption = {
 	id: string;
-	name: string;
-	code: string | null;
-	level?: number;
+	nama: string;
+	kode: string | null;
 };
 
 export type PositionFormOptions = {

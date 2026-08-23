@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { toast } from "react-toastify";
@@ -32,7 +32,6 @@ export default function UserDataForm({ roles, users }: UserDataFormProps) {
 	const [state, formAction] = useActionState<UserActionResult | null, FormData>(submitUserAction, null);
 	const formRef = useRef<HTMLFormElement>(null);
 	const handledStateRef = useRef<UserActionResult | null>(null);
-	const [formVersion, setFormVersion] = useState(0);
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -43,7 +42,7 @@ export default function UserDataForm({ roles, users }: UserDataFormProps) {
 		[editUserId, users],
 	);
 	const isEditMode = Boolean(editingUser);
-	const formKey = `${editingUser?.id ?? "create"}-${formVersion}`;
+	const formKey = editingUser?.id ?? "create";
 
 	useEffect(() => {
 		if (!state) return;
@@ -55,14 +54,11 @@ export default function UserDataForm({ roles, users }: UserDataFormProps) {
 			toast.error(state.message || "Gagal menyimpan user.");
 			return;
 		}
-        
 
 		toast.success(state.message || (isEditMode ? "User berhasil diperbarui." : "User berhasil dibuat."));
 
 		if (isEditMode) {
 			router.replace(pathname);
-		} else {
-			setFormVersion((prev) => prev + 1);
 		}
 
 		router.refresh();

@@ -1,6 +1,5 @@
 "use server";
 
-import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidateOrganizationalUnitData } from "../schemas/organizational-unit.schema";
@@ -9,29 +8,15 @@ import type {
 	OrganizationalUnitOption,
 } from "../types/organizational-unit.type";
 
-function buildPath(parentPath: string | null, currentId: string) {
-	if (!parentPath) return currentId;
-	return `${parentPath}.${currentId}`;
-}
-
-function mapUnitName(unit: { name: string; code: string | null }) {
-	return unit.code ? `${unit.name} (${unit.code})` : unit.name;
-}
-
 export async function getOrganizationalUnitOptions(): Promise<OrganizationalUnitOption[]> {
-	const units = await prisma.organizationalUnit.findMany({
-		orderBy: [{ level: "asc" }, { order: "asc" }, { name: "asc" }],
+	const units = await prisma.unitOrganisasi.findMany({
+		orderBy: { nama: "asc" },
 		select: {
 			id: true,
 			parentId: true,
-			name: true,
-			code: true,
-			type: true,
-			description: true,
-			level: true,
-			path: true,
-			order: true,
-			isActive: true,
+			nama: true,
+			kode: true,
+			deskripsi: true,
 		},
 	});
 
@@ -42,9 +27,10 @@ export async function createOrganizationalUnit(formData: FormData): Promise<Orga
 	const validation = parseAndValidateOrganizationalUnitData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data unit organisasi tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -52,45 +38,13 @@ export async function createOrganizationalUnit(formData: FormData): Promise<Orga
 	try {
 		const { data } = validation;
 
-		const createdId = await prisma.$transaction(async (tx) => {
-			let parentPath: string | null = null;
-			let level = 0;
-
-			if (data.parentId) {
-				const parent = await tx.organizationalUnit.findUnique({
-					where: { id: data.parentId },
-					select: { id: true, level: true, path: true },
-				});
-
-				if (!parent) {
-					throw new Error("Parent unit tidak ditemukan.");
-				}
-
-				parentPath = parent.path ?? parent.id;
-				level = parent.level + 1;
-			}
-
-			const created = await tx.organizationalUnit.create({
-				data: {
-					parentId: data.parentId,
-					name: data.name,
-					code: data.code,
-					type: data.type,
-					description: data.description,
-					order: data.order,
-					isActive: data.isActive,
-					level,
-				},
-			});
-
-			const path = buildPath(parentPath, created.id);
-
-			await tx.organizationalUnit.update({
-				where: { id: created.id },
-				data: { path },
-			});
-
-			return created.id;
+		const created = await prisma.unitOrganisasi.create({
+			data: {
+				parentId: data.parentId,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
+			},
 		});
 
 		revalidatePath("/settings/organizational-unit");
@@ -98,17 +52,9 @@ export async function createOrganizationalUnit(formData: FormData): Promise<Orga
 		return {
 			success: true,
 			message: "Unit organisasi berhasil dibuat.",
-			id: createdId,
+			id: created.id,
 		};
 	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode unit sudah digunakan.",
-				errors: { code: "Kode unit harus unik." },
-			};
-		}
-
 		const message = error instanceof Error ? error.message : "Gagal membuat unit organisasi.";
 		return { success: false, message };
 	}
@@ -118,9 +64,10 @@ export async function updateOrganizationalUnit(formData: FormData): Promise<Orga
 	const validation = parseAndValidateOrganizationalUnitData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data unit organisasi tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -136,86 +83,25 @@ export async function updateOrganizationalUnit(formData: FormData): Promise<Orga
 	}
 
 	try {
-		await prisma.$transaction(async (tx) => {
-			const existing = await tx.organizationalUnit.findUnique({
-				where: { id: data.id },
-				select: { id: true, level: true, path: true },
-			});
+		const existing = await prisma.unitOrganisasi.findUnique({
+			where: { id: data.id },
+		});
 
-			if (!existing) {
-				throw new Error("Data unit tidak ditemukan.");
-			}
+		if (!existing) {
+			return {
+				success: false,
+				message: "Data unit tidak ditemukan.",
+			};
+		}
 
-			const oldPath = existing.path ?? existing.id;
-			let parentPath: string | null = null;
-			let nextLevel = 0;
-
-			if (data.parentId) {
-				const parent = await tx.organizationalUnit.findUnique({
-					where: { id: data.parentId },
-					select: { id: true, level: true, path: true, name: true, code: true },
-				});
-
-				if (!parent) {
-					throw new Error("Parent unit tidak ditemukan.");
-				}
-
-				const parentResolvedPath = parent.path ?? parent.id;
-
-				if (parent.id === existing.id || parentResolvedPath === oldPath || parentResolvedPath.startsWith(`${oldPath}.`)) {
-					throw new Error(`Parent tidak valid: ${mapUnitName(parent)} adalah turunan dari unit ini.`);
-				}
-
-				parentPath = parentResolvedPath;
-				nextLevel = parent.level + 1;
-			}
-
-			const newPath = buildPath(parentPath, existing.id);
-			const levelDelta = nextLevel - existing.level;
-
-			await tx.organizationalUnit.update({
-				where: { id: existing.id },
-				data: {
-					parentId: data.parentId,
-					name: data.name,
-					code: data.code,
-					type: data.type,
-					description: data.description,
-					order: data.order,
-					isActive: data.isActive,
-					level: nextLevel,
-					path: newPath,
-				},
-			});
-
-			if (newPath !== oldPath || levelDelta !== 0) {
-				const descendants = await tx.organizationalUnit.findMany({
-					where: {
-						path: {
-							startsWith: `${oldPath}.`,
-						},
-					},
-					select: {
-						id: true,
-						path: true,
-						level: true,
-					},
-				});
-
-				for (const descendant of descendants) {
-					if (!descendant.path) continue;
-					const suffix = descendant.path.slice(oldPath.length + 1);
-					const nextPath = suffix ? `${newPath}.${suffix}` : newPath;
-
-					await tx.organizationalUnit.update({
-						where: { id: descendant.id },
-						data: {
-							path: nextPath,
-							level: descendant.level + levelDelta,
-						},
-					});
-				}
-			}
+		await prisma.unitOrganisasi.update({
+			where: { id: data.id },
+			data: {
+				parentId: data.parentId,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
+			},
 		});
 
 		revalidatePath("/settings/organizational-unit");
@@ -226,14 +112,6 @@ export async function updateOrganizationalUnit(formData: FormData): Promise<Orga
 			id: data.id,
 		};
 	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode unit sudah digunakan.",
-				errors: { code: "Kode unit harus unik." },
-			};
-		}
-
 		const message = error instanceof Error ? error.message : "Gagal memperbarui unit organisasi.";
 		return { success: false, message };
 	}

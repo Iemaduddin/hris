@@ -15,18 +15,18 @@ import type {
 
 function mapCompanyToPreview(company: {
 	id: string;
-	name: string;
+	nama: string;
 	logo: string | null;
-	taxId: string | null;
-	phone: string | null;
+	npwp: string | null;
+	telepon: string | null;
 	email: string | null;
 	website: string | null;
-	address: string | null;
-	provinceId: string | null;
-	cityId: string | null;
-	districtId: string | null;
-	villageId: string | null;
-	postalCode: string | null;
+	alamat: string | null;
+	provinsiId: string | null;
+	kotaId: string | null;
+	kecamatanId: string | null;
+	desaId: string | null;
+	kodePos: string | null;
 }, locationNames: {
 	provinceName: string | null;
 	cityName: string | null;
@@ -35,96 +35,102 @@ function mapCompanyToPreview(company: {
 }): CompanyPreviewData {
 	return {
 		id: company.id,
-		name: company.name,
+		name: company.nama,
 		logo: company.logo,
-		taxId: company.taxId,
-		phone: company.phone,
+		taxId: company.npwp,
+		phone: company.telepon,
 		email: company.email,
 		website: company.website,
-		address: company.address,
-		provinceId: company.provinceId,
+		address: company.alamat,
+		provinceId: company.provinsiId,
 		provinceName: locationNames.provinceName,
-		cityId: company.cityId,
+		cityId: company.kotaId,
 		cityName: locationNames.cityName,
-		districtId: company.districtId,
+		districtId: company.kecamatanId,
 		districtName: locationNames.districtName,
-		villageId: company.villageId,
+		villageId: company.desaId,
 		villageName: locationNames.villageName,
-		postalCode: company.postalCode,
+		postalCode: company.kodePos,
 	};
 }
 
 export async function getCompanyData(): Promise<CompanyPreviewData | null> {
-	const company = await prisma.company.findFirst({
+	const company = await prisma.perusahaan.findFirst({
 		orderBy: { createdAt: "asc" },
 	});
 
 	if (!company) return null;
 
 	const [province, city, district, village] = await Promise.all([
-		company.provinceId ? prisma.province.findUnique({ where: { id: company.provinceId }, select: { name: true } }) : null,
-		company.cityId ? prisma.city.findUnique({ where: { id: company.cityId }, select: { name: true } }) : null,
-		company.districtId ? prisma.district.findUnique({ where: { id: company.districtId }, select: { name: true } }) : null,
-		company.villageId ? prisma.village.findUnique({ where: { id: company.villageId }, select: { name: true } }) : null,
+		company.provinsiId ? prisma.provinsi.findUnique({ where: { id: company.provinsiId }, select: { nama: true } }) : null,
+		company.kotaId ? prisma.kota.findUnique({ where: { id: company.kotaId }, select: { nama: true } }) : null,
+		company.kecamatanId ? prisma.kecamatan.findUnique({ where: { id: company.kecamatanId }, select: { nama: true } }) : null,
+		company.desaId ? prisma.desa.findUnique({ where: { id: company.desaId }, select: { nama: true } }) : null,
 	]);
 
 	return mapCompanyToPreview(company, {
-		provinceName: province?.name ?? null,
-		cityName: city?.name ?? null,
-		districtName: district?.name ?? null,
-		villageName: village?.name ?? null,
+		provinceName: province?.nama ?? null,
+		cityName: city?.nama ?? null,
+		districtName: district?.nama ?? null,
+		villageName: village?.nama ?? null,
 	});
 }
 
 export async function getCompanyLocationOptions(): Promise<CompanyLocationOptions> {
 	const [provinces, cities, districts, villages] = await Promise.all([
-		prisma.province.findMany({
-			orderBy: { name: "asc" },
-			select: { id: true, name: true },
+		prisma.provinsi.findMany({
+			orderBy: { nama: "asc" },
+			select: { id: true, nama: true },
 		}),
-		prisma.city.findMany({
-			orderBy: { name: "asc" },
-			select: { id: true, name: true, provinceId: true },
+		prisma.kota.findMany({
+			orderBy: { nama: "asc" },
+			select: { id: true, nama: true, provinsiId: true },
 		}),
-		prisma.district.findMany({
-			orderBy: { name: "asc" },
-			select: { id: true, name: true, cityId: true },
+		prisma.kecamatan.findMany({
+			orderBy: { nama: "asc" },
+			select: { id: true, nama: true, kotaId: true },
 		}),
-		prisma.village.findMany({
-			orderBy: { name: "asc" },
-			select: { id: true, name: true, districtId: true },
+		prisma.desa.findMany({
+			orderBy: { nama: "asc" },
+			select: { id: true, nama: true, kecamatanId: true },
 		}),
 	]);
 
-	return { provinces, cities, districts, villages };
+	return {
+		provinces: provinces.map((p) => ({ id: p.id, name: p.nama })),
+		cities: cities.map((c) => ({ id: c.id, name: c.nama, provinceId: c.provinsiId })),
+		districts: districts.map((d) => ({ id: d.id, name: d.nama, cityId: d.kotaId })),
+		villages: villages.map((v) => ({ id: v.id, name: v.nama, districtId: v.kecamatanId })),
+	};
 }
 
 export async function createCompanyData(formData: FormData): Promise<CompanyActionResult> {
 	const validation = parseAndValidateCompanyData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data perusahaan tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
 
 	const { data } = validation;
 
-	await prisma.company.create({
+	await prisma.perusahaan.create({
 		data: {
-			name: data.name,
-			taxId: data.taxId,
-			phone: data.phone,
+			nama: data.name,
+			npwp: data.taxId,
+			telepon: data.phone,
 			email: data.email,
 			website: data.website,
-			address: data.address,
-			provinceId: data.provinceId,
-			cityId: data.cityId,
-			districtId: data.districtId,
-			villageId: data.villageId,
-			postalCode: data.postalCode
+			alamat: data.address,
+			provinsiId: data.provinceId,
+			kotaId: data.cityId,
+			kecamatanId: data.districtId,
+			desaId: data.villageId,
+			kodePos: data.postalCode
 		},
 	});
 
@@ -140,9 +146,10 @@ export async function updateCompanyData(formData: FormData): Promise<CompanyActi
 	const validation = parseAndValidateCompanyData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data perusahaan tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -157,20 +164,20 @@ export async function updateCompanyData(formData: FormData): Promise<CompanyActi
 		};
 	}
 
-	await prisma.company.update({
+	await prisma.perusahaan.update({
 		where: { id: data.id },
 		data: {
-			name: data.name,
-			taxId: data.taxId,
-			phone: data.phone,
+			nama: data.name,
+			npwp: data.taxId,
+			telepon: data.phone,
 			email: data.email,
 			website: data.website,
-			address: data.address,
-			provinceId: data.provinceId,
-			cityId: data.cityId,
-			districtId: data.districtId,
-			villageId: data.villageId,
-			postalCode: data.postalCode,
+			alamat: data.address,
+			provinsiId: data.provinceId,
+			kotaId: data.cityId,
+			kecamatanId: data.districtId,
+			desaId: data.villageId,
+			kodePos: data.postalCode,
 		},
 	});
 
@@ -236,7 +243,7 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 
 	await writeFile(absolutePath, buffer);
 
-	await prisma.company.update({
+	await prisma.perusahaan.update({
 		where: { id: companyId },
 		data: { logo: relativePath },
 	});

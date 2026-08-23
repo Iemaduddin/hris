@@ -1,25 +1,21 @@
 "use server";
 
-import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidateWorkLocationData } from "../schemas/work-location.schema";
 import type { WorkLocationActionResult, WorkLocationOption } from "../types/work-location.type";
 
 export async function getWorkLocationOptions(): Promise<WorkLocationOption[]> {
-	const locations = await prisma.workLocation.findMany({
-		orderBy: [{ name: "asc" }],
+	const locations = await prisma.lokasiKerja.findMany({
+		orderBy: { nama: "asc" },
 		select: {
 			id: true,
-			name: true,
-			code: true,
-			address: true,
-			city: true,
-			province: true,
-			postalCode: true,
-			latitude: true,
-			longitude: true,
-			radiusMeters: true,
+			nama: true,
+			kode: true,
+			alamat: true,
+			kota: true,
+			provinsi: true,
+			kodePos: true,
 			isActive: true,
 		},
 	});
@@ -31,9 +27,10 @@ export async function createWorkLocation(formData: FormData): Promise<WorkLocati
 	const validation = parseAndValidateWorkLocationData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data lokasi kerja tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -41,17 +38,14 @@ export async function createWorkLocation(formData: FormData): Promise<WorkLocati
 	const { data } = validation;
 
 	try {
-		const created = await prisma.workLocation.create({
+		const created = await prisma.lokasiKerja.create({
 			data: {
-				name: data.name,
-				code: data.code,
-				address: data.address,
-				city: data.city,
-				province: data.province,
-				postalCode: data.postalCode,
-				latitude: data.latitude,
-				longitude: data.longitude,
-				radiusMeters: data.radiusMeters,
+				nama: data.nama,
+				kode: data.kode,
+				alamat: data.alamat,
+				kota: data.kota,
+				provinsi: data.provinsi,
+				kodePos: data.kodePos,
 				isActive: data.isActive,
 			},
 		});
@@ -60,20 +54,11 @@ export async function createWorkLocation(formData: FormData): Promise<WorkLocati
 
 		return {
 			success: true,
-			message: "Work location berhasil dibuat.",
+			message: "Lokasi Kerja berhasil dibuat.",
 			id: created.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode lokasi sudah digunakan.",
-				errors: { code: "Kode lokasi harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal membuat work location.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal membuat lokasi kerja." };
 	}
 }
 
@@ -81,9 +66,10 @@ export async function updateWorkLocation(formData: FormData): Promise<WorkLocati
 	const validation = parseAndValidateWorkLocationData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data lokasi kerja tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -93,24 +79,21 @@ export async function updateWorkLocation(formData: FormData): Promise<WorkLocati
 	if (!data.id) {
 		return {
 			success: false,
-			message: "ID work location tidak ditemukan untuk update.",
+			message: "ID lokasi kerja tidak ditemukan untuk update.",
 			errors: { id: "ID wajib ada untuk proses update." },
 		};
 	}
 
 	try {
-		await prisma.workLocation.update({
+		await prisma.lokasiKerja.update({
 			where: { id: data.id },
 			data: {
-				name: data.name,
-				code: data.code,
-				address: data.address,
-				city: data.city,
-				province: data.province,
-				postalCode: data.postalCode,
-				latitude: data.latitude,
-				longitude: data.longitude,
-				radiusMeters: data.radiusMeters,
+				nama: data.nama,
+				kode: data.kode,
+				alamat: data.alamat,
+				kota: data.kota,
+				provinsi: data.provinsi,
+				kodePos: data.kodePos,
 				isActive: data.isActive,
 			},
 		});
@@ -119,20 +102,11 @@ export async function updateWorkLocation(formData: FormData): Promise<WorkLocati
 
 		return {
 			success: true,
-			message: "Work location berhasil diperbarui.",
+			message: "Lokasi Kerja berhasil diperbarui.",
 			id: data.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode lokasi sudah digunakan.",
-				errors: { code: "Kode lokasi harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal memperbarui work location.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal memperbarui lokasi kerja." };
 	}
 }
 

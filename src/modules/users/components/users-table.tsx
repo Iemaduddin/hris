@@ -9,12 +9,11 @@ import {
 	bulkDeleteUsersAction,
 	bulkUpdateUserRoleAction,
 } from "../actions/user.actions";
-import type { UserRoleOption, UserSummary } from "../types/user.type";
+import type { UserSummary } from "../types/user.type";
 import UserActionsCell from "./user-actions-cell";
 
 type UsersTableProps = {
 	users: UserSummary[];
-	roles: UserRoleOption[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -30,7 +29,9 @@ const roleLabel: Record<UserSummary["role"], string> = {
 	SUPER_ADMIN: "Super Admin",
 };
 
-function getColumns(roles: UserRoleOption[]): DataTableColumn<UserSummary>[] {
+const roleOptions = Object.entries(roleLabel).map(([value, label]) => ({ value: value as UserSummary["role"], label }));
+
+function getColumns(): DataTableColumn<UserSummary>[] {
 	return [
 	{
 		id: "name",
@@ -77,11 +78,11 @@ function getColumns(roles: UserRoleOption[]): DataTableColumn<UserSummary>[] {
 	];
 }
 
-export default function UsersTable({ users, roles }: UsersTableProps) {
+export default function UsersTable({ users }: UsersTableProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
-	const [bulkRole, setBulkRole] = useState<UserSummary["role"]>(roles[0]?.value ?? "EMPLOYEE");
+	const [bulkRole, setBulkRole] = useState<UserSummary["role"]>("EMPLOYEE");
 	const [selectionResetKey, setSelectionResetKey] = useState(0);
 	const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
@@ -148,7 +149,7 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 					disabled={isPending}
 					className="h-10 rounded-lg border border-blue-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 dark:border-blue-800 dark:bg-slate-900 dark:text-slate-100"
 				>
-					{roles.map((role) => (
+					{roleOptions.map((role) => (
 						<option key={role.value} value={role.value}>
 							{role.label}
 						</option>
@@ -177,7 +178,7 @@ export default function UsersTable({ users, roles }: UsersTableProps) {
 
 			<DataTable
 				data={users}
-				columns={getColumns(roles)}
+				columns={getColumns()}
 				getRowId={(row) => row.id}
                 sortable
                 searchable

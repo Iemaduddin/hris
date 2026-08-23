@@ -7,30 +7,28 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
+import { AddButton, EditButton } from "@/src/components/ui/button";
 import { submitJobGradeAction } from "../actions/job-grade.actions";
-import type { JobGradeActionResult, JobGradeFormValues, JobGradeOption } from "../types/job-grade.type";
+import type {
+	JobGradeActionResult,
+	JobGradeFormValues,
+	JobGradeOption,
+} from "../types/job-grade.type";
 
 const EMPTY_FORM: JobGradeFormValues = {
 	id: "",
-	name: "",
-	code: null,
-	level: 0,
-	minSalary: null,
-	maxSalary: null,
-	description: null,
+	nama: "",
+	kode: null,
+	deskripsi: null,
 };
 
 function SubmitButton({ hasId }: { hasId: boolean }) {
 	const { pending } = useFormStatus();
 
 	return (
-		<button
-			type="submit"
-			disabled={pending}
-			className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-		>
-			{pending ? "Menyimpan..." : hasId ? "Update Job Grade" : "Simpan Job Grade"}
-		</button>
+		<AddButton type="submit" disabled={pending} withIcon={false}>
+			{pending ? "Menyimpan..." : hasId ? "Update Grade" : "Simpan Grade"}
+		</AddButton>
 	);
 }
 
@@ -39,8 +37,8 @@ type JobGradeFormProps = {
 };
 
 function toGradeLabel(grade: JobGradeOption) {
-	const codeSuffix = grade.code ? ` (${grade.code})` : "";
-	return `Level ${grade.level} - ${grade.name}${codeSuffix}`;
+	const kodeSuffix = grade.kode ? ` (${grade.kode})` : "";
+	return `${grade.nama}${kodeSuffix}`;
 }
 
 function toFormValues(grade?: JobGradeOption): JobGradeFormValues {
@@ -48,20 +46,10 @@ function toFormValues(grade?: JobGradeOption): JobGradeFormValues {
 
 	return {
 		id: grade.id,
-		name: grade.name,
-		code: grade.code,
-		level: grade.level,
-		minSalary: grade.minSalary,
-		maxSalary: grade.maxSalary,
-		description: grade.description,
+		nama: grade.nama,
+		kode: grade.kode,
+		deskripsi: grade.deskripsi,
 	};
-}
-
-function formatCurrency(value: string | null) {
-	if (!value) return "-";
-	const numberValue = Number.parseFloat(value);
-	if (Number.isNaN(numberValue)) return value;
-	return `Rp ${new Intl.NumberFormat("id-ID").format(numberValue)}`;
 }
 
 export default function JobGradeForm({ grades }: JobGradeFormProps) {
@@ -70,27 +58,26 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 	const formRef = useRef<HTMLFormElement>(null);
 	const [selectedGradeId, setSelectedGradeId] = useState("");
 
-	const selectedGrade = useMemo(() => grades.find((item) => item.id === selectedGradeId), [grades, selectedGradeId]);
+	const selectedGrade = useMemo(
+		() => grades.find((item) => item.id === selectedGradeId),
+		[grades, selectedGradeId],
+	);
+
 	const [formValues, setFormValues] = useState<JobGradeFormValues>(() => toFormValues(selectedGrade));
+
+	useEffect(() => {
+		setFormValues(toFormValues(selectedGrade));
+	}, [selectedGrade]);
 
 	const gradeSelectOptions = useMemo(
 		() => grades.map((item) => ({ label: toGradeLabel(item), value: item.id })),
 		[grades],
 	);
 
-	const sortedRows = useMemo(
-		() => [...grades].sort((left, right) => left.level - right.level || left.name.localeCompare(right.name)),
-		[grades],
-	);
-
-	useEffect(() => {
-		setFormValues(toFormValues(selectedGrade));
-	}, [selectedGrade]);
-
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
-		const orderedFields = ["name", "code", "level", "minSalary", "maxSalary", "description"] as const;
+		const orderedFields = ["nama", "kode", "deskripsi"] as const;
 
 		for (const field of orderedFields) {
 			if (!state.errors[field]) continue;
@@ -112,12 +99,21 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 	}, [state]);
 
 	useEffect(() => {
-		if (!state?.success) return;
+		if (!state) return;
 
-		toast.success(state.message || "Data job grade berhasil disimpan.");
-		if (state.id) setSelectedGradeId(state.id);
-		router.refresh();
-	}, [router, state]);
+		if (state.success) {
+			toast.success(state.message || "Data golongan posisi berhasil disimpan.");
+			if (state.id) setSelectedGradeId(state.id);
+		} else {
+			toast.error(state.message || "Gagal menyimpan data golongan posisi.");
+		}
+	}, [state]);
+
+	useEffect(() => {
+		if (state?.success) {
+			router.refresh();
+		}
+	}, [state, router]);
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">
@@ -125,90 +121,54 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 				<div className="flex-1">
 					<FloatingSelect
 						name="selectedGrade"
-						label="Pilih Job Grade (Edit)"
+						label="Pilih Grade (Edit)"
 						value={selectedGradeId}
 						onValueChange={(nextValue) => setSelectedGradeId(nextValue)}
 						options={gradeSelectOptions}
-						placeholder="Buat job grade baru"
+						placeholder="Buat grade baru"
 						searchable
 					/>
 				</div>
-				<button
-					type="button"
-					onClick={() => setSelectedGradeId("")}
-					className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
+				<EditButton type="button" onClick={() => setSelectedGradeId("")} withIcon={false}>
 					Buat Baru
-				</button>
+				</EditButton>
 			</div>
 
 			<input type="hidden" name="id" value={formValues.id ?? ""} readOnly />
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<FloatingInput
-					name="name"
-					label="Nama Job Grade"
-					value={formValues.name}
+					name="nama"
+					label="Nama Grade"
+					value={formValues.nama}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || "";
-						setFormValues((prev) => ({ ...prev, name: nextValue }));
+						setFormValues((prev) => ({ ...prev, nama: nextValue }));
 					}}
-					errorText={state?.errors?.name}
+					errorText={state?.errors?.nama}
 					required
 				/>
 				<FloatingInput
-					name="code"
+					name="kode"
 					label="Kode"
-					value={formValues.code ?? ""}
+					value={formValues.kode ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, code: nextValue }));
+						setFormValues((prev) => ({ ...prev, kode: nextValue }));
 					}}
-					errorText={state?.errors?.code}
-				/>
-				<FloatingInput
-					name="level"
-					label="Level"
-					type="number"
-					min={0}
-					value={String(formValues.level)}
-					onChange={(event) => {
-						const parsed = Number.parseInt(event.currentTarget.value || "0", 10);
-						setFormValues((prev) => ({ ...prev, level: Number.isNaN(parsed) ? 0 : parsed }));
-					}}
-					errorText={state?.errors?.level}
-					required
+					errorText={state?.errors?.kode}
 				/>
 
-				<FloatingInput
-					name="minSalary"
-					label="Gaji Minimum"
-					value={formValues.minSalary ?? ""}
-					onChange={(event) => {
-						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, minSalary: nextValue }));
-					}}
-					errorText={state?.errors?.minSalary}
-				/>
-				<FloatingInput
-					name="maxSalary"
-					label="Gaji Maksimum"
-					value={formValues.maxSalary ?? ""}
-					onChange={(event) => {
-						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, maxSalary: nextValue }));
-					}}
-					errorText={state?.errors?.maxSalary}
-				/>
 				<FloatingTextarea
-					name="description"
+					name="deskripsi"
 					label="Deskripsi"
-					value={formValues.description ?? ""}
+					value={formValues.deskripsi ?? ""}
 					onChange={(event) => {
 						const nextValue = event.currentTarget.value || null;
-						setFormValues((prev) => ({ ...prev, description: nextValue }));
+						setFormValues((prev) => ({ ...prev, deskripsi: nextValue }));
 					}}
-					errorText={state?.errors?.description}
+					errorText={state?.errors?.deskripsi}
+					containerClassName="md:col-span-3"
 				/>
 			</div>
 
@@ -218,7 +178,7 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 
 			<div className="mt-6 rounded-xl border border-blue-100 dark:border-blue-900/60">
 				<div className="border-b border-blue-100 px-4 py-3 dark:border-blue-900/60">
-					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Job Grade</h3>
+					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Golongan Posisi</h3>
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
@@ -228,41 +188,38 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 							<tr className="border-b border-blue-100 dark:border-blue-900/60">
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Level</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Range Gaji</th>
+								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Deskripsi</th>
 								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
 							</tr>
 						</thead>
 						<tbody>
-							{sortedRows.length === 0 ? (
+							{grades.length === 0 ? (
 								<tr>
-									<td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada job grade.
+									<td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+										Belum ada golongan posisi.
 									</td>
 								</tr>
 							) : (
-								sortedRows.map((grade) => (
+								grades.map((grade) => (
 									<tr
 										key={grade.id}
 										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedGradeId === grade.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
 									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.name}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.code ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.level}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-											{`${formatCurrency(grade.minSalary)} - ${formatCurrency(grade.maxSalary)}`}
-										</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.nama}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.kode ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.deskripsi ?? "-"}</td>
 										<td className="px-4 py-3 text-right">
-											<button
-												type="button"
-												onClick={() => {
-													setSelectedGradeId(grade.id);
-													formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-												}}
-												className="inline-flex h-8 items-center justify-center rounded-lg border border-blue-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
-											>
-												Edit
-											</button>
+												<EditButton
+													type="button"
+													size="xs"
+													withIcon={false}
+													onClick={() => {
+														setSelectedGradeId(grade.id);
+														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+													}}
+												>
+													Edit
+												</EditButton>
 										</td>
 									</tr>
 								))

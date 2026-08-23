@@ -1,14 +1,11 @@
 export type WorkLocationFormValues = {
 	id?: string;
-	name: string;
-	code: string | null;
-	address: string | null;
-	city: string | null;
-	province: string | null;
-	postalCode: string | null;
-	latitude: number | null;
-	longitude: number | null;
-	radiusMeters: number;
+	nama: string;
+	kode: string | null;
+	alamat: string | null;
+	kota: string | null;
+	provinsi: string | null;
+	kodePos: string | null;
 	isActive: boolean;
 };
 
@@ -33,14 +30,11 @@ export type WorkLocationActionResult = {
 
 export type WorkLocationOption = {
 	id: string;
-	name: string;
-	code: string | null;
-	address: string | null;
-	city: string | null;
-	province: string | null;
-	postalCode: string | null;
-	latitude: number | null;
-	longitude: number | null;
-	radiusMeters: number | null;
+	nama: string;
+	kode: string | null;
+	alamat: string | null;
+	kota: string | null;
+	provinsi: string | null;
+	kodePos: string | null;
 	isActive: boolean;
 };

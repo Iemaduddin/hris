@@ -106,7 +106,7 @@ export default function DataTable<TData>({
 				return value.toLowerCase().includes(q);
 			}),
 		);
-	}, [data, query, searchableColumns]);
+	}, [data, query, searchable, searchableColumns]);
 
 	const sortedRows = useMemo(() => {
 		if (!sortable || !sortState) return filteredRows;
@@ -117,40 +117,39 @@ export default function DataTable<TData>({
 
 	const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
 
+	const effectivePage = page > totalPages ? totalPages : page;
+
 	const paginatedRows = useMemo(() => {
-		const start = (page - 1) * pageSize;
+		const start = (effectivePage - 1) * pageSize;
 		return sortedRows.slice(start, start + pageSize);
-	}, [page, pageSize, sortedRows]);
+	}, [effectivePage, pageSize, sortedRows]);
 
 	const hiddenColumns = useMemo(() => columns.filter((column) => column.responsiveHidden), [columns]);
 
-	useEffect(() => {
-		if (page > totalPages) {
-			setPage(totalPages);
-		}
-	}, [page, totalPages]);
+	const [selectionResetKeyState, setSelectionResetKeyState] = useState(selectionResetKey);
+	if (selectionResetKey !== selectionResetKeyState) {
+		setSelectionResetKeyState(selectionResetKey);
+		setSelectedIds(new Set());
+	}
 
 	useEffect(() => {
 		onSelectionChange?.(Array.from(selectedIds));
 	}, [onSelectionChange, selectedIds]);
 
 	useEffect(() => {
-		setSelectedIds(new Set());
-	}, [selectionResetKey]);
-
-	useEffect(() => {
-		setExpandedRows((prev) => {
-			const next = new Set<string>();
-			for (const id of prev) {
-				if (paginatedRows.some((row) => getRowId(row) === id)) {
-					next.add(id);
-				}
-			}
-			return next;
-		});
-	}, [getRowId, paginatedRows]);
+		onSelectionChange?.(Array.from(selectedIds));
+	}, [onSelectionChange, selectedIds]);
 
 	const pageRowIds = paginatedRows.map((row) => getRowId(row));
+	const filteredExpandedRows = useMemo(() => {
+		const valid = new Set<string>();
+		for (const id of expandedRows) {
+			if (pageRowIds.includes(id)) {
+				valid.add(id);
+			}
+		}
+		return valid;
+	}, [expandedRows, pageRowIds]);
 	const allPageSelected = pageRowIds.length > 0 && pageRowIds.every((id) => selectedIds.has(id));
 	const somePageSelected = pageRowIds.some((id) => selectedIds.has(id));
 
@@ -304,7 +303,7 @@ export default function DataTable<TData>({
 							paginatedRows.map((row) => {
 								const rowId = getRowId(row);
 								const isSelected = selectedIds.has(rowId);
-								const isExpanded = expandedRows.has(rowId);
+								const isExpanded = filteredExpandedRows.has(rowId);
 
 								return (
 									<Fragment key={rowId}>

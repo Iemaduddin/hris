@@ -1,4 +1,4 @@
-import type { UserRole } from "@/generated/prisma/client";
+import type { UserRole } from "@/src/modules/users/types/user.type";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/src/lib/auth";
@@ -32,7 +32,7 @@ export async function requireUserRole(roles: UserRole[], redirectTo = "/") {
 		select: { role: true },
 	});
 
-	if (!currentUser || !roles.includes(currentUser.role)) {
+	if (!currentUser || !(roles as readonly string[]).includes(currentUser.role)) {
 		redirect(redirectTo);
 	}
 

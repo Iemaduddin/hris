@@ -1,14 +1,9 @@
-import type { OrgUnitType } from "@/generated/prisma/enums";
-
 export type OrganizationalUnitFormValues = {
 	id?: string;
 	parentId: string | null;
-	name: string;
-	code: string | null;
-	type: OrgUnitType;
-	description: string | null;
-	order: number;
-	isActive: boolean;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };
 
 export type OrganizationalUnitValidationErrors = Partial<Record<keyof OrganizationalUnitFormValues, string>>;
@@ -33,12 +28,7 @@ export type OrganizationalUnitActionResult = {
 export type OrganizationalUnitOption = {
 	id: string;
 	parentId: string | null;
-	name: string;
-	code: string | null;
-	type: OrgUnitType;
-	description: string | null;
-	level: number;
-	path: string | null;
-	order: number;
-	isActive: boolean;
+	nama: string;
+	kode: string | null;
+	deskripsi: string | null;
 };

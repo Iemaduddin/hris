@@ -1,5 +1,5 @@
-import { UserRole } from "@/generated/prisma/client";
 import { z } from "zod";
+import { VALID_ROLES } from "../types/user.type";
 import type { UserValidationErrors, UserValidationResult } from "../types/user.type";
 
 function toStringValue(formData: FormData, key: string) {
@@ -13,14 +13,14 @@ const userFormSchema = z.object({
 		.string()
 		.min(8, "Password minimal 8 karakter.")
 		.max(128, "Password maksimal 128 karakter."),
-	role: z.enum(UserRole),
+	role: z.enum(VALID_ROLES),
 });
 
 const userUpdateFormSchema = z.object({
 	id: z.string().min(1, "ID user tidak valid."),
 	name: z.string().min(2, "Nama minimal 2 karakter."),
 	email: z.email("Format email tidak valid."),
-	role: z.enum(UserRole),
+	role: z.enum(VALID_ROLES),
 });
 
 export function parseAndValidateUserData(formData: FormData): UserValidationResult {

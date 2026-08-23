@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { LuPencil, LuPlus, LuTrash2, LuSave, LuX, LuSearch, LuRefreshCw, LuDownload, LuUpload, LuEye, LuChevronLeft, LuChevronRight, LuCheck } from "react-icons/lu";
 
 type ButtonVariant =
 	| "primary"
@@ -187,3 +188,115 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
 
 export default Button;
 export type { ButtonVariant, ButtonStyleMode, ButtonSize, ButtonRounded, LoadingPosition };
+
+// ============================================================
+// ACTION BUTTON PRESETS
+// ============================================================
+
+type ActionButtonProps = Omit<ButtonProps, "variant" | "leftIcon" | "rightIcon"> & {
+	withIcon?: boolean;
+};
+
+export function AddButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="primary" leftIcon={withIcon ? <LuPlus className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Tambah"}
+		</Button>
+	);
+}
+
+export function EditButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="info" leftIcon={withIcon ? <LuPencil className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Edit"}
+		</Button>
+	);
+}
+
+export function DeleteButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="danger" leftIcon={withIcon ? <LuTrash2 className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Hapus"}
+		</Button>
+	);
+}
+
+export function SaveButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="primary" leftIcon={withIcon ? <LuSave className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Simpan"}
+		</Button>
+	);
+}
+
+export function CancelButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="outline" leftIcon={withIcon ? <LuX className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Batal"}
+		</Button>
+	);
+}
+
+export function SearchButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="primary" leftIcon={withIcon ? <LuSearch className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Cari"}
+		</Button>
+	);
+}
+
+export function RefreshButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="outline" leftIcon={withIcon ? <LuRefreshCw className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Refresh"}
+		</Button>
+	);
+}
+
+export function ExportButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="outline" leftIcon={withIcon ? <LuDownload className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Export"}
+		</Button>
+	);
+}
+
+export function ImportButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="outline" leftIcon={withIcon ? <LuUpload className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Import"}
+		</Button>
+	);
+}
+
+export function ViewButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="ghost" leftIcon={withIcon ? <LuEye className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Lihat"}
+		</Button>
+	);
+}
+
+export function BackButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="outline" leftIcon={withIcon ? <LuChevronLeft className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Kembali"}
+		</Button>
+	);
+}
+
+export function NextButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="primary" rightIcon={withIcon ? <LuChevronRight className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Selanjutnya"}
+		</Button>
+	);
+}
+
+export function ConfirmButton({ withIcon = true, children, ...props }: ActionButtonProps) {
+	return (
+		<Button variant="success" leftIcon={withIcon ? <LuCheck className="h-4 w-4" /> : undefined} {...props}>
+			{children ?? "Konfirmasi"}
+		</Button>
+	);
+}

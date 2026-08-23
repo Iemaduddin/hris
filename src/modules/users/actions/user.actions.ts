@@ -1,12 +1,12 @@
 "use server";
 
-import { UserRole } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/src/lib/auth";
 import { canManageUsers } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidateUserData, parseAndValidateUserUpdateData } from "../schemas/user.schema";
-import type { UserActionResult, UserRoleOption, UserSummary } from "../types/user.type";
+import { VALID_ROLES } from "../types/user.type";
+import type { UserActionResult, UserRole, UserRoleOption, UserSummary } from "../types/user.type";
 
 const roleLabels: Record<UserRole, string> = {
 	SUPER_ADMIN: "Super Admin",
@@ -16,8 +16,12 @@ const roleLabels: Record<UserRole, string> = {
 	EMPLOYEE: "Employee",
 };
 
+function isValidRole(role: string): role is UserRole {
+	return (VALID_ROLES as readonly string[]).includes(role);
+}
+
 export async function getUserRoleOptions(): Promise<UserRoleOption[]> {
-	return Object.values(UserRole).map((role) => ({
+	return VALID_ROLES.map((role) => ({
 		value: role,
 		label: roleLabels[role],
 	}));
@@ -40,7 +44,7 @@ export async function getUserSummaries(): Promise<UserSummary[]> {
 		id: user.id,
 		name: user.name,
 		email: user.email,
-		role: user.role,
+		role: user.role as UserRole,
 		emailVerified: user.emailVerified,
 		createdAt: user.createdAt.toISOString(),
 	}));
@@ -57,9 +61,10 @@ export async function createUserAction(formData: FormData): Promise<UserActionRe
 	const validation = parseAndValidateUserData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data user tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -126,9 +131,10 @@ export async function updateUserAction(formData: FormData): Promise<UserActionRe
 
 	const validation = parseAndValidateUserUpdateData(formData);
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data user tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -204,7 +210,7 @@ export async function updateUserRoleAction(formData: FormData): Promise<UserActi
 		};
 	}
 
-	if (!Object.values(UserRole).includes(role as UserRole)) {
+	if (!isValidRole(role)) {
 		return {
 			success: false,
 			message: "Role tidak valid.",
@@ -214,7 +220,7 @@ export async function updateUserRoleAction(formData: FormData): Promise<UserActi
 	try {
 		await prisma.user.update({
 			where: { id: userId },
-			data: { role: role as UserRole },
+			data: { role },
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Gagal memperbarui role user.";
@@ -258,7 +264,7 @@ export async function deleteUserAction(formData: FormData): Promise<UserActionRe
 		};
 	}
 
-	if (user.role === UserRole.SUPER_ADMIN) {
+	if (user.role === "SUPER_ADMIN") {
 		return {
 			success: false,
 			message: "User dengan role Super Admin tidak boleh dihapus.",
@@ -293,7 +299,7 @@ const currentUser = await prisma.user.findUnique({
     return currentUser;
 }
 
-export async function bulkUpdateUserRoleAction(userIds: string[], role: UserRole): Promise<UserActionResult> {
+export async function bulkUpdateUserRoleAction(userIds: string[], role: string): Promise<UserActionResult> {
 	if (!(await canManageUsers())) {
 		return {
 			success: false,
@@ -309,7 +315,7 @@ export async function bulkUpdateUserRoleAction(userIds: string[], role: UserRole
 		};
 	}
 
-	if (!Object.values(UserRole).includes(role)) {
+	if (!isValidRole(role)) {
 		return {
 			success: false,
 			message: "Role tidak valid.",
@@ -354,7 +360,7 @@ export async function bulkDeleteUsersAction(userIds: string[]): Promise<UserActi
 		select: { id: true, role: true },
 	});
 
-	if (users.some((user) => user.role === UserRole.SUPER_ADMIN)) {
+	if (users.some((user) => user.role === "SUPER_ADMIN")) {
 		return {
 			success: false,
 			message: "Ada user Super Admin dalam pilihan. Super Admin tidak boleh dihapus.",

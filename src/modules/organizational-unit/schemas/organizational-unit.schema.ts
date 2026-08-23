@@ -1,4 +1,3 @@
-import { OrgUnitType } from "@/generated/prisma/enums";
 import { z } from "zod";
 import type {
 	OrganizationalUnitFormValues,
@@ -17,12 +16,9 @@ function toNullable(value: string) {
 const organizationalUnitSchema = z.object({
 	id: z.string().optional(),
 	parentId: z.string().nullable(),
-	name: z.string().min(1, "Nama unit wajib diisi."),
-	code: z.string().max(50, "Kode maksimal 50 karakter.").nullable(),
-	type: z.nativeEnum(OrgUnitType, { message: "Tipe unit tidak valid." }),
-	description: z.string().max(500, "Deskripsi maksimal 500 karakter.").nullable(),
-	order: z.number().int("Urutan harus berupa angka bulat.").min(0, "Urutan tidak boleh negatif."),
-	isActive: z.boolean(),
+	nama: z.string().min(1, "Nama unit wajib diisi."),
+	kode: z.string().max(50, "Kode maksimal 50 karakter.").nullable(),
+	deskripsi: z.string().max(500, "Deskripsi maksimal 500 karakter.").nullable(),
 }).superRefine((value, context) => {
 	if (value.id && value.parentId && value.id === value.parentId) {
 		context.addIssue({
@@ -37,12 +33,9 @@ export function parseAndValidateOrganizationalUnitData(formData: FormData): Orga
 	const rawData = {
 		id: toStringValue(formData, "id") || undefined,
 		parentId: toNullable(toStringValue(formData, "parentId")),
-		name: toStringValue(formData, "name"),
-		code: toNullable(toStringValue(formData, "code")),
-		type: toStringValue(formData, "type") as OrgUnitType,
-		description: toNullable(toStringValue(formData, "description")),
-		order: Number.parseInt(toStringValue(formData, "order") || "0", 10),
-		isActive: toStringValue(formData, "isActive") !== "false",
+		nama: toStringValue(formData, "nama"),
+		kode: toNullable(toStringValue(formData, "kode")),
+		deskripsi: toNullable(toStringValue(formData, "deskripsi")),
 	};
 
 	const parsed = organizationalUnitSchema.safeParse(rawData);

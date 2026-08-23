@@ -29,7 +29,7 @@ export default function LoginForm() {
 					return;
 				}
 
-				toast.success("Login berhasil.");
+				toast.success("Login berhasil. Selamat datang!");
 				router.push("/");
 				router.refresh();
 			} catch (error) {
@@ -40,7 +40,7 @@ export default function LoginForm() {
 	};
 
 	return (
-		<form onSubmit={handleSubmit} className="mt-6 w-full space-y-5 rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+		<form onSubmit={handleSubmit} className="mt-6 w-full space-y-5 ">
 			<FloatingInput
 				name="email"
 				type="email"

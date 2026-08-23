@@ -1,43 +1,32 @@
 "use server";
 
-import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidateJobGradeData } from "../schemas/job-grade.schema";
 import type { JobGradeActionResult, JobGradeOption } from "../types/job-grade.type";
 
 export async function getJobGradeOptions(): Promise<JobGradeOption[]> {
-	const grades = await prisma.jobGrade.findMany({
-		orderBy: [{ level: "asc" }, { name: "asc" }],
+	const grades = await prisma.golonganPosisi.findMany({
+		orderBy: { nama: "asc" },
 		select: {
 			id: true,
-			name: true,
-			code: true,
-			level: true,
-			minSalary: true,
-			maxSalary: true,
-			description: true,
+			nama: true,
+			kode: true,
+			deskripsi: true,
 		},
 	});
 
-	return grades.map((grade) => ({
-		id: grade.id,
-		name: grade.name,
-		code: grade.code,
-		level: grade.level,
-		minSalary: grade.minSalary ? grade.minSalary.toString() : null,
-		maxSalary: grade.maxSalary ? grade.maxSalary.toString() : null,
-		description: grade.description,
-	}));
+	return grades;
 }
 
 export async function createJobGrade(formData: FormData): Promise<JobGradeActionResult> {
 	const validation = parseAndValidateJobGradeData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data golongan tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -45,14 +34,11 @@ export async function createJobGrade(formData: FormData): Promise<JobGradeAction
 	const { data } = validation;
 
 	try {
-		const created = await prisma.jobGrade.create({
+		const created = await prisma.golonganPosisi.create({
 			data: {
-				name: data.name,
-				code: data.code,
-				level: data.level,
-				minSalary: data.minSalary,
-				maxSalary: data.maxSalary,
-				description: data.description,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
 			},
 		});
 
@@ -60,20 +46,11 @@ export async function createJobGrade(formData: FormData): Promise<JobGradeAction
 
 		return {
 			success: true,
-			message: "Job grade berhasil dibuat.",
+			message: "Golongan Posisi berhasil dibuat.",
 			id: created.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode grade sudah digunakan.",
-				errors: { code: "Kode grade harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal membuat job grade.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal membuat golongan posisi." };
 	}
 }
 
@@ -81,9 +58,10 @@ export async function updateJobGrade(formData: FormData): Promise<JobGradeAction
 	const validation = parseAndValidateJobGradeData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data golongan tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -93,21 +71,18 @@ export async function updateJobGrade(formData: FormData): Promise<JobGradeAction
 	if (!data.id) {
 		return {
 			success: false,
-			message: "ID job grade tidak ditemukan untuk update.",
+			message: "ID golongan posisi tidak ditemukan untuk update.",
 			errors: { id: "ID wajib ada untuk proses update." },
 		};
 	}
 
 	try {
-		await prisma.jobGrade.update({
+		await prisma.golonganPosisi.update({
 			where: { id: data.id },
 			data: {
-				name: data.name,
-				code: data.code,
-				level: data.level,
-				minSalary: data.minSalary,
-				maxSalary: data.maxSalary,
-				description: data.description,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
 			},
 		});
 
@@ -115,20 +90,11 @@ export async function updateJobGrade(formData: FormData): Promise<JobGradeAction
 
 		return {
 			success: true,
-			message: "Job grade berhasil diperbarui.",
+			message: "Golongan Posisi berhasil diperbarui.",
 			id: data.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode grade sudah digunakan.",
-				errors: { code: "Kode grade harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal memperbarui job grade.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal memperbarui golongan posisi." };
 	}
 }
 

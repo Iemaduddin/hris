@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { LuMoon, LuSun } from "react-icons/lu";
+import { useMounted } from "@/src/hooks/use-mounted";
 
 type ThemeToggleProps = {
   className?: string;
@@ -10,11 +10,7 @@ type ThemeToggleProps = {
 
 export default function ThemeToggle({ className }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   const isDark = mounted && resolvedTheme === "dark";
 

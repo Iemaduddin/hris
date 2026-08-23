@@ -1,61 +1,57 @@
 "use server";
 
-import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidatePositionData } from "../schemas/position.schema";
 import type { PositionActionResult, PositionFormOptions, PositionOption } from "../types/position.type";
 
 export async function getPositionOptions(): Promise<PositionOption[]> {
-	const positions = await prisma.position.findMany({
-		orderBy: [{ name: "asc" }],
+	const positions = await prisma.posisi.findMany({
+		orderBy: { nama: "asc" },
 		select: {
 			id: true,
-			organizationalUnitId: true,
-			jobGradeId: true,
-			name: true,
-			code: true,
-			description: true,
-			isActive: true,
-			organizationalUnit: {
-				select: { name: true },
+			unitOrganisasiId: true,
+			golonganPosisiId: true,
+			nama: true,
+			kode: true,
+			deskripsi: true,
+			unitOrganisasi: {
+				select: { nama: true },
 			},
-			jobGrade: {
-				select: { name: true },
+			golonganPosisi: {
+				select: { nama: true },
 			},
 		},
 	});
 
 	return positions.map((item) => ({
 		id: item.id,
-		organizationalUnitId: item.organizationalUnitId,
-		organizationalUnitName: item.organizationalUnit?.name ?? null,
-		jobGradeId: item.jobGradeId,
-		jobGradeName: item.jobGrade?.name ?? null,
-		name: item.name,
-		code: item.code,
-		description: item.description,
-		isActive: item.isActive,
+		unitOrganisasiId: item.unitOrganisasiId,
+		unitOrganisasiNama: item.unitOrganisasi?.nama ?? null,
+		golonganPosisiId: item.golonganPosisiId,
+		golonganPosisiNama: item.golonganPosisi?.nama ?? null,
+		nama: item.nama,
+		kode: item.kode,
+		deskripsi: item.deskripsi,
 	}));
 }
 
 export async function getPositionFormOptions(): Promise<PositionFormOptions> {
 	const [organizationalUnits, jobGrades] = await Promise.all([
-		prisma.organizationalUnit.findMany({
-			orderBy: [{ level: "asc" }, { order: "asc" }, { name: "asc" }],
+		prisma.unitOrganisasi.findMany({
+			orderBy: { nama: "asc" },
 			select: {
 				id: true,
-				name: true,
-				code: true,
-				level: true,
+				nama: true,
+				kode: true,
 			},
 		}),
-		prisma.jobGrade.findMany({
-			orderBy: [{ level: "asc" }, { name: "asc" }],
+		prisma.golonganPosisi.findMany({
+			orderBy: { nama: "asc" },
 			select: {
 				id: true,
-				name: true,
-				code: true,
+				nama: true,
+				kode: true,
 			},
 		}),
 	]);
@@ -70,9 +66,10 @@ export async function createPosition(formData: FormData): Promise<PositionAction
 	const validation = parseAndValidatePositionData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data posisi tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -80,14 +77,13 @@ export async function createPosition(formData: FormData): Promise<PositionAction
 	const { data } = validation;
 
 	try {
-		const created = await prisma.position.create({
+		const created = await prisma.posisi.create({
 			data: {
-				organizationalUnitId: data.organizationalUnitId,
-				jobGradeId: data.jobGradeId,
-				name: data.name,
-				code: data.code,
-				description: data.description,
-				isActive: data.isActive,
+				unitOrganisasiId: data.unitOrganisasiId,
+				golonganPosisiId: data.golonganPosisiId,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
 			},
 		});
 
@@ -98,17 +94,8 @@ export async function createPosition(formData: FormData): Promise<PositionAction
 			message: "Position berhasil dibuat.",
 			id: created.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode jabatan sudah digunakan.",
-				errors: { code: "Kode jabatan harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal membuat position.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal membuat position." };
 	}
 }
 
@@ -116,9 +103,10 @@ export async function updatePosition(formData: FormData): Promise<PositionAction
 	const validation = parseAndValidatePositionData(formData);
 
 	if (!validation.isValid) {
+		const messages = Object.values(validation.errors).join("; ");
 		return {
 			success: false,
-			message: "Validasi gagal.",
+			message: `Data posisi tidak valid: ${messages}`,
 			errors: validation.errors,
 		};
 	}
@@ -134,15 +122,14 @@ export async function updatePosition(formData: FormData): Promise<PositionAction
 	}
 
 	try {
-		await prisma.position.update({
+		await prisma.posisi.update({
 			where: { id: data.id },
 			data: {
-				organizationalUnitId: data.organizationalUnitId,
-				jobGradeId: data.jobGradeId,
-				name: data.name,
-				code: data.code,
-				description: data.description,
-				isActive: data.isActive,
+				unitOrganisasiId: data.unitOrganisasiId,
+				golonganPosisiId: data.golonganPosisiId,
+				nama: data.nama,
+				kode: data.kode,
+				deskripsi: data.deskripsi,
 			},
 		});
 
@@ -153,17 +140,8 @@ export async function updatePosition(formData: FormData): Promise<PositionAction
 			message: "Position berhasil diperbarui.",
 			id: data.id,
 		};
-	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-			return {
-				success: false,
-				message: "Kode jabatan sudah digunakan.",
-				errors: { code: "Kode jabatan harus unik." },
-			};
-		}
-
-		const message = error instanceof Error ? error.message : "Gagal memperbarui position.";
-		return { success: false, message };
+	} catch {
+		return { success: false, message: "Gagal memperbarui position." };
 	}
 }
 

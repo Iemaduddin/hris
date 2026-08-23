@@ -26,7 +26,7 @@ export default async function UsersPage() {
 				<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lakukan aksi single per user atau bulk action untuk beberapa user sekaligus.</p>
 
 				<div className="mt-4">
-					<UsersTable users={users} roles={roles} />
+					<UsersTable users={users} />
 				</div>
 			</div>
 		</>

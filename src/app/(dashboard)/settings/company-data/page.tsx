@@ -17,7 +17,7 @@ export default async function CompanyDataPage() {
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Ubah data di bawah lalu simpan.</p>
                     <CompanyLogoUpload companyId={company?.id} logo={company?.logo} />
 
-                <CompanyDataForm company={company} locationOptions={locationOptions} />
+                <CompanyDataForm key={company?.id ?? "new"} company={company} locationOptions={locationOptions} />
             </div>
         </>
     );

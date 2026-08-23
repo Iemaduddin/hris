@@ -4,7 +4,7 @@ import { useLocalStorage } from "usehooks-ts";
 import Footbar from "@/src/components/layout/Footbar";
 import Sidebar from "@/src/components/layout/Sidebar";
 import Topbar from "@/src/components/layout/Topbar";
-import { useEffect, useState } from "react";
+import { useMounted } from "@/src/hooks/use-mounted";
 
 type DashboardShellProps = {
   company: {
@@ -20,11 +20,7 @@ type DashboardShellProps = {
 
 export default function DashboardShell({ company, user, children }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useLocalStorage<boolean>("dashboard.sidebar.open", true);
-const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+const mounted = useMounted();
   if (!mounted) {
     return null;
   }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FiEdit2 } from "react-icons/fi";
 import { toast } from "react-toastify";
+import { compressImage } from "@/src/lib/image-compress";
 import { uploadCompanyLogoAction } from "../actions/company-data.actions";
 
 type CompanyLogoUploadProps = {
@@ -11,60 +12,7 @@ type CompanyLogoUploadProps = {
 	logo?: string | null;
 };
 
-const MAX_IMAGE_SIZE = 1024;
-const TARGET_QUALITY = 0.82;
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
-
-function readImage(file: File) {
-	return new Promise<HTMLImageElement>((resolve, reject) => {
-		const objectUrl = URL.createObjectURL(file);
-		const img = new Image();
-		img.onload = () => {
-			URL.revokeObjectURL(objectUrl);
-			resolve(img);
-		};
-		img.onerror = () => {
-			URL.revokeObjectURL(objectUrl);
-			reject(new Error("Gagal membaca gambar."));
-		};
-		img.src = objectUrl;
-	});
-}
-
-async function compressImage(file: File): Promise<File> {
-	const image = await readImage(file);
-	const ratio = Math.min(MAX_IMAGE_SIZE / image.width, MAX_IMAGE_SIZE / image.height, 1);
-	const width = Math.max(1, Math.floor(image.width * ratio));
-	const height = Math.max(1, Math.floor(image.height * ratio));
-
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
-
-	const context = canvas.getContext("2d");
-	if (!context) {
-		throw new Error("Canvas tidak tersedia.");
-	}
-
-	context.drawImage(image, 0, 0, width, height);
-
-	const blob = await new Promise<Blob | null>((resolve) => {
-		canvas.toBlob(resolve, "image/webp", TARGET_QUALITY);
-	});
-
-	if (!blob) {
-		throw new Error("Gagal mengompres gambar.");
-	}
-
-	const fileName = file.name.replace(/\.[^/.]+$/, "") || "company-logo";
-	const compressed = new File([blob], `${fileName}.webp`, { type: "image/webp" });
-
-	if (compressed.size > MAX_FILE_SIZE_BYTES) {
-		throw new Error("Ukuran gambar setelah kompresi masih di atas 2MB.");
-	}
-
-	return compressed;
-}
 
 export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUploadProps) {
 	const router = useRouter();

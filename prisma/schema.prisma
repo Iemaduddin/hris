@@ -77,7 +77,7 @@ model Verification {
 // ============================================================
 
 model Provinsi {
-  id   String @id @default(cuid())
+  id   String @id
   nama String
 
   kota Kota[]
@@ -86,7 +86,7 @@ model Provinsi {
 }
 
 model Kota {
-  id         String   @id @default(cuid())
+  id         String   @id
   provinsiId String
   nama       String
   provinsi   Provinsi @relation(fields: [provinsiId], references: [id], onDelete: Cascade)
@@ -98,7 +98,7 @@ model Kota {
 }
 
 model Kecamatan {
-  id     String @id @default(cuid())
+  id     String @id
   kotaId String
   nama   String
   kota   Kota   @relation(fields: [kotaId], references: [id], onDelete: Cascade)
@@ -110,7 +110,7 @@ model Kecamatan {
 }
 
 model Desa {
-  id          String    @id @default(cuid())
+  id          String    @id
   kecamatanId String
   nama        String
   kecamatan   Kecamatan @relation(fields: [kecamatanId], references: [id], onDelete: Cascade)
@@ -126,7 +126,6 @@ model Desa {
 model Perusahaan {
   id          String   @id @default(cuid())
   nama        String
-  namaSingkat String?
   logo        String?
   npwp        String?
   telepon     String?

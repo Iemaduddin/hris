@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import { authClient } from "@/src/lib/auth-client";
 import { toast } from "react-toastify";
+import { useMounted } from "@/src/hooks/use-mounted";
 
 type OpenMenu = "notification" | "avatar" | null;
 
@@ -37,7 +38,7 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const { resolvedTheme, setTheme } = useTheme();
   const initials = useMemo(() => getInitialsFromName(user.name), [user.name]);
   const currentDate = useMemo(
@@ -67,10 +68,6 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   const toggleMenu = (menu: Exclude<OpenMenu, null>) => {

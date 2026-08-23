@@ -14,7 +14,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 const FloatingTextarea = forwardRef<HTMLTextAreaElement, FloatingTextareaProps>(function FloatingTextarea(
-	{ id, label, className, containerClassName, helperText, errorText, placeholder, disabled, ...props },
+	{ id, label, required, className, containerClassName, helperText, errorText, placeholder, disabled, ...props },
 	ref,
 ) {
 	const generatedId = useId();
@@ -53,6 +53,7 @@ const FloatingTextarea = forwardRef<HTMLTextAreaElement, FloatingTextareaProps>(
 					)}
 				>
 					{label}
+					{required && <span className="ml-0.5 text-red-500">*</span>}
 				</label>
 			</div>
 

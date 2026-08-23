@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBuilding, LuChevronDown, LuCircleDot, LuFileText, LuHouse, LuLogOut, LuSettings, LuUserRoundCog, LuUsers } from "react-icons/lu";
+import { LuChevronDown, LuFileText, LuHouse, LuLogOut, LuSettings, LuUserRoundCog, LuUsers } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Button from "../../ui/button";
 import Image from "next/image";
@@ -99,11 +99,11 @@ const sidebarSections: SidebarSection[] = [
 				label: "Data Perusahaan",
 				icon: LuSettings,
 				children:[
-					{ id: "company-data-item", label: "Profil", href: "/settings/company-data", icon: LuBuilding },
-					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit", icon: LuBuilding },
-					{ id: "job-grade-item", label: "Job Grade", href: "/settings/job-grade", icon: LuFileText },
-					{ id: "position-item", label: "Position", href: "/settings/position", icon: LuFileText },
-					{ id: "work-location-item", label: "Work Location", href: "/settings/work-location", icon: LuFileText },
+					{ id: "company-data-item", label: "Profil", href: "/settings/company-data" },
+					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit" },
+					{ id: "job-grade-item", label: "Golongan Posisi", href: "/settings/job-grade" },
+					{ id: "position-item", label: "Posisi", href: "/settings/position" },
+					{ id: "work-location-item", label: "Lokasi Kerja", href: "/settings/work-location" },
 				]
 			 }
 		],
@@ -145,7 +145,7 @@ function FlyoutEntry({ item, pathname, openItems, setOpenItems, depth = 0 }: Fly
 	const hasChildren = Boolean(item.children?.length);
 	const opened = openItems[item.id] ?? false;
 	const active = isItemActive(item, pathname);
-	const ItemIcon = item.icon ?? LuCircleDot;
+	const ItemIcon = item.icon;
 
 	const baseClass = [
 		"flex w-full items-center gap-2 rounded-lg py-2 text-left transition-colors",
@@ -157,7 +157,7 @@ function FlyoutEntry({ item, pathname, openItems, setOpenItems, depth = 0 }: Fly
 
 	const content = (
 		<>
-			<ItemIcon className="h-4 w-4" />
+			{ItemIcon && <ItemIcon className="h-4 w-4" />}
 			<span className="flex-1 truncate text-sm font-medium">{item.label}</span>
 			{hasChildren && <LuChevronDown className={`h-4 w-4 transition-transform ${opened ? "rotate-180" : ""}`} />}
 		</>
@@ -217,14 +217,16 @@ function SidebarEntry({ item, depth, pathname, openItems, setOpenItems, collapse
 	const lineClass = active
 		? `absolute ${collapsed ? "-right-2 h-8" : "-right-4 h-10"} top-1/2  w-1 -translate-y-1/2 bg-orange-500 dark:bg-orange-400`
 		: "hidden";
-	const ItemIcon = item.icon ?? LuCircleDot;
+	const ItemIcon = item.icon;
 
 	const content = (
 		<>
 			<span className={lineClass} />
-			<span className={active ? "text-blue-700 dark:text-blue-100" : "text-slate-500 dark:text-slate-400"}>
-				<ItemIcon className={depth === 0 ? "h-5 w-5" : "h-4.5 w-4.5"} />
-			</span>
+			{ItemIcon && (
+				<span className={active ? "text-blue-700 dark:text-blue-100" : "text-slate-500 dark:text-slate-400"}>
+					<ItemIcon className={depth === 0 ? "h-5 w-5" : "h-4.5 w-4.5"} />
+				</span>
+			)}
 			{!collapsed && <span className="flex-1 truncate text-left font-medium">{item.label}</span>}
 			{hasChildren && (
 				<LuChevronDown

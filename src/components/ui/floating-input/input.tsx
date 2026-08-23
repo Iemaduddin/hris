@@ -2,7 +2,7 @@
 
 import { forwardRef, useId, useState, type InputHTMLAttributes } from "react";
 
-type FloatingInputType = InputHTMLAttributes<HTMLInputElement>["type"] | "currency";
+type FloatingInputType = InputHTMLAttributes<HTMLInputElement>["type"] | "currency" | "nominal";
 
 export type CurrencyValue = {
 	raw: string;
@@ -37,11 +37,22 @@ function formatRupiah(value: string) {
 	return `Rp ${new Intl.NumberFormat("id-ID").format(numberValue)}`;
 }
 
+function formatNominal(value: string) {
+	const digits = extractDigits(value);
+	if (!digits) return "";
+
+	const numberValue = Number(digits);
+	if (Number.isNaN(numberValue)) return "";
+
+	return new Intl.NumberFormat("id-ID").format(numberValue);
+}
+
 const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function FloatingInput(
 	{
 		id,
 		label,
 		type = "text",
+		required,
 		className,
 		containerClassName,
 		helperText,
@@ -59,6 +70,8 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 	const generatedId = useId();
 	const resolvedId = id ?? generatedId;
 	const isCurrency = type === "currency";
+	const isNominal = type === "nominal";
+	const isNumeric = isCurrency || isNominal;
 	const isControlled = value !== undefined;
 
 	const [internalValue, setInternalValue] = useState(() => {
@@ -67,12 +80,12 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 	});
 
 	const sourceValue = isControlled ? String(value ?? "") : internalValue;
-	const displayValue = isCurrency ? formatRupiah(sourceValue) : sourceValue;
+	const displayValue = isCurrency ? formatRupiah(sourceValue) : isNominal ? formatNominal(sourceValue) : sourceValue;
 
-	const inputType: InputHTMLAttributes<HTMLInputElement>["type"] = isCurrency ? "text" : type;
+	const inputType: InputHTMLAttributes<HTMLInputElement>["type"] = isNumeric ? "text" : type;
 
 	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		if (!isCurrency) {
+		if (!isNumeric) {
 			if (!isControlled) {
 				setInternalValue(event.currentTarget.value);
 			}
@@ -81,7 +94,7 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 		}
 
 		const raw = extractDigits(event.currentTarget.value);
-		const formatted = formatRupiah(raw);
+		const formatted = isCurrency ? formatRupiah(raw) : formatNominal(raw);
 
 		if (!isControlled) {
 			setInternalValue(raw);
@@ -133,6 +146,7 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 					)}
 				>
 					{label}
+					{required && <span className="ml-0.5 text-red-500">*</span>}
 				</label>
 			</div>
 			{errorText ? (

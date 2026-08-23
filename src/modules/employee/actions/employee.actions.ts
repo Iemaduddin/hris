@@ -1,23 +1,20 @@
 "use server";
 
 import {
-	BloodType,
-	DocumentType,
-	EducationDegree,
-	EmployeeStatus,
-	EmploymentType,
-	FamilyRelation,
-	Gender,
-	MaritalStatus,
+	JenisKelamin,
+	StatusKaryawan,
+	JenisKontrak,
+	HubunganKeluarga,
+	GelarPendidikan,
+	JenisDokumen,
+	StatusKontrak,
 	Prisma,
-	Religion,
 } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import {
 	EMPLOYEE_WIZARD_STEPS,
-	type EmployeeBankAccountPayload,
-	type EmployeeBpjsPayload,
+	type EmployeeKontrakPayload,
 	type EmployeeDocumentPayload,
 	type EmployeeEducationPayload,
 	type EmployeeFamilyPayload,
@@ -35,9 +32,8 @@ import { parseEmployeeStepPayload } from "../schemas/employee.schema";
 
 function toOptionLabel(value: string) {
 	return value
-		.toLowerCase()
 		.split("_")
-		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
 		.join(" ");
 }
 
@@ -74,24 +70,9 @@ function parseFloatOrNull(value: string) {
 	return Number.isNaN(parsed) ? null : parsed;
 }
 
-function parseBigIntOrNull(value: string) {
-	if (!value) return null;
-	try {
-		return BigInt(value);
-	} catch {
-		return null;
-	}
-}
-
 function toNullableText(value: string) {
 	const trimmed = value.trim();
 	return trimmed ? trimmed : null;
-}
-
-function toNullableEnum<T extends string>(value: string, enums: readonly T[]) {
-	const trimmed = value.trim();
-	if (!trimmed) return null;
-	return enums.includes(trimmed as T) ? (trimmed as T) : null;
 }
 
 function isWizardStep(value: string): value is EmployeeWizardStepKey {
@@ -107,22 +88,6 @@ function parsePayload(formData: FormData) {
 	}
 }
 
-function normalizeEmergencyContact(value: { name: string; phone: string; relation: string }) {
-	const name = value.name.trim();
-	const phone = value.phone.trim();
-	const relation = value.relation.trim();
-
-	if (!name && !phone && !relation) {
-		return null;
-	}
-
-	return {
-		name,
-		phone,
-		relation,
-	};
-}
-
 function defaultDetail(employeeId = ""): EmployeeWizardDetail {
 	return {
 		employeeId,
@@ -131,52 +96,22 @@ function defaultDetail(employeeId = ""): EmployeeWizardDetail {
 			userId: "",
 			employeeNumber: "",
 			fullName: "",
-			nickname: "",
-			gender: Gender.MALE,
-			birthPlace: "",
+			gender: JenisKelamin.LAKI_LAKI,
 			birthDate: "",
 			nationalId: "",
 			taxId: "",
-			religion: "",
-			bloodType: "",
-			maritalStatus: "",
-			photo: "",
-			personalEmail: "",
 			workEmail: "",
 			phone: "",
-			emergencyContact: { name: "", phone: "", relation: "" },
-			currentAddress: "",
-			currentCity: "",
-			currentProvince: "",
-			currentPostal: "",
-			idAddress: "",
-			idCity: "",
-			idProvince: "",
-			idPostal: "",
-			status: EmployeeStatus.ACTIVE,
-			employmentType: EmploymentType.PERMANENT,
+			address: "",
+			status: StatusKaryawan.AKTIF,
 			joinDate: "",
-			probationEndDate: "",
-			contractEndDate: "",
 			resignDate: "",
-			resignReason: "",
-			terminationNote: "",
 		},
 		positions: [],
 		families: [],
 		educations: [],
 		workHistories: [],
-		bankAccounts: [],
-		bpjs: {
-			bpjsHealthNumber: "",
-			bpjsHealthClass: "",
-			bpjsHealthDate: "",
-			bpjsTkNumber: "",
-			bpjsJhtDate: "",
-			bpjsJpDate: "",
-			bpjsJkkDate: "",
-			bpjsJkmDate: "",
-		},
+		kontrak: [],
 		documents: [],
 	};
 }
@@ -186,63 +121,71 @@ export async function getEmployeeWizardBootstrapData(): Promise<{
 	referenceOptions: EmployeeWizardReferenceOptions;
 }> {
 	const [employees, users, units, positions, locations] = await Promise.all([
-		prisma.employee.findMany({
+		prisma.karyawan.findMany({
 			orderBy: [{ updatedAt: "desc" }],
 			select: {
 				id: true,
-				employeeNumber: true,
-				fullName: true,
+				nomorKaryawan: true,
+				namaLengkap: true,
 				status: true,
 				updatedAt: true,
 			},
 		}),
 		prisma.user.findMany({
-			orderBy: [{ name: "asc" }],
+			orderBy: [{ email: "asc" }],
 			select: {
 				id: true,
 				name: true,
 				email: true,
 			},
 		}),
-		prisma.organizationalUnit.findMany({
-			where: { isActive: true },
-			orderBy: [{ name: "asc" }],
-			select: { id: true, name: true, code: true },
+		prisma.unitOrganisasi.findMany({
+			orderBy: [{ nama: "asc" }],
+			select: { id: true, nama: true, kode: true },
 		}),
-		prisma.position.findMany({
-			where: { isActive: true },
-			orderBy: [{ name: "asc" }],
-			select: { id: true, name: true, code: true },
+		prisma.posisi.findMany({
+			orderBy: [{ nama: "asc" }],
+			select: { id: true, nama: true, kode: true, unitOrganisasiId: true },
 		}),
-		prisma.workLocation.findMany({
-			where: { isActive: true },
-			orderBy: [{ name: "asc" }],
-			select: { id: true, name: true, code: true },
+		prisma.lokasiKerja.findMany({
+			orderBy: [{ nama: "asc" }],
+			select: { id: true, nama: true, kode: true },
 		}),
 	]);
 
 	return {
 		summaries: employees.map((item) => ({
 			id: item.id,
-			employeeNumber: item.employeeNumber,
-			fullName: item.fullName,
+			employeeNumber: item.nomorKaryawan,
+			fullName: item.namaLengkap,
 			status: item.status,
 			updatedAt: item.updatedAt.toISOString(),
 		})),
 		referenceOptions: {
 			users: users.map((item) => ({ value: item.id, label: `${item.name} (${item.email})` })),
-			organizationalUnits: units.map((item) => ({ value: item.id, label: item.code ? `${item.name} (${item.code})` : item.name })),
-			positions: positions.map((item) => ({ value: item.id, label: item.code ? `${item.name} (${item.code})` : item.name })),
-			workLocations: locations.map((item) => ({ value: item.id, label: item.code ? `${item.name} (${item.code})` : item.name })),
-			genders: enumOptions(Object.values(Gender)),
-			religions: enumOptions(Object.values(Religion)),
-			bloodTypes: enumOptions(Object.values(BloodType)),
-			maritalStatuses: enumOptions(Object.values(MaritalStatus)),
-			employeeStatuses: enumOptions(Object.values(EmployeeStatus)),
-			employmentTypes: enumOptions(Object.values(EmploymentType)),
-			familyRelations: enumOptions(Object.values(FamilyRelation)),
-			educationDegrees: enumOptions(Object.values(EducationDegree)),
-			documentTypes: enumOptions(Object.values(DocumentType)),
+			userNames: Object.fromEntries(users.map((item) => [item.id, item.name])),
+			organizationalUnits: units.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
+			positions: positions.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
+			positionUnitMap: Object.fromEntries(positions.filter((item) => item.unitOrganisasiId).map((item) => [item.id, item.unitOrganisasiId!])),
+			workLocations: locations.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
+			jenisKelamin: enumOptions(Object.values(JenisKelamin)),
+			statusKaryawan: enumOptions(Object.values(StatusKaryawan)),
+			jenisKontrak: enumOptions(Object.values(JenisKontrak)),
+			hubunganKeluarga: enumOptions(Object.values(HubunganKeluarga)),
+			gelarPendidikan: [
+				{ value: "S3", label: "S3" },
+				{ value: "S2", label: "S2" },
+				{ value: "S1", label: "S1" },
+				{ value: "D4", label: "D4" },
+				{ value: "D3", label: "D3" },
+				{ value: "D2", label: "D2" },
+				{ value: "D1", label: "D1" },
+				{ value: "SMA_SMK", label: "SMA/SMK" },
+				{ value: "SMP", label: "SMP" },
+				{ value: "SD", label: "SD" },
+				{ value: "LAINNYA", label: "LAINNYA" },
+			],
+			jenisDokumen: enumOptions(Object.values(JenisDokumen)),
 		},
 	};
 }
@@ -252,16 +195,15 @@ export async function getEmployeeWizardDetail(employeeId: string): Promise<Emplo
 		return null;
 	}
 
-	const employee = await prisma.employee.findUnique({
+	const employee = await prisma.karyawan.findUnique({
 		where: { id: employeeId },
 		include: {
-			positions: { orderBy: [{ effectiveDate: "desc" }] },
-			families: { orderBy: [{ createdAt: "asc" }] },
-			educations: { orderBy: [{ createdAt: "asc" }] },
-			workHistories: { orderBy: [{ createdAt: "asc" }] },
-			bankAccounts: { orderBy: [{ createdAt: "asc" }] },
-			bpjs: true,
-			documents: { orderBy: [{ uploadedAt: "desc" }] },
+			posisiKaryawan: { orderBy: [{ tanggalEfektif: "desc" }] },
+			keluargaKaryawan: { orderBy: [{ createdAt: "asc" }] },
+			pendidikanKaryawan: { orderBy: [{ createdAt: "asc" }] },
+			riwayatPekerjaan: { orderBy: [{ createdAt: "asc" }] },
+			kontrakKerja: { orderBy: [{ tanggalMulai: "desc" }] },
+			dokumenKaryawan: { orderBy: [{ tanggalUnggah: "desc" }] },
 		},
 	});
 
@@ -269,116 +211,78 @@ export async function getEmployeeWizardDetail(employeeId: string): Promise<Emplo
 		return null;
 	}
 
-	const contact = employee.emergencyContact as Prisma.JsonObject | null;
-
 	return {
 		employeeId: employee.id,
 		personal: {
 			id: employee.id,
 			userId: employee.userId ?? "",
-			employeeNumber: employee.employeeNumber,
-			fullName: employee.fullName,
-			nickname: employee.nickname ?? "",
+			employeeNumber: employee.nomorKaryawan,
+			fullName: employee.namaLengkap,
 			gender: employee.gender,
-			birthPlace: employee.birthPlace ?? "",
-			birthDate: toDateInputValue(employee.birthDate),
-			nationalId: employee.nationalId ?? "",
-			taxId: employee.taxId ?? "",
-			religion: employee.religion ?? "",
-			bloodType: employee.bloodType ?? "",
-			maritalStatus: employee.maritalStatus ?? "",
-			photo: employee.photo ?? "",
-			personalEmail: employee.personalEmail ?? "",
-			workEmail: employee.workEmail ?? "",
-			phone: employee.phone ?? "",
-			emergencyContact: {
-				name: String(contact?.name ?? ""),
-				phone: String(contact?.phone ?? ""),
-				relation: String(contact?.relation ?? ""),
-			},
-			currentAddress: employee.currentAddress ?? "",
-			currentCity: employee.currentCity ?? "",
-			currentProvince: employee.currentProvince ?? "",
-			currentPostal: employee.currentPostal ?? "",
-			idAddress: employee.idAddress ?? "",
-			idCity: employee.idCity ?? "",
-			idProvince: employee.idProvince ?? "",
-			idPostal: employee.idPostal ?? "",
+			birthDate: toDateInputValue(employee.tanggalLahir),
+			nationalId: employee.nik ?? "",
+			taxId: employee.npwp ?? "",
+			workEmail: employee.email ?? "",
+			phone: employee.telepon ?? "",
+			address: employee.alamat ?? "",
 			status: employee.status,
-			employmentType: employee.employmentType,
-			joinDate: toDateInputValue(employee.joinDate),
-			probationEndDate: toDateInputValue(employee.probationEndDate),
-			contractEndDate: toDateInputValue(employee.contractEndDate),
-			resignDate: toDateInputValue(employee.resignDate),
-			resignReason: employee.resignReason ?? "",
-			terminationNote: employee.terminationNote ?? "",
+			joinDate: toDateInputValue(employee.tanggalMasuk),
+			resignDate: toDateInputValue(employee.tanggalResign),
 		},
-		positions: employee.positions.map((item) => ({
-			organizationalUnitId: item.organizationalUnitId ?? "",
-			positionId: item.positionId ?? "",
-			workLocationId: item.workLocationId ?? "",
+		positions: employee.posisiKaryawan.map((item) => ({
+			organizationalUnitId: item.unitOrganisasiId ?? "",
+			positionId: item.posisiId ?? "",
+			workLocationId: item.lokasiKerjaId ?? "",
 			isPrimary: item.isPrimary,
 			isCurrent: item.isCurrent,
-			effectiveDate: toDateInputValue(item.effectiveDate),
-			endDate: toDateInputValue(item.endDate),
-			note: item.note ?? "",
+			effectiveDate: toDateInputValue(item.tanggalEfektif),
+			note: item.catatan ?? "",
 		})),
-		families: employee.families.map((item) => ({
-			name: item.name,
-			relation: item.relation,
+		families: employee.keluargaKaryawan.map((item) => ({
+			name: item.nama,
+			relation: item.hubungan,
 			gender: item.gender,
-			birthDate: toDateInputValue(item.birthDate),
-			nationalId: item.nationalId ?? "",
-			occupation: item.occupation ?? "",
-			isDependent: item.isDependent,
-			isBpjsDependent: item.isBpjsDependent,
-			isHeir: item.isHeir,
+			birthDate: toDateInputValue(item.tanggalLahir),
+			nationalId: item.nik ?? "",
+			occupation: item.pekerjaan ?? "",
 		})),
-		educations: employee.educations.map((item) => ({
-			degree: item.degree,
-			institution: item.institution,
-			major: item.major ?? "",
-			startYear: item.startYear ? String(item.startYear) : "",
-			graduationYear: item.graduationYear ? String(item.graduationYear) : "",
-			gpa: item.gpa !== null ? String(item.gpa) : "",
+		educations: employee.pendidikanKaryawan.map((item) => ({
+			degree: item.gelar,
+			institution: item.institusi,
+			major: item.jurusan ?? "",
+			startYear: item.tahunMulai ? String(item.tahunMulai) : "",
+			graduationYear: item.tahunLulus ? String(item.tahunLulus) : "",
+			gpa: item.ipk !== null ? String(item.ipk) : "",
 			isHighest: item.isHighest,
-			documentUrl: item.documentUrl ?? "",
+			documentUrl: item.urlDokumen ?? "",
 		})),
-		workHistories: employee.workHistories.map((item) => ({
-			companyName: item.companyName,
-			position: item.position ?? "",
-			startDate: toDateInputValue(item.startDate),
-			endDate: toDateInputValue(item.endDate),
-			lastSalary: item.lastSalary ? item.lastSalary.toString() : "",
-			reasonLeaving: item.reasonLeaving ?? "",
-			referencePhone: item.referencePhone ?? "",
+		workHistories: employee.riwayatPekerjaan.map((item) => ({
+			companyName: item.namaPerusahaan,
+			position: item.posisi ?? "",
+			startDate: toDateInputValue(item.tanggalMulai),
+			endDate: toDateInputValue(item.tanggalSelesai),
+			lastSalary: item.gajiTerakhir ? item.gajiTerakhir.toString() : "",
+			reasonLeaving: item.alasanKeluar ?? "",
+			referencePhone: item.teleponReferensi ?? "",
 		})),
-		bankAccounts: employee.bankAccounts.map((item) => ({
-			bankName: item.bankName,
-			bankCode: item.bankCode ?? "",
-			accountNumber: item.accountNumber,
-			accountName: item.accountName,
-			isPrimary: item.isPrimary,
+		kontrak: employee.kontrakKerja.map((item) => ({
+			contractNumber: item.nomorKontrak,
+			contractType: item.jenisKontrak,
+			startDate: toDateInputValue(item.tanggalMulai),
+			endDate: toDateInputValue(item.tanggalSelesai),
+			status: item.status,
+			baseSalary: item.gajiPokok ? item.gajiPokok.toString() : "",
+			documentUrl: item.urlDokumen ?? "",
+			note: item.catatan ?? "",
 		})),
-		bpjs: {
-			bpjsHealthNumber: employee.bpjs?.bpjsHealthNumber ?? "",
-			bpjsHealthClass: employee.bpjs?.bpjsHealthClass ? String(employee.bpjs.bpjsHealthClass) : "",
-			bpjsHealthDate: toDateInputValue(employee.bpjs?.bpjsHealthDate),
-			bpjsTkNumber: employee.bpjs?.bpjsTkNumber ?? "",
-			bpjsJhtDate: toDateInputValue(employee.bpjs?.bpjsJhtDate),
-			bpjsJpDate: toDateInputValue(employee.bpjs?.bpjsJpDate),
-			bpjsJkkDate: toDateInputValue(employee.bpjs?.bpjsJkkDate),
-			bpjsJkmDate: toDateInputValue(employee.bpjs?.bpjsJkmDate),
-		},
-		documents: employee.documents.map((item) => ({
-			documentType: item.documentType,
-			name: item.name,
-			fileUrl: item.fileUrl,
-			fileSize: item.fileSize !== null ? item.fileSize.toString() : "",
-			mimeType: item.mimeType ?? "",
-			expiredAt: toDateInputValue(item.expiredAt),
-			note: item.note ?? "",
-			uploadedAt: toDateInputValue(item.uploadedAt),
+		documents: employee.dokumenKaryawan.map((item) => ({
+			documentType: item.jenisDokumen,
+			name: item.nama,
+			fileUrl: item.urlFile,
+			fileSize: item.ukuranFile !== null ? item.ukuranFile.toString() : "",
+			mimeType: item.tipeFile ?? "",
+			expiredAt: toDateInputValue(item.tanggalKadaluarsa),
+			note: item.catatan ?? "",
 		})),
 	};
 }
@@ -414,73 +318,53 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 			case "personal": {
 				const parsed = parseEmployeeStepPayload("personal", payload);
 				if (!parsed.isValid) {
+					const messages = Object.values(parsed.errors).join("; ");
 					return {
 						success: false,
-						message: "Validasi gagal.",
+						message: `Data pribadi belum lengkap: ${messages}`,
 						errors: parsed.errors,
 					};
 				}
 
 				const data = parsed.data as EmployeePersonalPayload;
-				const emergencyContact = normalizeEmergencyContact(data.emergencyContact);
 				const joinDate = parseDate(data.joinDate);
 				if (!joinDate) {
 					return {
 						success: false,
-						message: "Tanggal join tidak valid.",
-						errors: { joinDate: "Tanggal join tidak valid." },
+						message: "Tanggal masuk tidak valid.",
+						errors: { joinDate: "Tanggal masuk tidak valid." },
 					};
 				}
 
 				const payloadToSave = {
 					userId: toNullableText(data.userId),
-					employeeNumber: data.employeeNumber,
-					fullName: data.fullName,
-					nickname: toNullableText(data.nickname),
-					gender: data.gender as Gender,
-					birthPlace: toNullableText(data.birthPlace),
-					birthDate: parseDate(data.birthDate),
-					nationalId: toNullableText(data.nationalId),
-					taxId: toNullableText(data.taxId),
-					religion: toNullableEnum(data.religion, Object.values(Religion)),
-					bloodType: toNullableEnum(data.bloodType, Object.values(BloodType)),
-					maritalStatus: toNullableEnum(data.maritalStatus, Object.values(MaritalStatus)),
-					photo: toNullableText(data.photo),
-					personalEmail: toNullableText(data.personalEmail),
-					workEmail: toNullableText(data.workEmail),
-					phone: toNullableText(data.phone),
-					emergencyContact: emergencyContact ?? Prisma.JsonNull,
-					currentAddress: toNullableText(data.currentAddress),
-					currentCity: toNullableText(data.currentCity),
-					currentProvince: toNullableText(data.currentProvince),
-					currentPostal: toNullableText(data.currentPostal),
-					idAddress: toNullableText(data.idAddress),
-					idCity: toNullableText(data.idCity),
-					idProvince: toNullableText(data.idProvince),
-					idPostal: toNullableText(data.idPostal),
-					status: data.status as EmployeeStatus,
-					employmentType: data.employmentType as EmploymentType,
-					joinDate,
-					probationEndDate: parseDate(data.probationEndDate),
-					contractEndDate: parseDate(data.contractEndDate),
-					resignDate: parseDate(data.resignDate),
-					resignReason: toNullableText(data.resignReason),
-					terminationNote: toNullableText(data.terminationNote),
+					nomorKaryawan: data.employeeNumber,
+					namaLengkap: data.fullName,
+					gender: data.gender as JenisKelamin,
+					tanggalLahir: parseDate(data.birthDate),
+					nik: toNullableText(data.nationalId),
+					npwp: toNullableText(data.taxId),
+					email: toNullableText(data.workEmail),
+					telepon: toNullableText(data.phone),
+					alamat: toNullableText(data.address),
+					status: data.status as StatusKaryawan,
+					tanggalMasuk: joinDate,
+					tanggalResign: parseDate(data.resignDate),
 				};
 
 				const saved = employeeId
-					? await prisma.employee.update({
+					? await prisma.karyawan.update({
 							where: { id: employeeId },
 							data: payloadToSave,
 						})
-					: await prisma.employee.create({
+					: await prisma.karyawan.create({
 							data: payloadToSave,
 						});
 
 				employeeId = saved.id;
 				return {
 					success: true,
-					message: formData.get("employeeId") ? "Tahap data pribadi berhasil diperbarui." : "Draft employee berhasil dibuat.",
+					message: formData.get("employeeId") ? "Tahap data pribadi berhasil diperbarui." : "Draft karyawan berhasil dibuat.",
 					employeeId,
 				};
 			}
@@ -488,193 +372,191 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 			case "position": {
 				const parsed = parseEmployeeStepPayload("position", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data penempatan tidak valid. Periksa tanggal efektif dan field wajib lainnya.", errors: parsed.errors };
 				}
 
 				const rows = parsed.data as EmployeePositionPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeePosition.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeePosition.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							organizationalUnitId: toNullableText(item.organizationalUnitId),
-							positionId: toNullableText(item.positionId),
-							workLocationId: toNullableText(item.workLocationId),
-							isPrimary: item.isPrimary,
-							isCurrent: item.isCurrent,
-							effectiveDate: parseDate(item.effectiveDate) ?? new Date(),
-							endDate: parseDate(item.endDate),
-							note: toNullableText(item.note),
-						})),
-					});
+				await prisma.$transaction(async (tx) => {
+					await tx.posisiKaryawan.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.posisiKaryawan.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								unitOrganisasiId: toNullableText(item.organizationalUnitId),
+								posisiId: toNullableText(item.positionId),
+								lokasiKerjaId: toNullableText(item.workLocationId),
+								isPrimary: item.isPrimary,
+								isCurrent: item.isCurrent,
+								tanggalEfektif: parseDate(item.effectiveDate) ?? new Date(),
+								tanggalBerakhir: null,
+								catatan: toNullableText(item.note),
+							})),
+						});
+					}
+				});
+
+				const existing = await prisma.karyawan.findUnique({
+					where: { id: employeeId },
+					select: { nomorKaryawan: true },
+				});
+
+				let generatedNumber: string | undefined;
+				if (existing && !existing.nomorKaryawan) {
+					const primaryPos = rows.find((r) => r.isPrimary) ?? rows[0];
+					if (primaryPos) {
+						const numResult = await generateEmployeeNumber({
+							workLocationId: primaryPos.workLocationId,
+							organizationalUnitId: primaryPos.organizationalUnitId,
+							positionId: primaryPos.positionId,
+						});
+						if (numResult.success) {
+							await prisma.karyawan.update({
+								where: { id: employeeId },
+								data: { nomorKaryawan: numResult.employeeNumber },
+							});
+							generatedNumber = numResult.employeeNumber;
+						}
+					}
 				}
-			});
-				break;
+
+				return {
+					success: true,
+					message: generatedNumber
+						? `Penempatan disimpan. Nomor karyawan berhasil dibuat: ${generatedNumber} (cek tahap 1).`
+						: "Tahap penempatan berhasil disimpan.",
+					employeeId,
+					employeeNumber: generatedNumber,
+				};
 			}
 
 			case "family": {
 				const parsed = parseEmployeeStepPayload("family", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data keluarga tidak valid. Periksa nama anggota keluarga dan field wajib lainnya.", errors: parsed.errors };
 				}
 				const rows = parsed.data as EmployeeFamilyPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeeFamily.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeeFamily.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							name: item.name,
-							relation: item.relation as FamilyRelation,
-							gender: item.gender as Gender,
-							birthDate: parseDate(item.birthDate),
-							nationalId: toNullableText(item.nationalId),
-							occupation: toNullableText(item.occupation),
-							isDependent: item.isDependent,
-							isBpjsDependent: item.isBpjsDependent,
-							isHeir: item.isHeir,
-						})),
-					});
-				}
-			});
+				await prisma.$transaction(async (tx) => {
+					await tx.keluargaKaryawan.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.keluargaKaryawan.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								nama: item.name,
+								hubungan: item.relation as HubunganKeluarga,
+								gender: item.gender as JenisKelamin,
+								tanggalLahir: parseDate(item.birthDate),
+								nik: toNullableText(item.nationalId),
+								pekerjaan: toNullableText(item.occupation),
+							})),
+						});
+					}
+				});
 				break;
 			}
 
 			case "education": {
 				const parsed = parseEmployeeStepPayload("education", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data pendidikan tidak valid. Periksa nama institusi dan field wajib lainnya.", errors: parsed.errors };
 				}
 				const rows = parsed.data as EmployeeEducationPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeeEducation.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeeEducation.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							degree: item.degree as EducationDegree,
-							institution: item.institution,
-							major: toNullableText(item.major),
-							startYear: parseIntOrNull(item.startYear),
-							graduationYear: parseIntOrNull(item.graduationYear),
-							gpa: parseFloatOrNull(item.gpa),
-							isHighest: item.isHighest,
-							documentUrl: toNullableText(item.documentUrl),
-						})),
-					});
-				}
-			});
+				await prisma.$transaction(async (tx) => {
+					await tx.pendidikanKaryawan.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.pendidikanKaryawan.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								gelar: item.degree as GelarPendidikan,
+								institusi: item.institution,
+								jurusan: toNullableText(item.major),
+								tahunMulai: parseIntOrNull(item.startYear),
+								tahunLulus: parseIntOrNull(item.graduationYear),
+								ipk: parseFloatOrNull(item.gpa),
+								isHighest: item.isHighest,
+								urlDokumen: toNullableText(item.documentUrl),
+							})),
+						});
+					}
+				});
 				break;
 			}
 
 			case "workHistory": {
 				const parsed = parseEmployeeStepPayload("workHistory", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data riwayat kerja tidak valid. Periksa nama perusahaan dan field wajib lainnya.", errors: parsed.errors };
 				}
 				const rows = parsed.data as EmployeeWorkHistoryPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeeWorkHistory.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeeWorkHistory.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							companyName: item.companyName,
-							position: toNullableText(item.position),
-							startDate: parseDate(item.startDate),
-							endDate: parseDate(item.endDate),
-							lastSalary: item.lastSalary ? new Prisma.Decimal(item.lastSalary) : null,
-							reasonLeaving: toNullableText(item.reasonLeaving),
-							referencePhone: toNullableText(item.referencePhone),
-						})),
-					});
-				}
-			});
+				await prisma.$transaction(async (tx) => {
+					await tx.riwayatPekerjaan.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.riwayatPekerjaan.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								namaPerusahaan: item.companyName,
+								posisi: toNullableText(item.position),
+								tanggalMulai: parseDate(item.startDate),
+								tanggalSelesai: parseDate(item.endDate),
+								gajiTerakhir: item.lastSalary ? new Prisma.Decimal(item.lastSalary) : null,
+								alasanKeluar: toNullableText(item.reasonLeaving),
+								teleponReferensi: toNullableText(item.referencePhone),
+							})),
+						});
+					}
+				});
 				break;
 			}
 
-			case "bankAccount": {
-				const parsed = parseEmployeeStepPayload("bankAccount", payload);
+			case "kontrak": {
+				const parsed = parseEmployeeStepPayload("kontrak", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data kontrak tidak valid. Periksa nomor kontrak, tanggal mulai, dan field wajib lainnya.", errors: parsed.errors };
 				}
-				const rows = parsed.data as EmployeeBankAccountPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeeBankAccount.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeeBankAccount.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							bankName: item.bankName,
-							bankCode: toNullableText(item.bankCode),
-							accountNumber: item.accountNumber,
-							accountName: item.accountName,
-							isPrimary: item.isPrimary,
-						})),
-					});
-				}
-			});
-				break;
-			}
-
-			case "bpjs": {
-				const parsed = parseEmployeeStepPayload("bpjs", payload);
-				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
-				}
-				const data = parsed.data as EmployeeBpjsPayload;
-			await prisma.employeeBpjs.upsert({
-				where: { employeeId },
-				create: {
-					employeeId,
-					bpjsHealthNumber: toNullableText(data.bpjsHealthNumber),
-					bpjsHealthClass: parseIntOrNull(data.bpjsHealthClass),
-					bpjsHealthDate: parseDate(data.bpjsHealthDate),
-					bpjsTkNumber: toNullableText(data.bpjsTkNumber),
-					bpjsJhtDate: parseDate(data.bpjsJhtDate),
-					bpjsJpDate: parseDate(data.bpjsJpDate),
-					bpjsJkkDate: parseDate(data.bpjsJkkDate),
-					bpjsJkmDate: parseDate(data.bpjsJkmDate),
-				},
-				update: {
-					bpjsHealthNumber: toNullableText(data.bpjsHealthNumber),
-					bpjsHealthClass: parseIntOrNull(data.bpjsHealthClass),
-					bpjsHealthDate: parseDate(data.bpjsHealthDate),
-					bpjsTkNumber: toNullableText(data.bpjsTkNumber),
-					bpjsJhtDate: parseDate(data.bpjsJhtDate),
-					bpjsJpDate: parseDate(data.bpjsJpDate),
-					bpjsJkkDate: parseDate(data.bpjsJkkDate),
-					bpjsJkmDate: parseDate(data.bpjsJkmDate),
-				},
-			});
+				const rows = parsed.data as EmployeeKontrakPayload[];
+				await prisma.$transaction(async (tx) => {
+					await tx.kontrakKerja.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.kontrakKerja.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								nomorKontrak: item.contractNumber,
+								jenisKontrak: item.contractType as JenisKontrak,
+								tanggalMulai: parseDate(item.startDate) ?? new Date(),
+								tanggalSelesai: parseDate(item.endDate),
+								status: item.status as StatusKontrak,
+								gajiPokok: item.baseSalary ? new Prisma.Decimal(item.baseSalary) : null,
+								urlDokumen: toNullableText(item.documentUrl),
+								catatan: toNullableText(item.note),
+							})),
+						});
+					}
+				});
 				break;
 			}
 
 			case "document": {
 				const parsed = parseEmployeeStepPayload("document", payload);
 				if (!parsed.isValid) {
-					return { success: false, message: "Validasi gagal.", errors: parsed.errors };
+					return { success: false, message: "Data dokumen tidak valid. Periksa nama dokumen, URL file, dan field wajib lainnya.", errors: parsed.errors };
 				}
 				const rows = parsed.data as EmployeeDocumentPayload[];
-			await prisma.$transaction(async (tx) => {
-				await tx.employeeDocument.deleteMany({ where: { employeeId } });
-				if (rows.length) {
-					await tx.employeeDocument.createMany({
-						data: rows.map((item) => ({
-							employeeId,
-							documentType: item.documentType as DocumentType,
-							name: item.name,
-							fileUrl: item.fileUrl,
-							fileSize: parseBigIntOrNull(item.fileSize),
-							mimeType: toNullableText(item.mimeType),
-							expiredAt: parseDate(item.expiredAt),
-							note: toNullableText(item.note),
-							uploadedAt: parseDate(item.uploadedAt) ?? new Date(),
-						})),
-					});
-				}
-			});
+				await prisma.$transaction(async (tx) => {
+					await tx.dokumenKaryawan.deleteMany({ where: { karyawanId: employeeId } });
+					if (rows.length) {
+						await tx.dokumenKaryawan.createMany({
+							data: rows.map((item) => ({
+								karyawanId: employeeId,
+								jenisDokumen: item.documentType as JenisDokumen,
+								nama: item.name,
+								urlFile: item.fileUrl,
+								ukuranFile: item.fileSize ? BigInt(item.fileSize) : null,
+								tipeFile: toNullableText(item.mimeType),
+								tanggalKadaluarsa: parseDate(item.expiredAt),
+								catatan: toNullableText(item.note),
+							})),
+						});
+					}
+				});
 				break;
 			}
 		}
@@ -689,17 +571,66 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
 			return {
 				success: false,
-				message: "NIK karyawan sudah digunakan.",
-				errors: { employeeNumber: "NIK karyawan harus unik." },
+				message: "Nomor karyawan sudah digunakan.",
+				errors: { employeeNumber: "Nomor karyawan harus unik." },
 			};
 		}
 
-		const message = error instanceof Error ? error.message : "Gagal menyimpan tahap employee.";
+		const message = error instanceof Error ? error.message : "Gagal menyimpan tahap karyawan.";
 		return {
 			success: false,
 			message,
 		};
 	}
+}
+
+export async function generateEmployeeNumber(params: {
+	workLocationId?: string;
+	organizationalUnitId?: string;
+	positionId?: string;
+}): Promise<{ success: boolean; employeeNumber: string; message: string }> {
+	const { workLocationId, organizationalUnitId, positionId } = params;
+
+	const [location, unit, position] = await Promise.all([
+		workLocationId ? prisma.lokasiKerja.findUnique({ where: { id: workLocationId }, select: { kode: true } }) : null,
+		organizationalUnitId ? prisma.unitOrganisasi.findUnique({ where: { id: organizationalUnitId }, select: { kode: true } }) : null,
+		positionId
+			? prisma.posisi.findUnique({
+					where: { id: positionId },
+					select: { kode: true, golonganPosisi: { select: { kode: true } } },
+				})
+			: null,
+	]);
+
+	const locCode = location?.kode ?? "LOC";
+	const unitCode = unit?.kode ?? "UNIT";
+	const golCode = position?.golonganPosisi?.kode ?? "G0";
+	const posCode = position?.kode ?? "POS";
+
+	const prefix = `${locCode}-${unitCode}-${golCode}-${posCode}`;
+
+	const lastEmployee = await prisma.karyawan.findFirst({
+		where: { nomorKaryawan: { startsWith: prefix } },
+		orderBy: { nomorKaryawan: "desc" },
+		select: { nomorKaryawan: true },
+	});
+
+	let seq = 1;
+	if (lastEmployee) {
+		const lastSeq = lastEmployee.nomorKaryawan.split("-").pop();
+		const parsed = Number.parseInt(lastSeq ?? "0", 10);
+		if (!Number.isNaN(parsed)) {
+			seq = parsed + 1;
+		}
+	}
+
+	const employeeNumber = `${prefix}-${String(seq).padStart(3, "0")}`;
+
+	return {
+		success: true,
+		employeeNumber,
+		message: `Nomor karyawan berhasil digenerate: ${employeeNumber}`,
+	};
 }
 
 export async function getEmployeeWizardDetailAction(employeeId: string): Promise<{
@@ -719,14 +650,14 @@ export async function getEmployeeWizardDetailAction(employeeId: string): Promise
 	if (!detail) {
 		return {
 			success: false,
-			message: "Data employee tidak ditemukan.",
+			message: "Data karyawan tidak ditemukan.",
 			data: defaultDetail(),
 		};
 	}
 
 	return {
 		success: true,
-		message: "Data employee berhasil dimuat.",
+		message: "Data karyawan berhasil dimuat.",
 		data: detail,
 	};
 }
