@@ -56,7 +56,8 @@ const educationSchema = z.object({
 	graduationYear: nullableText,
 	gpa: nullableText,
 	isHighest: z.boolean(),
-	documentUrl: nullableText,
+	ijazah: z.string().optional().default(""),
+	transkrip: z.string().optional().default(""),
 });
 
 const workHistorySchema = z.object({
@@ -76,7 +77,6 @@ const kontrakSchema = z.object({
 	endDate: nullableText,
 	status: z.nativeEnum(StatusKontrak, { message: "Pilihan status kontrak tidak tersedia." }),
 	baseSalary: nullableText,
-	documentUrl: nullableText,
 	note: nullableText,
 });
 
@@ -99,7 +99,6 @@ const stepSchemaMap: {
 	education: z.array(educationSchema),
 	workHistory: z.array(workHistorySchema),
 	kontrak: z.array(kontrakSchema),
-	document: z.array(documentSchema),
 };
 
 const STEP_FIELD_LABELS: Record<EmployeeWizardStepKey, Record<string, string>> = {
@@ -140,7 +139,6 @@ const STEP_FIELD_LABELS: Record<EmployeeWizardStepKey, Record<string, string>> =
 		startYear: "Tahun Masuk",
 		graduationYear: "Tahun Lulus",
 		gpa: "IPK",
-		documentUrl: "URL Dokumen",
 	},
 	workHistory: {
 		companyName: "Nama Perusahaan",
@@ -158,16 +156,6 @@ const STEP_FIELD_LABELS: Record<EmployeeWizardStepKey, Record<string, string>> =
 		endDate: "Tanggal Selesai",
 		status: "Status",
 		baseSalary: "Gaji Pokok",
-		documentUrl: "URL Dokumen",
-		note: "Catatan",
-	},
-	document: {
-		documentType: "Jenis Dokumen",
-		name: "Nama Dokumen",
-		fileUrl: "URL File",
-		fileSize: "Ukuran File",
-		mimeType: "Tipe File",
-		expiredAt: "Tanggal Kadaluarsa",
 		note: "Catatan",
 	},
 };

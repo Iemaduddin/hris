@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { getEmployeeWizardDetailAction, saveEmployeeWizardStepAction } from "../actions/employee.actions";
 import {
 	EMPLOYEE_WIZARD_STEPS,
+	type EmployeeEducationPayload,
 	type EmployeeWizardDetail,
 	type EmployeeWizardReferenceOptions,
 	type EmployeeWizardStepKey,
@@ -17,11 +18,13 @@ import FamilyStep from "./family-step";
 import EducationStep from "./education-step";
 import WorkHistoryStep from "./work-history-step";
 import KontrakStep from "./kontrak-step";
-import DocumentStep from "./document-step";
 
 type EmployeeWizardFormProps = {
 	summaries: EmployeeWizardSummary[];
 	referenceOptions: EmployeeWizardReferenceOptions;
+	selectedEmployeeId?: string;
+	loadKey?: number;
+	onResetSelection?: () => void;
 };
 
 const STEP_LABELS: Record<EmployeeWizardStepKey, string> = {
@@ -31,7 +34,6 @@ const STEP_LABELS: Record<EmployeeWizardStepKey, string> = {
 	education: "4. Pendidikan",
 	workHistory: "5. Riwayat Kerja",
 	kontrak: "6. Kontrak",
-	document: "7. Dokumen",
 };
 
 function emptyWizardDetail(): EmployeeWizardDetail {
@@ -67,11 +69,10 @@ function emptyWizardDetail(): EmployeeWizardDetail {
 		educations: [],
 		workHistories: [],
 		kontrak: [],
-		documents: [],
 	};
 }
 
-export default function EmployeeWizardForm({ summaries, referenceOptions }: EmployeeWizardFormProps) {
+export default function EmployeeWizardForm({ summaries, referenceOptions, selectedEmployeeId: externalSelectedId, loadKey, onResetSelection }: EmployeeWizardFormProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -79,17 +80,23 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 	const [errorMap, setErrorMap] = useState<Record<string, string>>({});
 	const [summaryItems, setSummaryItems] = useState<EmployeeWizardSummary[]>(summaries);
 	const [form, setForm] = useState<EmployeeWizardDetail>(emptyWizardDetail());
+	const pendingFilesRef = useRef<Map<string, File>>(new Map());
 
 	const activeStep = EMPLOYEE_WIZARD_STEPS[activeStepIndex];
 
-	const summarySelectOptions = useMemo(
-		() =>
-			summaryItems.map((item) => ({
-				value: item.id,
-				label: `${item.employeeNumber} - ${item.fullName}`,
-			})),
-		[summaryItems],
-	);
+	useEffect(() => {
+		if (externalSelectedId) {
+			loadEmployee(externalSelectedId);
+		}
+	}, [loadKey]);
+
+	function handleFileReady(index: number, field: "ijazah" | "transkrip", file: File) {
+		pendingFilesRef.current.set(`${index}-${field}`, file);
+	}
+
+	function handleFileDelete(index: number, field: "ijazah" | "transkrip") {
+		pendingFilesRef.current.delete(`${index}-${field}`);
+	}
 
 	function getStepPayload(step: EmployeeWizardStepKey) {
 		if (step === "personal") return form.personal;
@@ -97,8 +104,7 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 		if (step === "family") return form.families;
 		if (step === "education") return form.educations;
 		if (step === "workHistory") return form.workHistories;
-		if (step === "kontrak") return form.kontrak;
-		return form.documents;
+		return form.kontrak;
 	}
 
 	function upsertSummary() {
@@ -149,50 +155,110 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 		});
 	}
 
+	async function uploadPendingFiles(): Promise<Record<string, string>> {
+		const urls: Record<string, string> = {};
+		const employeeName = form.personal.fullName || "Karyawan Baru";
+
+		for (const [key, file] of pendingFilesRef.current) {
+			const [indexStr, field] = key.split("-");
+			const index = parseInt(indexStr);
+			const educations = form.educations;
+			const grade = educations[index]?.degree || "Tidak Diketahui";
+
+			const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+			const customFileName = `${baseName}_${field}_${grade}`;
+
+			const formData = new FormData();
+			formData.append("file", file);
+			formData.append("folderType", "employee");
+			formData.append("subfolderPath", JSON.stringify([employeeName]));
+			formData.append("fileName", customFileName);
+
+			try {
+				const res = await fetch("/api/upload", { method: "POST", body: formData });
+				const data = await res.json();
+
+				if (!res.ok) {
+					throw new Error(data.error || "Gagal upload file");
+				}
+
+				urls[key] = data.url;
+			} catch (err) {
+				toast.error(err instanceof Error ? err.message : "Gagal upload file.");
+				throw err;
+			}
+		}
+
+		return urls;
+	}
+
 	function saveCurrentStep(moveNext: boolean) {
 		setErrorMap({});
 		startTransition(async () => {
-			const payload = getStepPayload(activeStep);
-			const formData = new FormData();
-			formData.set("step", activeStep);
-			formData.set("employeeId", form.employeeId);
-			formData.set("payload", JSON.stringify(payload));
+			try {
+				let payload = getStepPayload(activeStep);
 
-			const result = await saveEmployeeWizardStepAction(formData);
-			if (!result.success) {
-				setErrorMap(result.errors ?? {});
-				toast.error(result.message || "Gagal menyimpan tahap.");
-				return;
-			}
+				if (activeStep === "education" && pendingFilesRef.current.size > 0) {
+					const uploadedUrls = await uploadPendingFiles();
+					const educations = [...(payload as EmployeeEducationPayload[])];
 
-			if (result.employeeId && !form.employeeId) {
-				setForm((prev) => ({
-					...prev,
-					employeeId: result.employeeId ?? prev.employeeId,
-					personal: {
-						...prev.personal,
-						id: result.employeeId ?? prev.personal.id,
-					},
-				}));
-				setSelectedEmployeeId(result.employeeId);
-			}
+					for (const [key, url] of Object.entries(uploadedUrls)) {
+						const [indexStr, field] = key.split("-");
+						const index = parseInt(indexStr);
+						if (educations[index]) {
+							educations[index] = { ...educations[index], [field]: url };
+						}
+					}
 
-			if (result.employeeNumber) {
-				setForm((prev) => ({
-					...prev,
-					personal: {
-						...prev.personal,
-						employeeNumber: result.employeeNumber ?? prev.personal.employeeNumber,
-					},
-				}));
-			}
+					payload = educations;
+					pendingFilesRef.current.clear();
 
-			upsertSummary();
-			router.refresh();
-			toast.success(result.message || "Tahap berhasil disimpan.");
+					setForm((prev) => ({ ...prev, educations }));
+				}
 
-			if (moveNext && activeStepIndex < EMPLOYEE_WIZARD_STEPS.length - 1) {
-				setActiveStepIndex((prev) => prev + 1);
+				const formData = new FormData();
+				formData.set("step", activeStep);
+				formData.set("employeeId", form.employeeId);
+				formData.set("payload", JSON.stringify(payload));
+
+				const result = await saveEmployeeWizardStepAction(formData);
+				if (!result.success) {
+					setErrorMap(result.errors ?? {});
+					toast.error(result.message || "Gagal menyimpan tahap.");
+					return;
+				}
+
+				if (result.employeeId && !form.employeeId) {
+					setForm((prev) => ({
+						...prev,
+						employeeId: result.employeeId ?? prev.employeeId,
+						personal: {
+							...prev.personal,
+							id: result.employeeId ?? prev.personal.id,
+						},
+					}));
+					setSelectedEmployeeId(result.employeeId);
+				}
+
+				if (result.employeeNumber) {
+					setForm((prev) => ({
+						...prev,
+						personal: {
+							...prev.personal,
+							employeeNumber: result.employeeNumber ?? prev.personal.employeeNumber,
+						},
+					}));
+				}
+
+				upsertSummary();
+				router.refresh();
+				toast.success(result.message || "Tahap berhasil disimpan.");
+
+				if (moveNext && activeStepIndex < EMPLOYEE_WIZARD_STEPS.length - 1) {
+					setActiveStepIndex((prev) => prev + 1);
+				}
+			} catch {
+				// Error sudah ditampilkan via toast di uploadPendingFiles
 			}
 		});
 	}
@@ -204,8 +270,7 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 				: step === "family" ? "families"
 				: step === "education" ? "educations"
 				: step === "workHistory" ? "workHistories"
-				: step === "kontrak" ? "kontrak"
-				: "documents";
+				: "kontrak";
 			return { ...prev, [key]: updater(prev[key] as never) };
 		});
 	}
@@ -213,32 +278,21 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 	return (
 		<div className="mt-4 space-y-5">
 			<div className="rounded-xl border border-blue-100 p-4 dark:border-blue-900/60">
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-					<select
-						value={selectedEmployeeId}
-						onChange={(e) => {
-							if (!e.target.value) return;
-							loadEmployee(e.target.value);
-						}}
-						className="h-11 rounded-lg border border-blue-200 bg-white px-3 text-sm text-slate-800 dark:border-blue-900/70 dark:bg-slate-900 dark:text-slate-200 md:col-span-3"
-					>
-						<option value="">Buat karyawan baru</option>
-						{summarySelectOptions.map((opt) => (
-							<option key={opt.value} value={opt.value}>{opt.label}</option>
-						))}
-					</select>
+				<div className="flex items-center justify-between">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
+						Setiap tahap dapat disimpan terpisah. Anda bisa menutup halaman dan melanjutkan lagi nanti.
+					</p>
 					<button
 						type="button"
-						onClick={() => loadEmployee("")}
-						className="inline-flex h-11 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
+						onClick={() => {
+							loadEmployee("");
+							onResetSelection?.();
+						}}
+						className="inline-flex h-9 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
 					>
 						Buat Draft Baru
 					</button>
 				</div>
-
-				<p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-					Setiap tahap dapat disimpan terpisah. Anda bisa menutup halaman dan melanjutkan lagi nanti.
-				</p>
 			</div>
 
 			<div className="rounded-xl border border-blue-100 p-4 dark:border-blue-900/60">
@@ -311,6 +365,9 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 						onChange={(updater) => handleStepChange("education", updater as never)}
 						errorMap={errorMap}
 						referenceOptions={referenceOptions}
+						employeeName={form.personal.fullName || "Karyawan Baru"}
+						onFileReady={handleFileReady}
+						onFileDelete={handleFileDelete}
 					/>
 				)}
 
@@ -327,15 +384,6 @@ export default function EmployeeWizardForm({ summaries, referenceOptions }: Empl
 					<KontrakStep
 						value={form.kontrak}
 						onChange={(updater) => handleStepChange("kontrak", updater as never)}
-						errorMap={errorMap}
-						referenceOptions={referenceOptions}
-					/>
-				)}
-
-				{activeStep === "document" && (
-					<DocumentStep
-						value={form.documents}
-						onChange={(updater) => handleStepChange("document", updater as never)}
 						errorMap={errorMap}
 						referenceOptions={referenceOptions}
 					/>

@@ -21,7 +21,11 @@ export type PositionStepProps = StepProps<EmployeePositionPayload[]> & {
  isPending: boolean;
 };
 export type FamilyStepProps = StepProps<EmployeeFamilyPayload[]>;
-export type EducationStepProps = StepProps<EmployeeEducationPayload[]>;
+export type EducationStepProps = StepProps<EmployeeEducationPayload[]> & {
+	employeeName: string;
+	onFileReady?: (index: number, field: "ijazah" | "transkrip", file: File) => void;
+	onFileDelete?: (index: number, field: "ijazah" | "transkrip") => void;
+};
 export type WorkHistoryStepProps = StepProps<EmployeeWorkHistoryPayload[]>;
 export type KontrakStepProps = StepProps<EmployeeKontrakPayload[]>;
 export type DocumentStepProps = StepProps<EmployeeDocumentPayload[]>;

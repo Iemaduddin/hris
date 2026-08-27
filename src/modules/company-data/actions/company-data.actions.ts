@@ -1,8 +1,5 @@
 "use server";
 
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { parseAndValidateCompanyData } from "../schemas/company-data.schema";
@@ -233,19 +230,18 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 
 	const bytes = await file.arrayBuffer();
 	const buffer = Buffer.from(bytes);
-	const uploadDirectory = path.join(process.cwd(), "public", "uploads", "company");
-	await mkdir(uploadDirectory, { recursive: true });
 
+	const { uploadToDrive } = await import("@/src/lib/google-drive");
+
+	const timestamp = Date.now();
 	const extension = file.type === "image/webp" ? "webp" : "jpg";
-	const fileName = `company-logo-${companyId}-${randomUUID()}.${extension}`;
-	const absolutePath = path.join(uploadDirectory, fileName);
-	const relativePath = `/uploads/company/${fileName}`;
+	const fileName = `company-logo-${companyId}-${timestamp}.${extension}`;
 
-	await writeFile(absolutePath, buffer);
+	const result = await uploadToDrive(buffer, fileName, file.type, "company");
 
 	await prisma.perusahaan.update({
 		where: { id: companyId },
-		data: { logo: relativePath },
+		data: { logo: result.directLink },
 	});
 
 	revalidatePath("/settings/company-data");
@@ -253,6 +249,6 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 	return {
 		success: true,
 		message: "Logo berhasil disimpan.",
-		logo: relativePath,
+		logo: result.directLink,
 	};
 }

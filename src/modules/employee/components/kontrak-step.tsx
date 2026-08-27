@@ -3,6 +3,7 @@
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
+import type { EmployeeKontrakPayload } from "../types/employee.type";
 import type { KontrakStepProps } from "../types/step-props.type";
 
 function removeWithConfirm(onRemove: () => void) {
@@ -10,15 +11,27 @@ function removeWithConfirm(onRemove: () => void) {
 	onRemove();
 }
 
-function emptyKontrak() {
+function generateContractNumber(existing: EmployeeKontrakPayload[], contractType: string): string {
+	const year = new Date().getFullYear();
+	const existingNumbers = existing
+		.filter((k) => k.contractNumber.startsWith(`${contractType}/`))
+		.map((k) => {
+			const match = k.contractNumber.match(/\/(\d+)\/\d{4}$/);
+			return match ? parseInt(match[1], 10) : 0;
+		});
+	const maxNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+	const nextNum = String(maxNum + 1).padStart(3, "0");
+	return `${contractType}/${nextNum}/${year}`;
+}
+
+function emptyKontrak(existing: EmployeeKontrakPayload[]): EmployeeKontrakPayload {
 	return {
-		contractNumber: "",
+		contractNumber: generateContractNumber(existing, "PKWTT"),
 		contractType: "PKWTT",
 		startDate: "",
 		endDate: "",
 		status: "DRAFT",
 		baseSalary: "",
-		documentUrl: "",
 		note: "",
 	};
 }
@@ -26,7 +39,17 @@ function emptyKontrak() {
 export default function KontrakStep({ value, onChange, errorMap, referenceOptions }: KontrakStepProps) {
 	function updateRow(index: number, field: string, val: string) {
 		onChange((prev) =>
-			prev.map((item, i) => (i === index ? { ...item, [field]: val } : item)),
+			prev.map((item, i) => {
+				if (i !== index) return item;
+				const updated = { ...item, [field]: val };
+				if (field === "contractType") {
+					updated.contractNumber = generateContractNumber(
+						prev.filter((_, j) => j !== index),
+						val,
+					);
+				}
+				return updated;
+			}),
 		);
 	}
 
@@ -99,23 +122,20 @@ export default function KontrakStep({ value, onChange, errorMap, referenceOption
 						<FloatingInput
 							name={`kontrak-baseSalary-${index}`}
 							label="Gaji Pokok"
-							type="number"
+							type="currency"
 							value={row.baseSalary}
-							onChange={(e) => updateRow(index, "baseSalary", e.target.value)}
+							onChange={(e) => {
+								const raw = e.target.value.replace(/[^\d]/g, "");
+								updateRow(index, "baseSalary", raw);
+							}}
 						/>
 
-						<FloatingInput
-							name={`kontrak-documentUrl-${index}`}
-							label="URL Dokumen"
-							value={row.documentUrl}
-							onChange={(e) => updateRow(index, "documentUrl", e.target.value)}
-						/>
 						<FloatingTextarea
 							name={`kontrak-note-${index}`}
 							label="Catatan"
 							value={row.note}
 							onChange={(e) => updateRow(index, "note", e.target.value)}
-							containerClassName="md:col-span-2"
+							containerClassName="md:col-span-3"
 						/>
 					</div>
 				</div>
@@ -123,7 +143,7 @@ export default function KontrakStep({ value, onChange, errorMap, referenceOption
 
 			<button
 				type="button"
-				onClick={() => onChange((prev) => [...prev, emptyKontrak()])}
+				onClick={() => onChange((prev) => [...prev, emptyKontrak(prev)])}
 				className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-blue-50 dark:border-blue-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
 			>
 				Tambah Kontrak

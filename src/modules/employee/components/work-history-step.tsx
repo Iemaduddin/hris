@@ -69,7 +69,10 @@ export default function WorkHistoryStep({ value, onChange, errorMap }: WorkHisto
 							label="Gaji Terakhir"
 							type="currency"
 							value={row.lastSalary}
-							onChange={(e) => updateRow(index, "lastSalary", e.target.value)}
+							onChange={(e) => {
+								const raw = e.target.value.replace(/[^\d]/g, "");
+								updateRow(index, "lastSalary", raw);
+							}}
 						/>
 
 						<FloatingInput

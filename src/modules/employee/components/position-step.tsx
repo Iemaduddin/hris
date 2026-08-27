@@ -94,6 +94,7 @@ export default function PositionStep({ value, onChange, errorMap, referenceOptio
 							onValueChange={(val) => updateRow(index, "positionId", val)}
 							options={getFilteredPositions(row.organizationalUnitId)}
 							placeholder={row.organizationalUnitId ? "Pilih posisi (sesuai unit)" : "Pilih unit terlebih dahulu"}
+							disabled={!row.organizationalUnitId}
 						/>
 						<FloatingSelect
 							name={`position-workLocationId-${index}`}

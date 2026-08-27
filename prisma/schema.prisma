@@ -278,7 +278,6 @@ model KontrakKerja {
   tanggalSelesai DateTime?
   status StatusKontrak @default(DRAFT)
   gajiPokok Decimal? @db.Decimal(15, 2)
-  urlDokumen String?
   catatan    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -403,7 +402,6 @@ model PendidikanKaryawan {
   tahunLulus  Int?
   ipk         Float?
   isHighest   Boolean         @default(false)
-  urlDokumen  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

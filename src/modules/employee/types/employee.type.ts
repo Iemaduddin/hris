@@ -5,7 +5,6 @@ export const EMPLOYEE_WIZARD_STEPS = [
 	"education",
 	"workHistory",
 	"kontrak",
-	"document",
 ] as const;
 
 export type EmployeeWizardStepKey = (typeof EMPLOYEE_WIZARD_STEPS)[number];
@@ -15,6 +14,20 @@ export type EmployeeWizardSummary = {
 	employeeNumber: string;
 	fullName: string;
 	status: string;
+	updatedAt: string;
+};
+
+export type EmployeeListItem = {
+	id: string;
+	employeeNumber: string;
+	fullName: string;
+	workEmail: string;
+	phone: string;
+	status: string;
+	joinDate: string;
+	positionName: string;
+	unitName: string;
+	workLocationName: string;
 	updatedAt: string;
 };
 
@@ -82,7 +95,8 @@ export type EmployeeEducationPayload = {
 	graduationYear: string;
 	gpa: string;
 	isHighest: boolean;
-	documentUrl: string;
+	ijazah: string;
+	transkrip: string;
 };
 
 export type EmployeeWorkHistoryPayload = {
@@ -102,7 +116,6 @@ export type EmployeeKontrakPayload = {
 	endDate: string;
 	status: string;
 	baseSalary: string;
-	documentUrl: string;
 	note: string;
 };
 
@@ -124,7 +137,6 @@ export type EmployeeWizardDetail = {
 	educations: EmployeeEducationPayload[];
 	workHistories: EmployeeWorkHistoryPayload[];
 	kontrak: EmployeeKontrakPayload[];
-	documents: EmployeeDocumentPayload[];
 };
 
 export type EmployeeWizardStepPayloadMap = {
@@ -134,7 +146,6 @@ export type EmployeeWizardStepPayloadMap = {
 	education: EmployeeEducationPayload[];
 	workHistory: EmployeeWorkHistoryPayload[];
 	kontrak: EmployeeKontrakPayload[];
-	document: EmployeeDocumentPayload[];
 };
 
 export type EmployeeWizardActionResult = {

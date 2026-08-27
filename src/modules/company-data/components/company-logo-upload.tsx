@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FiEdit2 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { compressImage } from "@/src/lib/image-compress";
@@ -129,7 +130,7 @@ export default function CompanyLogoUpload({ companyId, logo }: CompanyLogoUpload
 						className="group relative h-36 w-36 overflow-hidden rounded-2xl border border-dashed border-blue-200 bg-white transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/60 dark:bg-slate-900"
 					>
 						{currentLogo ? (
-							<img src={currentLogo} alt="Logo perusahaan" className="h-full w-full object-cover" />
+							<Image src={currentLogo} alt="Logo perusahaan" fill className="object-cover" />
 						) : (
 							<div className="flex h-full w-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
 								Upload Logo Perusahaan
