@@ -15,7 +15,7 @@ model User {
   id            String   @id @default(cuid())
   name          String
   email         String   @unique
-  role          String   @default("EMPLOYEE")
+  role          UserRole @default(EMPLOYEE)
   emailVerified Boolean  @default(false)
   image         String?
   createdAt     DateTime @default(now())
@@ -26,6 +26,14 @@ model User {
   karyawan Karyawan[]
 
   @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN_HR
+  MANAJER
+  FINANCE
+  EMPLOYEE
 }
 
 model Session {
@@ -217,11 +225,17 @@ model LokasiKerja {
   kota      String?
   provinsi  String?
   kodePos   String?
+  // PRD mobile Bag. 5.4 / B2 — titik pusat lokasi & radius validasi presensi.
+  // radiusMeter null = lokasi tidak divalidasi radius (absensi tetap dicatat tanpa flag).
+  latitude   Decimal? @db.Decimal(10, 7)
+  longitude  Decimal? @db.Decimal(10, 7)
+  radiusMeter Int?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   posisiKaryawan PosisiKaryawan[]
+  absensi        Absensi[]
 
   @@map("lokasi_kerja")
 }
@@ -232,14 +246,17 @@ model LokasiKerja {
 
 model Karyawan {
   id            String  @id @default(cuid())
-  userId        String?
+  userId        String? @unique
   user          User?   @relation(fields: [userId], references: [id])
+  atasanLangsungId String?
+  atasanLangsung   Karyawan?  @relation("AtasanBawahan", fields: [atasanLangsungId], references: [id], onDelete: SetNull)
+  bawahan          Karyawan[] @relation("AtasanBawahan")
   nomorKaryawan String
 
   namaLengkap  String
   gender       JenisKelamin
   tanggalLahir DateTime?
-  nik          String?
+  nik          String?  @unique
   npwp         String?
   telepon      String?
   email        String?
@@ -254,10 +271,23 @@ model Karyawan {
 
   kontrakKerja       KontrakKerja[]
   posisiKaryawan    PosisiKaryawan[]
+  rosterShift       RosterShift[]
+  penugasanKalender PenugasanKalender[]
+  rekapHarian       RekapHarian[]
+  dinasWfh          DinasWFH[]
+  gajiKaryawan      GajiKaryawan[]
+  salaryRunDetail   SalaryRunDetail[]
+  payslip           Payslip[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
   dokumenKaryawan    DokumenKaryawan[]
+  Absensi            Absensi[]
+  perangkat          PerangkatKaryawan[]
+  saldoCuti     SaldoCuti[]
+  pengajuanCuti PengajuanKetidakhadiran[]
+  penugasanJadwal PenugasanJadwal[]
+  lembur         Lembur[]
 
   @@unique([nomorKaryawan])
   @@index([status])
@@ -479,4 +509,661 @@ enum JenisDokumen {
   BPJS_KETENAGAKERJAAN
   CV
   LAINNYA
+}
+
+// ============================================================
+// ATTENDANCE EVENT
+// ============================================================
+
+model Absensi {
+  id String @id @default(cuid())
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  waktu DateTime
+  tipe TipeAbsensi
+  sumber SumberAbsensi
+  deviceId String?
+  latitude Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+  // PRD mobile Bag. 5.4 — hasil validasi lokasi. null = tidak divalidasi
+  // (tanpa GPS, atau lokasi kerja belum mengatur radius).
+  diLuarRadius Boolean?
+  // PRD mobile Bag. 5.4 — deteksi GPS simulasi/placeholder di perangkat.
+  isMocked     Boolean  @default(false)
+  lokasiKerjaId String?
+  lokasiKerja   LokasiKerja? @relation(fields: [lokasiKerjaId], references: [id])
+  status StatusAbsensi @default(VALID)
+  catatan String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([karyawanId, waktu])
+  @@index([waktu])
+  @@index([karyawanId, tipe, waktu])
+  @@map("absensi")
+}
+
+enum TipeAbsensi {
+  MASUK
+  KELUAR
+
+  MULAI_ISTIRAHAT
+  SELESAI_ISTIRAHAT
+
+  KELUAR_KANTOR
+  KEMBALI_KANTOR
+}
+
+enum SumberAbsensi {
+  RFID
+  FINGERPRINT
+  QR_CODE
+  WEB
+  MOBILE
+  API
+  MANUAL
+}
+
+enum StatusAbsensi {
+  VALID
+  INVALID
+  DIKOREKSI
+  DIBATALKAN
+}
+
+// ============================================================
+// PERANGKAT KARYAWAN — registrasi device mobile (PRD mobile Bag. 7-B5)
+// Dipakai untuk audit device presensi & nantinya token push (Bag. 7-B8).
+// ============================================================
+
+model PerangkatKaryawan {
+  id           String    @id @default(cuid())
+  karyawanId   String
+  karyawan     Karyawan  @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  deviceId     String
+  namaPerangkat String?
+  platform     String?
+  // Diisi pada Tahap M4 (PRD mobile Bag. 7-B8).
+  pushToken    String?
+  isActive     Boolean   @default(true)
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([karyawanId, deviceId])
+  @@index([karyawanId, isActive])
+  @@map("perangkat_karyawan")
+}
+
+// ============================================================
+// LEMBUR — Pencatatan jam lembur karyawan
+// ============================================================
+
+model Lembur {
+  id              String        @id @default(cuid())
+  karyawanId      String
+  karyawan        Karyawan      @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  tanggal         DateTime
+  jamMulai        DateTime? @db.Time()
+  jamSelesai      DateTime? @db.Time()
+  jumlahJam       Decimal       @db.Decimal(4, 2)
+
+  alasan          String
+  status          StatusLembur  @default(DRAFT)
+  approvedById    String?
+  approvedAt      DateTime?
+  catatan         String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([karyawanId, tanggal])
+  @@index([status])
+  @@map("lembur")
+}
+
+model JenisKetidakhadiran {
+  id          Int  @id @default(autoincrement())
+  kode        String  @unique
+  nama        String
+  kategori    KategoriKetidakhadiran
+  deskripsi   String?
+
+  // Apakah menggunakan saldo cuti?
+  menggunakanSaldo Boolean @default(false)
+
+  // Digunakan hanya jika menggunakanSaldo = true
+  jatahTahunan Decimal? @db.Decimal(5, 2)
+
+  // Apakah wajib upload dokumen?
+  wajibLampiran Boolean @default(false)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saldoCuti                 SaldoCuti[]
+  pengajuanKetidakhadiran  PengajuanKetidakhadiran[]
+
+  @@map("jenis_ketidakhadiran")
+}
+
+
+enum KategoriKetidakhadiran {
+  CUTI
+  IZIN
+}
+
+model SaldoCuti {
+  id Int @id @default(autoincrement())
+
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId],references: [id],onDelete: Cascade)
+
+  jenisKetidakhadiranId Int
+  jenisKetidakhadiran   JenisKetidakhadiran @relation(fields: [jenisKetidakhadiranId],references: [id])
+
+  tahun Int
+
+  saldoAwal  Decimal @db.Decimal(5, 2)
+  saldoAkhir Decimal @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mutasiSaldoCuti MutasiSaldoCuti[]
+
+  @@unique([karyawanId, jenisKetidakhadiranId, tahun])
+  @@index([karyawanId])
+  @@index([tahun])
+
+  @@map("saldo_cuti")
+}
+
+model MutasiSaldoCuti {
+  id Int @id @default(autoincrement())
+
+  saldoCutiId Int
+  saldoCuti   SaldoCuti @relation(fields: [saldoCutiId],references: [id],onDelete: Cascade)
+
+  tipe TipeMutasiSaldo
+  jumlah Decimal @db.Decimal(5, 2)
+
+  referensiId String?
+  keterangan  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([saldoCutiId, createdAt])
+  @@map("mutasi_saldo_cuti")
+}
+
+enum TipeMutasiSaldo {
+  PENAMBAHAN
+  PENGURANGAN
+  PENYESUAIAN
+  KADALUARSA
+}
+
+model PengajuanKetidakhadiran {
+  id String @id @default(cuid())
+
+  nomorPengajuan String @unique
+
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId],references: [id])
+
+  jenisKetidakhadiranId Int
+  jenisKetidakhadiran   JenisKetidakhadiran @relation(fields: [jenisKetidakhadiranId],references: [id])
+
+  // ----------------------------------------------------------
+  // PERIODE
+  // ----------------------------------------------------------
+
+  tanggalMulai   DateTime
+  tanggalSelesai DateTime
+
+  jumlahHari Decimal @db.Decimal(5, 2)
+
+  // ----------------------------------------------------------
+  // INFORMASI PENGAJUAN
+  // ----------------------------------------------------------
+
+  alasan String?
+
+  alamatSelamaTidakHadir String?
+
+  nomorTeleponDarurat String?
+
+  // ----------------------------------------------------------
+  // LAMPIRAN
+  // ----------------------------------------------------------
+
+  urlLampiran String?
+
+  // ----------------------------------------------------------
+  // STATUS
+  // ----------------------------------------------------------
+
+  status StatusPengajuanKetidakhadiran @default(DRAFT)
+
+  diajukanPada DateTime?
+
+  approvedById String?
+  approvedAt   DateTime?
+  approvedNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([karyawanId, tanggalMulai])
+  @@index([jenisKetidakhadiranId])
+  @@index([status])
+
+  @@map("pengajuan_ketidakhadiran")
+}
+
+enum StatusPengajuanKetidakhadiran {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
+  SELESAI
+}
+
+enum StatusLembur {
+  DRAFT
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+}
+
+
+model KalenderKerja {
+  id Int @id @default(autoincrement())
+
+  nama       String
+  kode       String? @unique
+  deskripsi  String?
+
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jadwalKerja JadwalKerja[]
+  hariLibur   HariLibur[]
+  penugasanKalender PenugasanKalender[]
+
+  @@map("kalender_kerja")
+}
+
+model JadwalKerja {
+  id Int @id @default(autoincrement())
+
+  kalenderKerjaId Int
+  kalenderKerja   KalenderKerja @relation(fields: [kalenderKerjaId],references: [id],onDelete: Cascade)
+
+  hari HariDalamMinggu
+
+  isHariKerja Boolean @default(true)
+
+  jamMasuk DateTime? @db.Time()
+  jamKeluar DateTime? @db.Time()
+
+  jamMulaiIstirahat DateTime? @db.Time()
+  jamSelesaiIstirahat DateTime? @db.Time()
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  penugasanJadwal PenugasanJadwal[]
+
+  @@unique([kalenderKerjaId, hari])
+  @@map("jadwal_kerja")
+}
+
+enum HariDalamMinggu {
+  SENIN
+  SELASA
+  RABU
+  KAMIS
+  JUMAT
+  SABTU
+  MINGGU
+}
+
+model HariLibur {
+  id Int @id @default(autoincrement())
+
+  kalenderKerjaId Int
+  kalenderKerja   KalenderKerja @relation(fields: [kalenderKerjaId],references: [id],onDelete: Cascade)
+
+  tanggal DateTime
+
+  nama        String
+  deskripsi   String?
+  isCutiBersama Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kalenderKerjaId, tanggal])
+  @@index([tanggal])
+  @@map("hari_libur")
+}
+
+// ============================================================
+// FILE ASSET — metadata berkas penyimpanan lokal
+// ============================================================
+
+model FileAsset {
+  id           String   @id @default(cuid())
+  ownerType    String
+  ownerId      String
+  jenis        String?
+  path         String   @unique
+  mime         String?
+  size         BigInt?
+  hash         String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([ownerType, ownerId])
+  @@map("file_asset")
+}
+
+// ============================================================
+// PENOMORAN — sequence aman-konkuren untuk nomor karyawan
+// ============================================================
+
+model Penomoran {
+  id        String   @id @default(cuid())
+  kunci     String   @unique
+  terakhir  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("penomoran")
+}
+
+// ============================================================
+// SHIFT & ROSTER — pola kerja bergilir / malam
+// ============================================================
+
+model Shift {
+  id                 String   @id @default(cuid())
+  kode               String   @unique
+  nama               String
+  jamMasuk           DateTime @db.Time()
+  jamKeluar          DateTime @db.Time()
+  lintasHari         Boolean  @default(false)
+  toleransiTelatMenit Int     @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  roster RosterShift[]
+
+  @@map("shift")
+}
+
+model RosterShift {
+  id         Int      @id @default(autoincrement())
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  tanggal    DateTime @db.Date
+  shiftId    String
+  shift      Shift    @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([karyawanId, tanggal])
+  @@index([tanggal])
+  @@map("roster_shift")
+}
+
+model PenugasanKalender {
+  id              Int           @id @default(autoincrement())
+  karyawanId      String
+  karyawan        Karyawan      @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  kalenderKerjaId Int
+  kalenderKerja   KalenderKerja @relation(fields: [kalenderKerjaId], references: [id], onDelete: Restrict)
+  tanggalMulai    DateTime      @db.Date
+  tanggalSelesai  DateTime?     @db.Date
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([karyawanId])
+  @@map("penugasan_kalender")
+}
+
+// ============================================================
+// REKAP HARIAN — snapshot hasil mesin rekap kehadiran
+// ============================================================
+
+model RekapHarian {
+  id                   Int      @id @default(autoincrement())
+  karyawanId           String
+  karyawan             Karyawan @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  tanggal              DateTime @db.Date
+  sumberJadwal         String
+  acuanId              String?
+  jamMasukSeharusnya    DateTime? @db.Time()
+  jamKeluarSeharusnya   DateTime? @db.Time()
+  masukAktual          DateTime?
+  keluarAktual         DateTime?
+  telatMenit           Int       @default(0)
+  pulangCepatMenit     Int       @default(0)
+  lemburMenit          Int       @default(0)
+  status               StatusRekap
+  dihitungPada         DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([karyawanId, tanggal])
+  @@index([tanggal])
+  @@map("rekap_harian")
+}
+
+enum StatusRekap {
+  HADIR
+  TERLAMBAT
+  ALPA
+  CUTI
+  IZIN
+  SAKIT
+  DINAS
+  LIBUR
+}
+
+// ============================================================
+// PAYROLL — komponen, salary run, payslip
+// ============================================================
+
+model KomponenGaji {
+  id        String            @id @default(cuid())
+  kode      String            @unique
+  nama      String
+  kelompok  KelompokKomponen
+  tipe      TipeKomponen
+  nilai     Decimal           @db.Decimal(15, 2)
+  batasAtas Decimal?          @db.Decimal(15, 2)
+  isActive  Boolean           @default(true)
+  urutan    Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  gajiKaryawan GajiKaryawan[]
+
+  @@map("komponen_gaji")
+}
+
+enum KelompokKomponen {
+  PENDAPATAN
+  TUNJANGAN
+  POTONGAN
+  IURAN
+}
+
+enum TipeKomponen {
+  NOMINAL
+  PERSEN
+  PER_HARI
+  PER_JAM_LEMBUR
+  PER_SHIFT_MALAM
+}
+
+model GajiKaryawan {
+  id          String       @id @default(cuid())
+  karyawanId  String
+  karyawan    Karyawan     @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  komponenId  String
+  komponen    KomponenGaji @relation(fields: [komponenId], references: [id], onDelete: Restrict)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([karyawanId, komponenId])
+  @@map("gaji_karyawan")
+}
+
+model SalaryRun {
+  id             String          @id @default(cuid())
+  periode        String          @unique
+  tanggalMulai   DateTime        @db.Date
+  tanggalSelesai DateTime        @db.Date
+  status         StatusSalaryRun @default(DRAF)
+  catatan        String?
+  createdById    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  detail  SalaryRunDetail[]
+  payslip Payslip[]
+
+  @@map("salary_run")
+}
+
+enum StatusSalaryRun {
+  DRAF
+  DIHITUNG
+  FINAL
+  DITERBITKAN
+}
+
+model SalaryRunDetail {
+  id               String    @id @default(cuid())
+  runId            String
+  run              SalaryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  karyawanId       String
+  karyawan         Karyawan  @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  gajiPokok        Decimal   @db.Decimal(15, 2)
+  totalPendapatan  Decimal   @db.Decimal(15, 2)
+  totalPotongan    Decimal   @db.Decimal(15, 2)
+  gajiBersih       Decimal   @db.Decimal(15, 2)
+  hariHadir        Int       @default(0)
+  hariAlpa         Int       @default(0)
+  jamLembur        Decimal   @db.Decimal(6, 2) @default(0)
+  rincian          Json
+  createdAt        DateTime  @default(now())
+
+  @@unique([runId, karyawanId])
+  @@map("salary_run_detail")
+}
+
+model Payslip {
+  id         String    @id @default(cuid())
+  nomor      String    @unique
+  runId      String
+  run        SalaryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  karyawanId String
+  karyawan   Karyawan  @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@unique([runId, karyawanId])
+  @@map("payslip")
+}
+
+// ============================================================
+// DINAS / WFH — perjalanan dinas & kerja dari rumah
+// ============================================================
+
+model DinasWFH {
+  id             String       @id @default(cuid())
+  nomorPengajuan String       @unique
+  karyawanId     String
+  karyawan       Karyawan      @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  jenis          JenisDinas
+  tanggalMulai   DateTime      @db.Date
+  tanggalSelesai DateTime      @db.Date
+  lokasi         String?
+  keperluan      String?
+  urlLampiran    String?
+  status         StatusPengajuanKetidakhadiran @default(DRAFT)
+  diajukanPada   DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([karyawanId, tanggalMulai])
+  @@index([status])
+  @@map("dinas_wfh")
+}
+
+enum JenisDinas {
+  DINAS_LUAR
+  WFH
+}
+
+// ============================================================
+// APPROVAL — jejak persetujuan generik
+// ============================================================
+
+model ApprovalStep {
+  id                String         @id @default(cuid())
+  referensiType     String
+  referensiId       String
+  tahap             Int            @default(1)
+  approverKaryawanId String?
+  approverRole      String?
+  status            StatusApproval @default(MENUNGGU)
+  catatan           String?
+  diprosesOlehId    String?
+  diprosesPada      DateTime?
+  createdAt         DateTime       @default(now())
+
+  @@index([referensiType, referensiId])
+  @@map("approval_step")
+}
+
+enum StatusApproval {
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+}
+
+// ============================================================
+// PENUGASAN JADWAL — Assign jadwal kerja/shift ke karyawan
+// ============================================================
+
+model PenugasanJadwal {
+  id              Int         @id @default(autoincrement())
+  karyawanId      String
+  karyawan        Karyawan    @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  jadwalKerjaId   Int
+  jadwalKerja     JadwalKerja @relation(fields: [jadwalKerjaId], references: [id])
+
+  tanggalMulai    DateTime
+  tanggalSelesai  DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([karyawanId, tanggalMulai])
+  @@index([karyawanId])
+  @@index([jadwalKerjaId])
+  @@map("penugasan_jadwal")
 }
