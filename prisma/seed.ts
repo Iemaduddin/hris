@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "../generated/prisma/client";
+import { PrismaClient, type UserRole } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -13,11 +13,11 @@ const auth = betterAuth({
 	emailAndPassword: { enabled: true, autoSignIn: false },
 });
 
-const USERS = [
+const USERS: Array<{ name: string; email: string; password: string; role: UserRole }> = [
 	{ name: "Super Admin", email: "superadmin@example.com", password: "SuperAdmin123!", role: "SUPER_ADMIN" },
-	{ name: "Admin HRIS", email: "admin@example.com", password: "Admin123!", role: "ADMIN" },
-	{ name: "HR Manager", email: "hrmanager@example.com", password: "HRManager123!", role: "HR_MANAGER" },
-	{ name: "Manager", email: "manager@example.com", password: "Manager123!", role: "MANAGER" },
+	{ name: "Admin HR", email: "admin@example.com", password: "Admin123!", role: "ADMIN_HR" },
+	{ name: "Finance", email: "finance@example.com", password: "Finance123!", role: "FINANCE" },
+	{ name: "Manager", email: "manager@example.com", password: "Manager123!", role: "MANAJER" },
 	{ name: "Employee", email: "employee@example.com", password: "Employee123!", role: "EMPLOYEE" },
 ];
 
