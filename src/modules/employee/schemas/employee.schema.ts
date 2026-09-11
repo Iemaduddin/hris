@@ -15,6 +15,7 @@ const nullableText = z.string().trim();
 const personalSchema = z.object({
 	id: z.string().optional(),
 	userId: z.string().trim(),
+	directSupervisorId: nullableText,
 	employeeNumber: nullableText,
 	fullName: z.string().trim().min(1, "Nama lengkap wajib diisi."),
 	gender: z.nativeEnum(JenisKelamin, { message: "Pilihan jenis kelamin tidak tersedia." }),
@@ -104,6 +105,7 @@ const stepSchemaMap: {
 const STEP_FIELD_LABELS: Record<EmployeeWizardStepKey, Record<string, string>> = {
 	personal: {
 		userId: "Akun User",
+		directSupervisorId: "Atasan Langsung",
 		employeeNumber: "Nomor Karyawan",
 		fullName: "Nama Lengkap",
 		gender: "Jenis Kelamin",

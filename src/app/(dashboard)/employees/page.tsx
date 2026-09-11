@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { getEmployeeWizardBootstrapData, getEmployeesList } from "@/src/modules/employee/actions/employee.actions";
+import { requireUserRole } from "@/src/lib/auth-guard";
+import { getEmployeeWizardBootstrapData, getEmployeesList, getKontrakMasaBerakhir } from "@/src/modules/employee/actions/employee.actions";
 import EmployeesClient from "@/src/modules/employee/components/employees-client";
+import KontrakReminder from "@/src/modules/employee/components/contract-reminder";
 
 export const metadata: Metadata = {
 	title: "Employees",
 };
 
 export default async function EmployeesPage() {
-	const [{ summaries, referenceOptions }, employees] = await Promise.all([
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
+	const [{ summaries, referenceOptions }, employees, kontrakHampirBerakhir] = await Promise.all([
 		getEmployeeWizardBootstrapData(),
 		getEmployeesList(),
+		getKontrakMasaBerakhir(30),
 	]);
 
 	return (
@@ -20,6 +24,8 @@ export default async function EmployeesPage() {
 					Kelola data karyawan. Klik tombol Edit untuk mengubah data melalui wizard.
 				</p>
 			</div>
+
+			<KontrakReminder items={kontrakHampirBerakhir} />
 
 			<EmployeesClient
 				summaries={summaries}

@@ -39,6 +39,7 @@ export type EmployeeWizardOption = {
 export type EmployeeWizardReferenceOptions = {
 	users: EmployeeWizardOption[];
 	userNames: Record<string, string>;
+	atasanOptions: EmployeeWizardOption[];
 	organizationalUnits: EmployeeWizardOption[];
 	positions: EmployeeWizardOption[];
 	positionUnitMap: Record<string, string>;
@@ -54,6 +55,7 @@ export type EmployeeWizardReferenceOptions = {
 export type EmployeePersonalPayload = {
 	id?: string;
 	userId: string;
+	directSupervisorId: string;
 	employeeNumber: string;
 	fullName: string;
 	gender: string;

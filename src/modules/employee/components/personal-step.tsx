@@ -40,14 +40,14 @@ export default function PersonalStep({ value, onChange, errorMap, referenceOptio
 				required
 			/>
 
-			<FloatingInput
-				name="employeeNumber"
-				label="Nomor Karyawan"
-				value={value.employeeNumber || "(Digenerate otomatis di tahap Penempatan)"}
-				onChange={() => {}}
-				disabled
-				errorText={getError("employeeNumber")}
-			/>
+		<FloatingInput
+			name="employeeNumber"
+			label="Nomor Karyawan"
+			value={value.employeeNumber || "(Digenerate otomatis: KODECABANG.TAHUN.URUT di tahap Penempatan)"}
+			onChange={() => {}}
+			disabled
+			errorText={getError("employeeNumber")}
+		/>
 
 			<FloatingSelect
 				name="gender"
@@ -106,15 +106,24 @@ export default function PersonalStep({ value, onChange, errorMap, referenceOptio
 				onValueChange={(val) => update("status", val)}
 				options={referenceOptions.statusKaryawan}
 			/>
-			<FloatingInput
-				name="joinDate"
-				label="Tanggal Masuk"
-				type="date"
-				value={value.joinDate || new Date().toISOString().split("T")[0]}
-				onChange={(e) => update("joinDate", e.target.value)}
-				errorText={getError("joinDate")}
-				required
-			/>
-		</div>
+		<FloatingInput
+			name="joinDate"
+			label="Tanggal Masuk"
+			type="date"
+			value={value.joinDate || new Date().toISOString().split("T")[0]}
+			onChange={(e) => update("joinDate", e.target.value)}
+			errorText={getError("joinDate")}
+			required
+		/>
+		<FloatingSelect
+			name="directSupervisorId"
+			label="Atasan Langsung"
+			value={value.directSupervisorId}
+			onValueChange={(val) => update("directSupervisorId", val)}
+			options={referenceOptions.atasanOptions}
+			placeholder="Pilih atasan langsung"
+			errorText={getError("directSupervisorId")}
+		/>
+	</div>
 	);
 }

@@ -17,7 +17,7 @@ import PositionStep from "./position-step";
 import FamilyStep from "./family-step";
 import EducationStep from "./education-step";
 import WorkHistoryStep from "./work-history-step";
-import KontrakStep from "./kontrak-step";
+import KontrakStep from "./contract-step";
 
 type EmployeeWizardFormProps = {
 	summaries: EmployeeWizardSummary[];
@@ -43,6 +43,7 @@ function emptyWizardDetail(): EmployeeWizardDetail {
 		personal: {
 			id: "",
 			userId: "",
+			directSupervisorId: "",
 			employeeNumber: "",
 			fullName: "",
 			gender: "LAKI_LAKI",
@@ -157,7 +158,6 @@ export default function EmployeeWizardForm({ summaries, referenceOptions, select
 
 	async function uploadPendingFiles(): Promise<Record<string, string>> {
 		const urls: Record<string, string> = {};
-		const employeeName = form.personal.fullName || "Karyawan Baru";
 
 		for (const [key, file] of pendingFilesRef.current) {
 			const [indexStr, field] = key.split("-");
@@ -170,12 +170,14 @@ export default function EmployeeWizardForm({ summaries, referenceOptions, select
 
 			const formData = new FormData();
 			formData.append("file", file);
-			formData.append("folderType", "employee");
-			formData.append("subfolderPath", JSON.stringify([employeeName]));
+			formData.append("ownerType", "karyawan");
+			formData.append("ownerId", form.employeeId);
+			formData.append("subfolder", "dokumen");
 			formData.append("fileName", customFileName);
+			formData.append("jenis", field);
 
 			try {
-				const res = await fetch("/api/upload", { method: "POST", body: formData });
+				const res = await fetch("/api/files", { method: "POST", body: formData });
 				const data = await res.json();
 
 				if (!res.ok) {

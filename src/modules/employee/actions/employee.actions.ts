@@ -95,6 +95,7 @@ function defaultDetail(employeeId = ""): EmployeeWizardDetail {
 		personal: {
 			id: employeeId,
 			userId: "",
+			directSupervisorId: "",
 			employeeNumber: "",
 			fullName: "",
 			gender: JenisKelamin.LAKI_LAKI,
@@ -120,7 +121,7 @@ export async function getEmployeeWizardBootstrapData(): Promise<{
 	summaries: EmployeeWizardSummary[];
 	referenceOptions: EmployeeWizardReferenceOptions;
 }> {
-	const [employees, users, units, positions, locations] = await Promise.all([
+	const [employees, users, units, positions, locations, atasan] = await Promise.all([
 		prisma.karyawan.findMany({
 			orderBy: [{ updatedAt: "desc" }],
 			select: {
@@ -151,6 +152,11 @@ export async function getEmployeeWizardBootstrapData(): Promise<{
 			orderBy: [{ nama: "asc" }],
 			select: { id: true, nama: true, kode: true },
 		}),
+		prisma.karyawan.findMany({
+			where: { status: { in: [StatusKaryawan.AKTIF, StatusKaryawan.PROBASI] } },
+			orderBy: [{ namaLengkap: "asc" }],
+			select: { id: true, namaLengkap: true, nomorKaryawan: true },
+		}),
 	]);
 
 	return {
@@ -164,6 +170,7 @@ export async function getEmployeeWizardBootstrapData(): Promise<{
 		referenceOptions: {
 			users: users.map((item) => ({ value: item.id, label: `${item.name} (${item.email})` })),
 			userNames: Object.fromEntries(users.map((item) => [item.id, item.name])),
+			atasanOptions: atasan.map((item) => ({ value: item.id, label: `${item.namaLengkap} (${item.nomorKaryawan})` })),
 			organizationalUnits: units.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
 			positions: positions.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
 			positionUnitMap: Object.fromEntries(positions.filter((item) => item.unitOrganisasiId).map((item) => [item.id, item.unitOrganisasiId!])),
@@ -216,6 +223,7 @@ export async function getEmployeeWizardDetail(employeeId: string): Promise<Emplo
 		personal: {
 			id: employee.id,
 			userId: employee.userId ?? "",
+			directSupervisorId: employee.atasanLangsungId ?? "",
 			employeeNumber: employee.nomorKaryawan,
 			fullName: employee.namaLengkap,
 			gender: employee.gender,
@@ -335,8 +343,46 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 					};
 				}
 
+				const linkedUserId = toNullableText(data.userId);
+				if (linkedUserId) {
+					const taken = await prisma.karyawan.findFirst({
+						where: { userId: linkedUserId, NOT: employeeId ? { id: employeeId } : undefined },
+						select: { id: true, namaLengkap: true },
+					});
+					if (taken) {
+						return {
+							success: false,
+							message: `Akun user sudah tertaut ke karyawan ${taken.namaLengkap}. Satu akun hanya untuk satu karyawan.`,
+							errors: { userId: "Akun user sudah tertaut ke karyawan lain." },
+						};
+					}
+				}
+
+				const supervisorId = toNullableText(data.directSupervisorId);
+				if (supervisorId) {
+					if (employeeId && supervisorId === employeeId) {
+						return {
+							success: false,
+							message: "Atasan langsung tidak boleh diri sendiri.",
+							errors: { directSupervisorId: "Atasan langsung tidak boleh diri sendiri." },
+						};
+					}
+					const supervisorExists = await prisma.karyawan.findUnique({
+						where: { id: supervisorId },
+						select: { id: true },
+					});
+					if (!supervisorExists) {
+						return {
+							success: false,
+							message: "Atasan langsung tidak ditemukan.",
+							errors: { directSupervisorId: "Atasan langsung tidak ditemukan." },
+						};
+					}
+				}
+
 				const payloadToSave = {
-					userId: toNullableText(data.userId),
+					userId: linkedUserId,
+					atasanLangsungId: supervisorId,
 					nomorKaryawan: data.employeeNumber,
 					namaLengkap: data.fullName,
 					gender: data.gender as JenisKelamin,
@@ -375,38 +421,91 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 				}
 
 				const rows = parsed.data as EmployeePositionPayload[];
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+
+				const keyOf = (unitId: string | null, posId: string | null, locId: string | null, effective: Date) =>
+					[unitId ?? "", posId ?? "", locId ?? "", toDateInputValue(effective)].join("|");
+
 				await prisma.$transaction(async (tx) => {
-					await tx.posisiKaryawan.deleteMany({ where: { karyawanId: employeeId } });
-					if (rows.length) {
-						await tx.posisiKaryawan.createMany({
-							data: rows.map((item) => ({
-								karyawanId: employeeId,
-								unitOrganisasiId: toNullableText(item.organizationalUnitId),
-								posisiId: toNullableText(item.positionId),
-								lokasiKerjaId: toNullableText(item.workLocationId),
-								isPrimary: item.isPrimary,
-								isCurrent: item.isCurrent,
-								tanggalEfektif: parseDate(item.effectiveDate) ?? new Date(),
-								tanggalBerakhir: null,
-								catatan: toNullableText(item.note),
-							})),
-						});
+					const existing = await tx.posisiKaryawan.findMany({ where: { karyawanId: employeeId } });
+					const existingByKey = new Map(existing.map((rec) => [keyOf(rec.unitOrganisasiId, rec.posisiId, rec.lokasiKerjaId, rec.tanggalEfektif), rec]));
+					const submittedKeys = new Set<string>();
+					const submittedCurrentKeys = new Set<string>();
+
+					for (const item of rows) {
+						const effective = parseDate(item.effectiveDate) ?? new Date();
+						const unitId = toNullableText(item.organizationalUnitId);
+						const posId = toNullableText(item.positionId);
+						const locId = toNullableText(item.workLocationId);
+						const key = keyOf(unitId, posId, locId, effective);
+						submittedKeys.add(key);
+						if (item.isCurrent) submittedCurrentKeys.add(key);
+
+						const found = existingByKey.get(key);
+						if (found) {
+							await tx.posisiKaryawan.update({
+								where: { id: found.id },
+								data: {
+									isPrimary: item.isPrimary,
+									isCurrent: item.isCurrent,
+									tanggalBerakhir: item.isCurrent ? null : (found.tanggalBerakhir ?? today),
+									catatan: toNullableText(item.note),
+								},
+							});
+						} else {
+							await tx.posisiKaryawan.create({
+								data: {
+									karyawanId: employeeId,
+									unitOrganisasiId: unitId,
+									posisiId: posId,
+									lokasiKerjaId: locId,
+									isPrimary: item.isPrimary,
+									isCurrent: item.isCurrent,
+									tanggalEfektif: effective,
+									tanggalBerakhir: item.isCurrent ? null : today,
+									catatan: toNullableText(item.note),
+								},
+							});
+						}
+					}
+
+					for (const rec of existing) {
+						const key = keyOf(rec.unitOrganisasiId, rec.posisiId, rec.lokasiKerjaId, rec.tanggalEfektif);
+						if (submittedKeys.has(key)) {
+							if (rec.isCurrent && !submittedCurrentKeys.has(key)) {
+								await tx.posisiKaryawan.update({
+									where: { id: rec.id },
+									data: { isCurrent: false, tanggalBerakhir: rec.tanggalBerakhir ?? today },
+								});
+							}
+							continue;
+						}
+						const effectiveDay = new Date(rec.tanggalEfektif);
+						effectiveDay.setHours(0, 0, 0, 0);
+						if (effectiveDay.getTime() > today.getTime()) {
+							await tx.posisiKaryawan.delete({ where: { id: rec.id } });
+						} else if (rec.isCurrent || !rec.tanggalBerakhir) {
+							await tx.posisiKaryawan.update({
+								where: { id: rec.id },
+								data: { isCurrent: false, tanggalBerakhir: rec.tanggalBerakhir ?? today },
+							});
+						}
 					}
 				});
 
-				const existing = await prisma.karyawan.findUnique({
+				const employee = await prisma.karyawan.findUnique({
 					where: { id: employeeId },
-					select: { nomorKaryawan: true },
+					select: { nomorKaryawan: true, tanggalMasuk: true },
 				});
 
 				let generatedNumber: string | undefined;
-				if (existing && !existing.nomorKaryawan) {
+				if (employee && !employee.nomorKaryawan) {
 					const primaryPos = rows.find((r) => r.isPrimary) ?? rows[0];
 					if (primaryPos) {
 						const numResult = await generateEmployeeNumber({
 							workLocationId: primaryPos.workLocationId,
-							organizationalUnitId: primaryPos.organizationalUnitId,
-							positionId: primaryPos.positionId,
+							joinDate: employee.tanggalMasuk,
 						});
 						if (numResult.success) {
 							await prisma.karyawan.update({
@@ -422,7 +521,7 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 					success: true,
 					message: generatedNumber
 						? `Penempatan disimpan. Nomor karyawan berhasil dibuat: ${generatedNumber} (cek tahap 1).`
-						: "Tahap penempatan berhasil disimpan.",
+						: "Tahap penempatan berhasil disimpan. Riwayat penempatan dipertahankan.",
 					employeeId,
 					employeeNumber: generatedNumber,
 				};
@@ -548,21 +647,41 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 					return { success: false, message: "Data kontrak tidak valid. Periksa nomor kontrak, tanggal mulai, dan field wajib lainnya.", errors: parsed.errors };
 				}
 				const rows = parsed.data as EmployeeKontrakPayload[];
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+
 				await prisma.$transaction(async (tx) => {
-					await tx.kontrakKerja.deleteMany({ where: { karyawanId: employeeId } });
-					if (rows.length) {
-						await tx.kontrakKerja.createMany({
-							data: rows.map((item) => ({
-								karyawanId: employeeId,
-								nomorKontrak: item.contractNumber,
-								jenisKontrak: item.contractType as JenisKontrak,
-								tanggalMulai: parseDate(item.startDate) ?? new Date(),
-								tanggalSelesai: parseDate(item.endDate),
-								status: item.status as StatusKontrak,
-								gajiPokok: item.baseSalary ? new Prisma.Decimal(item.baseSalary) : null,
-								catatan: toNullableText(item.note),
-							})),
-						});
+					const existing = await tx.kontrakKerja.findMany({ where: { karyawanId: employeeId } });
+					const existingByNumber = new Map(existing.map((rec) => [rec.nomorKontrak, rec]));
+					const submittedNumbers = new Set(rows.map((item) => item.contractNumber.trim()));
+
+					for (const item of rows) {
+						const nomor = item.contractNumber.trim();
+						const data = {
+							jenisKontrak: item.contractType as JenisKontrak,
+							tanggalMulai: parseDate(item.startDate) ?? new Date(),
+							tanggalSelesai: parseDate(item.endDate),
+							status: item.status as StatusKontrak,
+							gajiPokok: item.baseSalary ? new Prisma.Decimal(item.baseSalary) : null,
+							catatan: toNullableText(item.note),
+						};
+						const found = existingByNumber.get(nomor);
+						if (found) {
+							await tx.kontrakKerja.update({ where: { id: found.id }, data });
+						} else {
+							await tx.kontrakKerja.create({
+								data: { karyawanId: employeeId, nomorKontrak: nomor, ...data },
+							});
+						}
+					}
+
+					for (const rec of existing) {
+						if (submittedNumbers.has(rec.nomorKontrak)) continue;
+						const startDay = new Date(rec.tanggalMulai);
+						startDay.setHours(0, 0, 0, 0);
+						if (startDay.getTime() > today.getTime()) {
+							await tx.kontrakKerja.delete({ where: { id: rec.id } });
+						}
 					}
 				});
 				break;
@@ -577,6 +696,14 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 		};
 	} catch (error) {
 		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+			const target = (error.meta?.target as string[] | undefined) ?? [];
+			if (target.includes("nik")) {
+				return {
+					success: false,
+					message: "NIK sudah digunakan karyawan lain.",
+					errors: { nationalId: "NIK harus unik." },
+				};
+			}
 			return {
 				success: false,
 				message: "Nomor karyawan sudah digunakan.",
@@ -594,45 +721,51 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 
 export async function generateEmployeeNumber(params: {
 	workLocationId?: string;
-	organizationalUnitId?: string;
-	positionId?: string;
+	joinDate?: Date | string | null;
 }): Promise<{ success: boolean; employeeNumber: string; message: string }> {
-	const { positionId } = params;
+	const { workLocationId, joinDate } = params;
 
-	const position = positionId
-		? await prisma.posisi.findUnique({
-				where: { id: positionId },
-				select: { kode: true },
+	const location = workLocationId
+		? await prisma.lokasiKerja.findUnique({
+				where: { id: workLocationId },
+				select: { kode: true, nama: true },
 			})
 		: null;
 
-	const posCode = position?.kode ?? "POS";
-	const now = new Date();
-	const year = String(now.getFullYear());
-	const month = String(now.getMonth() + 1).padStart(2, "0");
-	const prefix = `${posCode}${year}${month}`;
+	const rawCode = (location?.kode ?? location?.nama ?? "XXX").toUpperCase().replace(/[^A-Z0-9]/g, "");
+	const cabang = (rawCode || "XXX").slice(0, 4);
 
-	const lastEmployee = await prisma.karyawan.findFirst({
-		where: { nomorKaryawan: { startsWith: prefix } },
-		orderBy: { nomorKaryawan: "desc" },
-		select: { nomorKaryawan: true },
-	});
+	const parsedJoin = joinDate instanceof Date ? joinDate : joinDate ? parseDate(joinDate) : null;
+	const tahun = String((parsedJoin ?? new Date()).getFullYear());
 
-	let seq = 1;
-	if (lastEmployee?.nomorKaryawan) {
-		const lastSeq = lastEmployee.nomorKaryawan.slice(-3);
-		const parsed = Number.parseInt(lastSeq, 10);
-		if (!Number.isNaN(parsed)) {
-			seq = parsed + 1;
+	const kunci = `${cabang}.${tahun}`;
+
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const incremented = await prisma.$queryRaw<Array<{ terakhir: number }>>`
+			INSERT INTO "penomoran" ("id", "kunci", "terakhir", "updatedAt")
+			VALUES (md5(random()::text || clock_timestamp()::text), ${kunci}, 1, NOW())
+			ON CONFLICT ("kunci") DO UPDATE SET "terakhir" = "penomoran"."terakhir" + 1, "updatedAt" = NOW()
+			RETURNING "terakhir"`;
+		const seq = incremented[0]?.terakhir ?? 1;
+		const employeeNumber = `${kunci}.${String(seq).padStart(5, "0")}`;
+
+		const exists = await prisma.karyawan.findUnique({
+			where: { nomorKaryawan: employeeNumber },
+			select: { id: true },
+		});
+		if (!exists) {
+			return {
+				success: true,
+				employeeNumber,
+				message: `Nomor karyawan berhasil digenerate: ${employeeNumber}`,
+			};
 		}
 	}
 
-	const employeeNumber = `${prefix}${String(seq).padStart(3, "0")}`;
-
 	return {
-		success: true,
-		employeeNumber,
-		message: `Nomor karyawan berhasil digenerate: ${employeeNumber}`,
+		success: false,
+		employeeNumber: "",
+		message: "Gagal mengenerate nomor karyawan setelah beberapa percobaan.",
 	};
 }
 
@@ -702,4 +835,86 @@ export async function getEmployeesList(): Promise<EmployeeListItem[]> {
 		workLocationName: emp.posisiKaryawan[0]?.lokasiKerja?.nama ?? "-",
 		updatedAt: emp.updatedAt.toISOString(),
 	}));
+}
+
+export type KontrakMasaBerakhirItem = {
+	id: string;
+	nomorKontrak: string;
+	karyawanId: string;
+	karyawanNama: string;
+	nomorKaryawan: string;
+	jenisKontrak: string;
+	tanggalMulai: string;
+	tanggalSelesai: string;
+	sisaHari: number;
+	status: string;
+};
+
+export async function getKontrakMasaBerakhir(hariKeDepan = 30): Promise<KontrakMasaBerakhirItem[]> {
+	const now = new Date();
+	const batas = new Date();
+	batas.setDate(batas.getDate() + hariKeDepan);
+
+	const rows = await prisma.kontrakKerja.findMany({
+		where: {
+			tanggalSelesai: { gte: now, lte: batas },
+			status: { in: [StatusKontrak.AKTIF, StatusKontrak.AKAN_BERAKHIR] },
+		},
+		orderBy: { tanggalSelesai: "asc" },
+		include: {
+			karyawan: { select: { id: true, namaLengkap: true, nomorKaryawan: true } },
+		},
+	});
+
+	return rows.map((item) => ({
+		id: item.id,
+		nomorKontrak: item.nomorKontrak,
+		karyawanId: item.karyawan.id,
+		karyawanNama: item.karyawan.namaLengkap,
+		nomorKaryawan: item.karyawan.nomorKaryawan,
+		jenisKontrak: item.jenisKontrak,
+		tanggalMulai: item.tanggalMulai.toISOString(),
+		tanggalSelesai: item.tanggalSelesai!.toISOString(),
+		sisaHari: Math.max(0, Math.ceil((item.tanggalSelesai!.getTime() - now.getTime()) / 86400000)),
+		status: item.status,
+	}));
+}
+
+export async function sinkronStatusKontrak(hariPeringatan = 30): Promise<{ success: boolean; message: string; berakhir: number; akanBerakhir: number }> {
+	const now = new Date();
+	const batas = new Date();
+	batas.setDate(batas.getDate() + hariPeringatan);
+
+	const [berakhir, akanBerakhir, kembaliAktif] = await Promise.all([
+		prisma.kontrakKerja.updateMany({
+			where: {
+				tanggalSelesai: { lt: now },
+				status: { in: [StatusKontrak.AKTIF, StatusKontrak.AKAN_BERAKHIR] },
+			},
+			data: { status: StatusKontrak.BERAKHIR },
+		}),
+		prisma.kontrakKerja.updateMany({
+			where: {
+				tanggalSelesai: { gte: now, lte: batas },
+				status: StatusKontrak.AKTIF,
+			},
+			data: { status: StatusKontrak.AKAN_BERAKHIR },
+		}),
+		prisma.kontrakKerja.updateMany({
+			where: {
+				OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gt: batas } }],
+				status: StatusKontrak.AKAN_BERAKHIR,
+			},
+			data: { status: StatusKontrak.AKTIF },
+		}),
+	]);
+
+	revalidatePath("/employees");
+
+	return {
+		success: true,
+		message: `Sinkronisasi selesai: ${berakhir.count} berakhir, ${akanBerakhir.count} akan berakhir, ${kembaliAktif.count} kembali aktif.`,
+		berakhir: berakhir.count,
+		akanBerakhir: akanBerakhir.count,
+	};
 }
