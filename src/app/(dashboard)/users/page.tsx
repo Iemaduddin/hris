@@ -4,7 +4,7 @@ import UsersTable from "@/src/modules/users/components/users-table";
 import { getUserRoleOptions, getUserSummaries } from "@/src/modules/users/actions/user.actions";
 
 export default async function UsersPage() {
-	await requireUserRole(["SUPER_ADMIN", "ADMIN"]);
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const [users, roles] = await Promise.all([getUserSummaries(), getUserRoleOptions()]);
 
 	return (

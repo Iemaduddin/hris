@@ -52,5 +52,5 @@ export async function canManageUsers() {
 	});
 
 	if (!currentUser) return false;
-	return currentUser.role === "SUPER_ADMIN" || currentUser.role === "ADMIN";
+	return currentUser.role === "SUPER_ADMIN" || currentUser.role === "ADMIN_HR";
 }

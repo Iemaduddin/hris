@@ -23,9 +23,9 @@ const dateFormatter = new Intl.DateTimeFormat("id-ID", {
 
 const roleLabel: Record<UserSummary["role"], string> = {
 	EMPLOYEE: "Employee",
-	HR_MANAGER: "HR Manager",
-	MANAGER: "Manager",
-	ADMIN: "Admin",
+	MANAJER: "Manajer",
+	FINANCE: "Finance",
+	ADMIN_HR: "Admin HR",
 	SUPER_ADMIN: "Super Admin",
 };
 

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuChevronDown, LuFileText, LuHouse, LuLogOut, LuSettings, LuUserRoundCog, LuUsers } from "react-icons/lu";
+import { LuChevronDown, LuClipboardCheck, LuFileText, LuHouse, LuLogOut, LuSettings, LuUser, LuUserRoundCog, LuUsers, LuCalendarClock } from "react-icons/lu";
 import type { IconType } from "react-icons";
+import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
 import Image from "next/image";
 import { authClient } from "@/src/lib/auth-client";
@@ -20,14 +21,21 @@ type SidebarItem = {
 	label: string;
 	href?: string;
 	icon?: IconType;
+	allowedRoles?: UserRole[];
 	children?: SidebarItem[];
 };
 
 type SidebarSection = {
 	id: string;
 	label: string;
+	allowedRoles?: UserRole[];
 	items: SidebarItem[];
 };
+
+const HR_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR"];
+const APPROVER_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "MANAJER"];
+const FINANCE_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "FINANCE"];
+const REPORT_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "MANAJER", "FINANCE"];
 
 const sidebarSections: SidebarSection[] = [
 	{
@@ -36,20 +44,33 @@ const sidebarSections: SidebarSection[] = [
 		items: [{ id: "dashboard", label: "Dashboard", href: "/", icon: LuHouse }],
 	},
 	{
+		id: "akun",
+		label: "Akun",
+		items: [
+			{ id: "profil-saya", label: "Profil Saya", href: "/akun/profil", icon: LuUser },
+			{ id: "presensi-saya", label: "Presensi Saya", href: "/akun/attendance", icon: LuCalendarClock },
+			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/akun/requests", icon: LuFileText },
+			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/akun/payslip", icon: LuFileText },
+		],
+	},
+	{
 		id: "master-data",
 		label: "Master Data",
+		allowedRoles: HR_ROLES,
 		items: [
 			{
 				id: "users",
 				label: "Users Management",
 				href: "/users",
 				icon: LuUserRoundCog,
+				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "employees",
 				label: "Employees",
 				href: "/employees",
 				icon: LuUsers,
+				allowedRoles: HR_ROLES,
 				children: [
 					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuFileText },
 				],
@@ -59,28 +80,72 @@ const sidebarSections: SidebarSection[] = [
 	{
 		id: "transactions",
 		label: "Transactions",
+		allowedRoles: HR_ROLES,
 		items: [
 			{
-				id: "attendance",
-				label: "Attendance",
+				id: "schedule",
+				label: "Penugasan Jadwal",
+				href: "/schedule",
+				icon: LuCalendarClock,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "roster",
+				label: "Roster & Penugasan",
+				href: "/roster",
+				icon: LuCalendarClock,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "presensi",
+				label: "Presensi Harian",
+				href: "/attendance",
 				icon: LuFileText,
-				children: [
-					{ id: "daily-attendance", label: "Daily", href: "/employees/attendance/daily", icon: LuFileText },
-					{ id: "monthly-attendance", label: "Monthly", href: "/employees/attendance/monthly", icon: LuFileText },
-				],
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "rekap",
+				label: "Rekap Kehadiran",
+				href: "/recap",
+				icon: LuFileText,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "cuti",
+				label: "Cuti & Izin",
+				href: "/leave",
+				icon: LuFileText,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "lembur",
+				label: "Lembur",
+				href: "/overtime",
+				icon: LuFileText,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "dinas",
+				label: "Dinas & WFH",
+				href: "/duty",
+				icon: LuFileText,
+				allowedRoles: HR_ROLES,
+			},
+			{
+				id: "approval",
+				label: "Approval Center",
+				href: "/approval",
+				icon: LuClipboardCheck,
+				allowedRoles: APPROVER_ROLES,
 			},
 			{
 				id: "payroll",
 				label: "Payroll",
 				icon: LuFileText,
+				allowedRoles: FINANCE_ROLES,
 				children: [
-					{ id: "salary-run", label: "Salary Run", href: "/employees/payroll/salary-run", icon: LuFileText },
-					{
-						id: "payslip",
-						label: "Payslip",
-						icon: LuFileText,
-						children: [{ id: "download", label: "Download", href: "/employees/payroll/payslip/download", icon: LuFileText }],
-					},
+					{ id: "salary-run", label: "Salary Run", href: "/payroll", icon: LuFileText },
+					{ id: "komponen", label: "Komponen Gaji", href: "/payroll/salary-components", icon: LuFileText },
 				],
 			},
 		],
@@ -88,22 +153,28 @@ const sidebarSections: SidebarSection[] = [
 	{
 		id: "reports",
 		label: "Reports",
-		items: [{ id: "reports-item", label: "Reports", href: "/reports", icon: LuFileText }],
+		allowedRoles: REPORT_ROLES,
+		items: [{ id: "laporan", label: "Laporan", href: "/reports", icon: LuFileText, allowedRoles: REPORT_ROLES }],
 	},
 	{
 		id: "settings",
 		label: "Settings",
+		allowedRoles: HR_ROLES,
 		items: [
 			{ 
 				id: "company-data", 
 				label: "Data Perusahaan",
 				icon: LuSettings,
+				allowedRoles: HR_ROLES,
 				children:[
 					{ id: "company-data-item", label: "Profil", href: "/settings/company-data" },
 					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit" },
 					{ id: "job-grade-item", label: "Golongan Posisi", href: "/settings/job-grade" },
 					{ id: "position-item", label: "Posisi", href: "/settings/position" },
 					{ id: "work-location-item", label: "Lokasi Kerja", href: "/settings/work-location" },
+					{ id: "work-schedule-item", label: "Jadwal Kerja", href: "/settings/work-schedule" },
+					{ id: "shift-item", label: "Shift Kerja", href: "/settings/shift" },
+					{ id: "jenis-item", label: "Jenis Ketidakhadiran", href: "/settings/leave-types" },
 				]
 			 }
 		],
@@ -111,6 +182,26 @@ const sidebarSections: SidebarSection[] = [
 ];
 
 const normalizePath = (path: string) => (path === "/" ? "/" : path.replace(/\/$/, ""));
+
+function isAllowed(allowedRoles: UserRole[] | undefined, userRole: UserRole): boolean {
+	if (!allowedRoles || allowedRoles.length === 0) return true;
+	return allowedRoles.includes(userRole);
+}
+
+function filterSectionsByRole(sections: SidebarSection[], userRole: UserRole): SidebarSection[] {
+	return sections
+		.filter((section) => isAllowed(section.allowedRoles, userRole))
+		.map((section) => ({
+			...section,
+			items: section.items
+				.filter((item) => isAllowed(item.allowedRoles, userRole))
+				.map((item) => ({
+					...item,
+					children: item.children?.filter((child) => isAllowed(child.allowedRoles, userRole)),
+				})),
+		}))
+		.filter((section) => section.items.length > 0);
+}
 
 const isItemActive = (item: SidebarItem, pathname: string): boolean => {
 	const currentPath = normalizePath(pathname);
@@ -300,11 +391,13 @@ function SidebarEntry({ item, depth, pathname, openItems, setOpenItems, collapse
 type SidebarProps = {
 	company: SidebarCompany;
 	collapsed?: boolean;
+	userRole: UserRole;
 };
 
-export default function Sidebar({ company, collapsed = false }: SidebarProps) {
+export default function Sidebar({ company, collapsed = false, userRole }: SidebarProps) {
 	const pathname = usePathname();
 	const  router = useRouter();
+	const visibleSections = useMemo(() => filterSectionsByRole(sidebarSections, userRole), [userRole]);
 	const defaultOpenState = useMemo(() => {
 		const open: Record<string, boolean> = {};
 
@@ -317,12 +410,12 @@ export default function Sidebar({ company, collapsed = false }: SidebarProps) {
 			}
 		};
 
-		for (const section of sidebarSections) {
+		for (const section of visibleSections) {
 			walk(section.items);
 		}
 
 		return open;
-	}, [pathname]);
+	}, [pathname, visibleSections]);
 
 	const [openItems, setOpenItems] = useState<Record<string, boolean>>(defaultOpenState);
 	const [openFlyoutId, setOpenFlyoutId] = useState<string | null>(null);
@@ -365,7 +458,7 @@ export default function Sidebar({ company, collapsed = false }: SidebarProps) {
 
 			<nav className={`flex-1 py-4 ${collapsed ? "overflow-visible px-2" : "overflow-y-auto px-4"}`}>
 				<div className="space-y-5">
-					{sidebarSections.map((section) => (
+					{visibleSections.map((section) => (
 						<div key={section.id}>
 							{!collapsed && (
 								<p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">

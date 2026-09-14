@@ -1,4 +1,4 @@
-export const VALID_ROLES = ["SUPER_ADMIN", "ADMIN", "HR_MANAGER", "MANAGER", "EMPLOYEE"] as const;
+export const VALID_ROLES = ["SUPER_ADMIN", "ADMIN_HR", "MANAJER", "FINANCE", "EMPLOYEE"] as const;
 export type UserRole = (typeof VALID_ROLES)[number];
 
 export type UserFormValues = {

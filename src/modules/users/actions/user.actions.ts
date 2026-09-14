@@ -10,9 +10,9 @@ import type { UserActionResult, UserRole, UserRoleOption, UserSummary } from "..
 
 const roleLabels: Record<UserRole, string> = {
 	SUPER_ADMIN: "Super Admin",
-	ADMIN: "Admin",
-	HR_MANAGER: "HR Manager",
-	MANAGER: "Manager",
+	ADMIN_HR: "Admin HR",
+	MANAJER: "Manajer",
+	FINANCE: "Finance",
 	EMPLOYEE: "Employee",
 };
 
@@ -294,6 +294,7 @@ const currentUser = await prisma.user.findUnique({
 		select: {
 			name: true,
 			email: true,
+			role: true,
 		},
 });
     return currentUser;

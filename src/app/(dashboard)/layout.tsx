@@ -2,6 +2,7 @@ import DashboardShell from "@/src/components/layout/dashboard-shell";
 import { requireAuthenticatedUser } from "@/src/lib/auth-guard";
 import { getCompanyData } from "@/src/modules/company-data/actions/company-data.actions";
 import { getUserById } from "@/src/modules/users/actions/user.actions";
+import type { UserRole } from "@/src/modules/users/types/user.type";
 
 export default async function DashboardLayout({
 	children,
@@ -21,6 +22,7 @@ export default async function DashboardLayout({
 		<DashboardShell
 			company={company ? { name: company.name, logo: company.logo } : null}
 			user={topbarUser}
+			userRole={(currentUser?.role ?? "EMPLOYEE") as UserRole}
 		>
 			{children}
 		</DashboardShell>
