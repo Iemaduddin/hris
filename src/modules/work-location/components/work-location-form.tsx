@@ -23,6 +23,9 @@ const EMPTY_FORM: WorkLocationFormValues = {
 	kota: null,
 	provinsi: null,
 	kodePos: null,
+	latitude: null,
+	longitude: null,
+	radiusMeter: null,
 	isActive: true,
 };
 
@@ -45,6 +48,14 @@ function toLocationLabel(location: WorkLocationOption) {
 	return `${location.nama}${kodeSuffix}`;
 }
 
+/** "" atau teks tidak terbaca → null; angka valid dikembalikan apa adanya. */
+function parseNumberOrNull(value: string): number | null {
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+	const parsed = Number(trimmed);
+	return Number.isNaN(parsed) ? null : parsed;
+}
+
 function toFormValues(location?: WorkLocationOption): WorkLocationFormValues {
 	if (!location) return EMPTY_FORM;
 
@@ -56,6 +67,9 @@ function toFormValues(location?: WorkLocationOption): WorkLocationFormValues {
 		kota: location.kota,
 		provinsi: location.provinsi,
 		kodePos: location.kodePos,
+		latitude: location.latitude,
+		longitude: location.longitude,
+		radiusMeter: location.radiusMeter,
 		isActive: location.isActive,
 	};
 }
@@ -85,7 +99,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
 
-		const orderedFields = ["nama", "kode", "alamat", "kota", "provinsi", "kodePos"] as const;
+		const orderedFields = ["nama", "kode", "alamat", "kota", "provinsi", "kodePos", "latitude", "longitude", "radiusMeter"] as const;
 
 		for (const field of orderedFields) {
 			if (!state.errors[field]) continue;
@@ -209,6 +223,34 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 					errorText={state?.errors?.kodePos}
 				/>
 
+				<FloatingInput
+					name="latitude"
+					label="Latitude"
+					inputMode="decimal"
+					placeholder="-6.2088"
+					value={formValues.latitude == null ? "" : String(formValues.latitude)}
+					onChange={(event) => setFormValues((prev) => ({ ...prev, latitude: parseNumberOrNull(event.currentTarget.value) }))}
+					errorText={state?.errors?.latitude}
+				/>
+				<FloatingInput
+					name="longitude"
+					label="Longitude"
+					inputMode="decimal"
+					placeholder="106.8456"
+					value={formValues.longitude == null ? "" : String(formValues.longitude)}
+					onChange={(event) => setFormValues((prev) => ({ ...prev, longitude: parseNumberOrNull(event.currentTarget.value) }))}
+					errorText={state?.errors?.longitude}
+				/>
+				<FloatingInput
+					name="radiusMeter"
+					label="Radius Presensi (meter)"
+					inputMode="numeric"
+					placeholder="Kosongkan bila tidak divalidasi"
+					value={formValues.radiusMeter == null ? "" : String(formValues.radiusMeter)}
+					onChange={(event) => setFormValues((prev) => ({ ...prev, radiusMeter: parseNumberOrNull(event.currentTarget.value) }))}
+					errorText={state?.errors?.radiusMeter}
+				/>
+
 				<FloatingTextarea
 					name="alamat"
 					label="Alamat"
@@ -240,6 +282,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kota</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Provinsi</th>
+								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Radius</th>
 								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Status</th>
 								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
 							</tr>
@@ -247,7 +290,7 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 						<tbody>
 							{locations.length === 0 ? (
 								<tr>
-									<td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+									<td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
 										Belum ada lokasi kerja.
 									</td>
 								</tr>
@@ -261,6 +304,9 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kode ?? "-"}</td>
 										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kota ?? "-"}</td>
 										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.provinsi ?? "-"}</td>
+										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+											{location.radiusMeter == null ? "-" : `${location.radiusMeter} m`}
+										</td>
 										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.isActive ? "Aktif" : "Tidak Aktif"}</td>
 										<td className="px-4 py-3 text-right">
 												<EditButton

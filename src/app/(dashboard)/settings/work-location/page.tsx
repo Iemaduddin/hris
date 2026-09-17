@@ -1,7 +1,9 @@
+import { requireUserRole } from "@/src/lib/auth-guard";
 import { getWorkLocationOptions } from "@/src/modules/work-location/actions/work-location.actions";
 import WorkLocationForm from "@/src/modules/work-location/components/work-location-form";
 
 export default async function WorkLocationPage() {
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const locations = await getWorkLocationOptions();
 
 	return (

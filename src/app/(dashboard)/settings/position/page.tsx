@@ -1,7 +1,9 @@
+import { requireUserRole } from "@/src/lib/auth-guard";
 import { getPositionFormOptions, getPositionOptions } from "@/src/modules/position/actions/position.actions";
 import PositionForm from "@/src/modules/position/components/position-form";
 
 export default async function PositionPage() {
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const [positions, formOptions] = await Promise.all([getPositionOptions(), getPositionFormOptions()]);
 
 	return (

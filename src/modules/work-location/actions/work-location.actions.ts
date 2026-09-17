@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
+import { decimalKeNumber } from "@/src/lib/decimal";
 import { parseAndValidateWorkLocationData } from "../schemas/work-location.schema";
 import type { WorkLocationActionResult, WorkLocationOption } from "../types/work-location.type";
 
@@ -16,11 +17,18 @@ export async function getWorkLocationOptions(): Promise<WorkLocationOption[]> {
 			kota: true,
 			provinsi: true,
 			kodePos: true,
+			latitude: true,
+			longitude: true,
+			radiusMeter: true,
 			isActive: true,
 		},
 	});
 
-	return locations;
+	return locations.map((location) => ({
+		...location,
+		latitude: decimalKeNumber(location.latitude),
+		longitude: decimalKeNumber(location.longitude),
+	}));
 }
 
 export async function createWorkLocation(formData: FormData): Promise<WorkLocationActionResult> {
@@ -46,6 +54,9 @@ export async function createWorkLocation(formData: FormData): Promise<WorkLocati
 				kota: data.kota,
 				provinsi: data.provinsi,
 				kodePos: data.kodePos,
+				latitude: data.latitude,
+				longitude: data.longitude,
+				radiusMeter: data.radiusMeter,
 				isActive: data.isActive,
 			},
 		});
@@ -94,6 +105,9 @@ export async function updateWorkLocation(formData: FormData): Promise<WorkLocati
 				kota: data.kota,
 				provinsi: data.provinsi,
 				kodePos: data.kodePos,
+				latitude: data.latitude,
+				longitude: data.longitude,
+				radiusMeter: data.radiusMeter,
 				isActive: data.isActive,
 			},
 		});

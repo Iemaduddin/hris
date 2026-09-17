@@ -1,8 +1,10 @@
+import { requireUserRole } from "@/src/lib/auth-guard";
 import { getCompanyData, getCompanyLocationOptions } from "@/src/modules/company-data/actions/company-data.actions";
 import CompanyDataForm from "@/src/modules/company-data/components/company-data-form";
 import CompanyLogoUpload from "@/src/modules/company-data/components/company-logo-upload";
 
 export default async function CompanyDataPage() {
+    await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
     const [company, locationOptions] = await Promise.all([getCompanyData(), getCompanyLocationOptions()]);
     return (
         <>

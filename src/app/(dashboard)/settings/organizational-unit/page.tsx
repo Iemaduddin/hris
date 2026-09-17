@@ -1,8 +1,10 @@
+import { requireUserRole } from "@/src/lib/auth-guard";
 import { getOrganizationalUnitOptions } from "@/src/modules/organizational-unit/actions/organizational-unit.actions";
 import OrganizationalUnitForm from "@/src/modules/organizational-unit/components/organizational-unit-form";
 import OrgChartSection from "@/src/modules/organizational-unit/components/org-chart";
 
 export default async function OrganizationalUnitPage() {
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const units = await getOrganizationalUnitOptions();
 
 	return (

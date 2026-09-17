@@ -1,7 +1,9 @@
+import { requireUserRole } from "@/src/lib/auth-guard";
 import { getJobGradeOptions } from "@/src/modules/job-grade/actions/job-grade.actions";
 import JobGradeForm from "@/src/modules/job-grade/components/job-grade-form";
 
 export default async function JobGradePage() {
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const grades = await getJobGradeOptions();
 
 	return (

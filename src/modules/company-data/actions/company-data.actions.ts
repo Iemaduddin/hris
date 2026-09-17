@@ -231,24 +231,44 @@ export async function uploadCompanyLogoAction(formData: FormData): Promise<Compa
 	const bytes = await file.arrayBuffer();
 	const buffer = Buffer.from(bytes);
 
-	const { uploadToDrive } = await import("@/src/lib/google-drive");
+	const { hapusFile, isStoragePath, simpanFile } = await import("@/src/lib/storage-local");
 
-	const timestamp = Date.now();
-	const extension = file.type === "image/webp" ? "webp" : "jpg";
-	const fileName = `company-logo-${companyId}-${timestamp}.${extension}`;
+	const extension = file.type === "image/webp" ? "webp" : file.type === "image/png" ? "png" : file.type === "image/gif" ? "gif" : "jpg";
 
-	const result = await uploadToDrive(buffer, fileName, file.type, "company");
+	const result = await simpanFile({
+		buffer,
+		originalName: `logo.${extension}`,
+		mime: file.type,
+		ownerType: "perusahaan",
+		ownerId: companyId,
+		subfolder: "logo",
+		customName: "logo",
+		jenis: "logo",
+	});
+
+	const previous = await prisma.perusahaan.findUnique({
+		where: { id: companyId },
+		select: { logo: true },
+	});
 
 	await prisma.perusahaan.update({
 		where: { id: companyId },
-		data: { logo: result.directLink },
+		data: { logo: result.url },
 	});
+
+	if (previous?.logo && isStoragePath(previous.logo) && previous.logo !== result.url) {
+		try {
+			await hapusFile(previous.logo);
+		} catch {
+			// Logo lama gagal dihapus — abaikan agar upload tetap sukses.
+		}
+	}
 
 	revalidatePath("/settings/company-data");
 
 	return {
 		success: true,
 		message: "Logo berhasil disimpan.",
-		logo: result.directLink,
+		logo: result.url,
 	};
 }
