@@ -1,0 +1,333 @@
+{
+	"info": {
+		"name": "HRIS Mobile API",
+		"description": "Koleksi endpoint mobile HRIS (/api/v1 + upload file). Cara pakai:\n1. Import file ini ke Postman.\n2. Isi variable baseUrl (cth. http://localhost:3000).\n3. Jalankan request \"Login\" lebih dulu — cookie sesi tersimpan otomatis di cookie jar Postman.\n4. Akun harus sudah ditautkan ke data karyawan oleh HR, kalau tidak endpoint ESS membalas 403.\n\nEnvelope sukses: { success: true, data: ... }. Gagal: { success: false, error: ... }.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/login",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"employee@example.com\",\n  \"password\": \"Employee123!\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/logout"
+					}
+				},
+				{
+					"name": "Saya (Me)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/me"
+					}
+				}
+			]
+		},
+		{
+			"name": "Presensi",
+			"item": [
+				{
+					"name": "Clock In",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/attendance",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tipe\": \"MASUK\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8,\n  \"lokasiKerjaId\": \"\",\n  \"catatan\": \"\"\n}"
+						},
+						"description": "tipe: MASUK, KELUAR, MULAI_ISTIRAHAT, SELESAI_ISTIRAHAT, KELUAR_KANTOR, KEMBALI_KANTOR. latitude/longitude opsional."
+					}
+				},
+				{
+					"name": "Clock Out",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/attendance",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tipe\": \"KELUAR\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8\n}"
+						}
+					}
+				},
+				{
+					"name": "Status Hari Ini",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/attendance"
+					}
+				},
+				{
+					"name": "Riwayat Bulanan",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/attendance/history?tahun=2026&bulan=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "attendance", "history"],
+							"query": [
+								{ "key": "tahun", "value": "2026" },
+								{ "key": "bulan", "value": "10" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cuti",
+			"item": [
+				{
+					"name": "Jenis Aktif",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/leave/types"
+					}
+				},
+				{
+					"name": "Saldo Saya",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/leave/balance?tahun=2026",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "leave", "balance"],
+							"query": [{ "key": "tahun", "value": "2026" }]
+						}
+					}
+				},
+				{
+					"name": "Daftar Pengajuan Saya",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/leave"
+					}
+				},
+				{
+					"name": "Buat Draf",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/leave",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jenisId\": 1,\n  \"mulai\": \"2026-11-02\",\n  \"selesai\": \"2026-11-03\",\n  \"alasan\": \"Keperluan keluarga\",\n  \"alamat\": \"Rumah\",\n  \"telpDarurat\": \"0812000000\",\n  \"lampiran\": \"\"\n}"
+						},
+						"description": "Ambil jenisId dari endpoint Jenis Aktif. lampiran = path dari hasil upload file (cth. pengajuan/.../file.pdf)."
+					}
+				},
+				{
+					"name": "Ajukan Draf",
+					"request": {
+						"method": "PUT",
+						"url": "{{baseUrl}}/api/v1/leave",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+						},
+						"description": "aksi: ajukan | batal."
+					}
+				}
+			]
+		},
+		{
+			"name": "Lembur",
+			"item": [
+				{
+					"name": "Daftar Lembur Saya",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/overtime"
+					}
+				},
+				{
+					"name": "Buat Draf",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/overtime",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tanggal\": \"2026-10-20\",\n  \"jamMulai\": \"18:00\",\n  \"jamSelesai\": \"20:30\",\n  \"alasan\": \"Closing bulanan\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Ajukan / Batal",
+					"request": {
+						"method": "PUT",
+						"url": "{{baseUrl}}/api/v1/overtime",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+						},
+						"description": "aksi: ajukan | batal."
+					}
+				}
+			]
+		},
+		{
+			"name": "Dinas WFH",
+			"item": [
+				{
+					"name": "Daftar Punya Saya",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/duty"
+					}
+				},
+				{
+					"name": "Buat Draf",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/duty",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jenis\": \"DINAS_LUAR\",\n  \"mulai\": \"2026-11-05\",\n  \"selesai\": \"2026-11-06\",\n  \"lokasi\": \"Jakarta\",\n  \"keperluan\": \"Kunjungan klien\"\n}"
+						},
+						"description": "jenis: DINAS_LUAR | WFH."
+					}
+				},
+				{
+					"name": "Ajukan / Batal",
+					"request": {
+						"method": "PUT",
+						"url": "{{baseUrl}}/api/v1/duty",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+						},
+						"description": "aksi: ajukan | batal."
+					}
+				}
+			]
+		},
+		{
+			"name": "Approval",
+			"item": [
+				{
+					"name": "Inbox Saya",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/approval",
+						"description": "Untuk atasan langsung (timnya) dan HR (semua). Karyawan biasa: count 0."
+					}
+				},
+				{
+					"name": "Setujui",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/approval",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"keputusan\": \"SETUJU\",\n  \"catatan\": \"OK\"\n}"
+						},
+						"description": "type: CUTI | LEMBUR | DINAS. keputusan: SETUJU | TOLAK."
+					}
+				},
+				{
+					"name": "Tolak",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/approval",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"keputusan\": \"TOLAK\",\n  \"catatan\": \"Stok tim menipis\"\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Slip dan Jadwal",
+			"item": [
+				{
+					"name": "Daftar Slip Saya",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/payslip",
+						"description": "Hanya slip yang sudah DITERBITKAN."
+					}
+				},
+				{
+					"name": "Detail Slip",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payslip?nomor=SLIP-2026-10-XXXXXX",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "payslip"],
+							"query": [{ "key": "nomor", "value": "SLIP-2026-10-XXXXXX" }]
+						}
+					}
+				},
+				{
+					"name": "Jadwal Saya",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/schedule?mulai=2026-10-01&selesai=2026-10-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "schedule"],
+							"query": [
+								{ "key": "mulai", "value": "2026-10-01" },
+								{ "key": "selesai", "value": "2026-10-31" }
+							]
+						},
+						"description": "Roster shift + penugasan kalender. Default 7 hari ke depan bila tanpa query."
+					}
+				}
+			]
+		},
+		{
+			"name": "File",
+			"item": [
+				{
+					"name": "Upload Lampiran",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/files",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "file", "type": "file", "src": "" },
+								{ "key": "ownerType", "value": "pengajuan", "type": "text" },
+								{ "key": "ownerId", "value": "KARYAWAN_ID", "type": "text" },
+								{ "key": "subfolder", "value": "lampiran", "type": "text" },
+								{ "key": "jenis", "value": "lampiran", "type": "text" }
+							]
+						},
+						"description": "Respons berisi path + url. Pakai path sebagai lampiran pengajuan. ownerType: pengajuan (umum), karyawan (khusus HR)."
+					}
+				}
+			]
+		}
+	]
+}
