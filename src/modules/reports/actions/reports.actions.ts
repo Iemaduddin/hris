@@ -3,7 +3,7 @@
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
 
-export const JENIS_LAPORAN = ["kehadiran", "cuti", "lembur", "turnover", "kontrak"] as const;
+const JENIS_LAPORAN = ["kehadiran", "cuti", "lembur", "turnover", "kontrak"] as const;
 export type JenisLaporan = (typeof JENIS_LAPORAN)[number];
 
 export type LaporanHasil = {

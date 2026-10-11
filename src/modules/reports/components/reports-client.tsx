@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { getLaporan, type LaporanHasil } from "../actions/reports.actions";
@@ -28,11 +28,25 @@ function toCsv(columns: string[], rows: string[][]): string {
 
 export default function LaporanClient() {
 	const [isPending, startTransition] = useTransition();
-	const defaults = monthRange();
+	const [filterAwal] = useState(monthRange);
 	const [jenis, setJenis] = useState("kehadiran");
-	const [mulai, setMulai] = useState(defaults.mulai);
-	const [selesai, setSelesai] = useState(defaults.selesai);
+	const [mulai, setMulai] = useState(filterAwal.mulai);
+	const [selesai, setSelesai] = useState(filterAwal.selesai);
 	const [hasil, setHasil] = useState<LaporanHasil | null>(null);
+	const [memuatAwal, setMemuatAwal] = useState(true);
+
+	useEffect(() => {
+		let batal = false;
+		getLaporan("kehadiran", filterAwal.mulai, filterAwal.selesai).then((data) => {
+			if (!batal) {
+				setHasil(data);
+				setMemuatAwal(false);
+			}
+		});
+		return () => {
+			batal = true;
+		};
+	}, [filterAwal]);
 
 	function handleTampilkan() {
 		startTransition(async () => {
@@ -71,7 +85,13 @@ export default function LaporanClient() {
 				</div>
 			</div>
 
-			{hasil ? (
+			{memuatAwal && !hasil ? (
+			<div className="rounded-2xl border border-blue-100 bg-white p-5 text-sm text-slate-500 dark:border-blue-900/60 dark:bg-slate-900 dark:text-slate-400">
+				Memuat laporan...
+			</div>
+		) : null}
+
+		{hasil ? (
 				<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 					<div className="overflow-x-auto">
 						<table className="min-w-full text-sm">
