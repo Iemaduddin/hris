@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuChevronDown, LuClipboardCheck, LuFileText, LuHouse, LuLogOut, LuSettings, LuUser, LuUserRoundCog, LuUsers, LuCalendarClock } from "react-icons/lu";
+import { LuBanknote, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHouse, LuLayers, LuList, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -48,9 +48,9 @@ const sidebarSections: SidebarSection[] = [
 		label: "Akun",
 		items: [
 			{ id: "profil-saya", label: "Profil Saya", href: "/akun/profil", icon: LuUser },
-			{ id: "presensi-saya", label: "Presensi Saya", href: "/akun/attendance", icon: LuCalendarClock },
-			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/akun/requests", icon: LuFileText },
-			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/akun/payslip", icon: LuFileText },
+			{ id: "presensi-saya", label: "Presensi Saya", href: "/akun/attendance", icon: LuCalendarCheck },
+			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/akun/requests", icon: LuSend },
+			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/akun/payslip", icon: LuWallet },
 		],
 	},
 	{
@@ -72,7 +72,7 @@ const sidebarSections: SidebarSection[] = [
 				icon: LuUsers,
 				allowedRoles: HR_ROLES,
 				children: [
-					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuFileText },
+					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuList },
 				],
 			},
 		],
@@ -86,66 +86,66 @@ const sidebarSections: SidebarSection[] = [
 				id: "schedule",
 				label: "Penugasan Jadwal",
 				href: "/schedule",
-				icon: LuCalendarClock,
+				icon: LuCalendarPlus,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "roster",
 				label: "Roster & Penugasan",
 				href: "/roster",
-				icon: LuCalendarClock,
+				icon: LuCalendarRange,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "presensi",
 				label: "Presensi Harian",
 				href: "/attendance",
-				icon: LuFileText,
+				icon: LuFingerprint,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "rekap",
 				label: "Rekap Kehadiran",
 				href: "/recap",
-				icon: LuFileText,
+				icon: LuFileSpreadsheet,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "cuti",
 				label: "Cuti & Izin",
 				href: "/leave",
-				icon: LuFileText,
+				icon: LuTreePalm,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "lembur",
 				label: "Lembur",
 				href: "/overtime",
-				icon: LuFileText,
+				icon: LuTimer,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "dinas",
 				label: "Dinas & WFH",
 				href: "/duty",
-				icon: LuFileText,
+				icon: LuPlane,
 				allowedRoles: HR_ROLES,
 			},
 			{
 				id: "approval",
 				label: "Approval Center",
 				href: "/approval",
-				icon: LuClipboardCheck,
+				icon: LuStamp,
 				allowedRoles: APPROVER_ROLES,
 			},
 			{
 				id: "payroll",
 				label: "Payroll",
-				icon: LuFileText,
+				icon: LuBanknote,
 				allowedRoles: FINANCE_ROLES,
 				children: [
-					{ id: "salary-run", label: "Salary Run", href: "/payroll", icon: LuFileText },
-					{ id: "komponen", label: "Komponen Gaji", href: "/payroll/salary-components", icon: LuFileText },
+					{ id: "salary-run", label: "Salary Run", href: "/payroll", icon: LuCircleDollarSign },
+					{ id: "komponen", label: "Komponen Gaji", href: "/payroll/salary-components", icon: LuReceipt },
 				],
 			},
 		],
@@ -154,7 +154,7 @@ const sidebarSections: SidebarSection[] = [
 		id: "reports",
 		label: "Reports",
 		allowedRoles: REPORT_ROLES,
-		items: [{ id: "laporan", label: "Laporan", href: "/reports", icon: LuFileText, allowedRoles: REPORT_ROLES }],
+		items: [{ id: "laporan", label: "Laporan", href: "/reports", icon: LuChartColumn, allowedRoles: REPORT_ROLES }],
 	},
 	{
 		id: "settings",
@@ -167,14 +167,14 @@ const sidebarSections: SidebarSection[] = [
 				icon: LuSettings,
 				allowedRoles: HR_ROLES,
 				children:[
-					{ id: "company-data-item", label: "Profil", href: "/settings/company-data" },
-					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit" },
-					{ id: "job-grade-item", label: "Golongan Posisi", href: "/settings/job-grade" },
-					{ id: "position-item", label: "Posisi", href: "/settings/position" },
-					{ id: "work-location-item", label: "Lokasi Kerja", href: "/settings/work-location" },
-					{ id: "work-schedule-item", label: "Jadwal Kerja", href: "/settings/work-schedule" },
-					{ id: "shift-item", label: "Shift Kerja", href: "/settings/shift" },
-					{ id: "jenis-item", label: "Jenis Ketidakhadiran", href: "/settings/leave-types" },
+					{ id: "company-data-item", label: "Profil", href: "/settings/company-data", icon: LuBuilding2 },
+					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit", icon: LuNetwork },
+					{ id: "job-grade-item", label: "Golongan Posisi", href: "/settings/job-grade", icon: LuLayers },
+					{ id: "position-item", label: "Posisi", href: "/settings/position", icon: LuBriefcase },
+					{ id: "work-location-item", label: "Lokasi Kerja", href: "/settings/work-location", icon: LuMapPin },
+					{ id: "work-schedule-item", label: "Jadwal Kerja", href: "/settings/work-schedule", icon: LuCalendarDays },
+					{ id: "shift-item", label: "Shift Kerja", href: "/settings/shift", icon: LuRepeat },
+					{ id: "jenis-item", label: "Jenis Ketidakhadiran", href: "/settings/leave-types", icon: LuCalendarX },
 				]
 			 }
 		],
