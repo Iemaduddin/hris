@@ -8,7 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:wilayah": "npx tsx prisma/seed-region.ts"
+    "seed:wilayah": "npx tsx prisma/seed-region.ts",
+    "seed:karyawan": "npx tsx prisma/seed-karyawan.ts",
+    "seed:perusahaan": "npx tsx prisma/seed-perusahaan.ts",
+    "seed:komponen": "npx tsx prisma/seed-komponen-gaji.ts",
+    "seed:demo": "npx tsx prisma/seed-demo.ts",
+    "seed:jadwal": "npx tsx prisma/seed-penugasan-jadwal.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.5.3",
