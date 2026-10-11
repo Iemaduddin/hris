@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.5.3",
+    "@nivo/bar": "^0.99.0",
+    "@nivo/pie": "^0.99.0",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "apextree": "^2.1.0",
