@@ -6,17 +6,16 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: proc
 
 /**
  * Master komponen gaji untuk dokumentasi & demo perhitungan payroll.
- * Idempoten via upsert kode. Nilai NOMINAL default 0 (diisi per karyawan
- * lewat GajiKaryawan / kontrak); PERSEN mengikuti mesin hitung payroll.
+ * Idempoten via upsert kode.
+ *
+ * Catatan: komponen TJ_* (tunjangan per hari/shift), UPAH_LEMBUR, BPJS_*,
+ * dan POTONGAN_ALPA adalah data master bawaan yang sudah ada — file ini hanya
+ * melengkapi dua yang belum ada (GAJI_POKOK, POT_PPH21). Jangan menambah
+ * entri yang semakna dengan yang sudah ada agar tidak duplikat.
  */
 const KOMPONEN = [
 	{ kode: "GAJI_POKOK", nama: "Gaji Pokok", kelompok: "PENDAPATAN" as const, tipe: "NOMINAL" as const, nilai: 0, urutan: 1 },
-	{ kode: "TUNJ_JABATAN", nama: "Tunjangan Jabatan", kelompok: "TUNJANGAN" as const, tipe: "NOMINAL" as const, nilai: 0, urutan: 2 },
-	{ kode: "TUNJ_TRANSPORT", nama: "Tunjangan Transport", kelompok: "TUNJANGAN" as const, tipe: "NOMINAL" as const, nilai: 0, urutan: 3 },
-	{ kode: "TUNJ_MAKAN", nama: "Tunjangan Makan", kelompok: "TUNJANGAN" as const, tipe: "NOMINAL" as const, nilai: 0, urutan: 4 },
 	{ kode: "POT_PPH21", nama: "PPh 21", kelompok: "POTONGAN" as const, tipe: "NOMINAL" as const, nilai: 0, urutan: 5 },
-	{ kode: "POT_BPJS_KS", nama: "BPJS Kesehatan (1%)", kelompok: "IURAN" as const, tipe: "PERSEN" as const, nilai: 1, urutan: 6 },
-	{ kode: "POT_BPJS_TK", nama: "BPJS Ketenagakerjaan (2%)", kelompok: "IURAN" as const, tipe: "PERSEN" as const, nilai: 2, urutan: 7 },
 ];
 
 async function main() {
