@@ -63,3 +63,11 @@ Akun demo dibuat via seed (`prisma/seed*.ts`): `employee@example.com` dan `admin
 `GET /api/v1/me`, `/leave`, `/duty`, `/overtime`, `/payslip`, `/schedule`,
 `/attendance`, `/approval` · `POST /api/v1/auth/login`, `/leave`, `/approval`,
 `/devices` (registrasi pushToken) — butuh header `Authorization: Bearer <token>`.
+
+## Checklist produksi
+
+- [ ] `BETTER_AUTH_SECRET` baru (jangan pakai bawaan dev) + `DATABASE_URL` produksi
+- [ ] `BETTER_AUTH_URL` = domain publik (https)
+- [ ] Ganti password semua akun demo / nonaktifkan yang tak perlu
+- [ ] Kredensial Google (OAuth/Drive) milik produksi + backup folder `storage/`
+- [ ] `npm run build` lolos + smoke test login tiap role
