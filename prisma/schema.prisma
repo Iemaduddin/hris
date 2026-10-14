@@ -296,6 +296,7 @@ model Karyawan {
   mutasiBaruAtasan  Mutasi[]           @relation("MutasiAtasanBaru")
   onboarding        Onboarding[]
   offboarding       Offboarding[]
+  probationReviews  ProbationReview[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -1411,6 +1412,51 @@ enum StatusOffboarding {
 enum StatusClearance {
   BELUM
   SELESAI
+}
+
+// ============================================================
+// Probation review (P1-4). Alur: DRAFT → DIAJUKAN →
+// MENUNGGU_APPROVAL (atasan → HR) → DISETUJUI → SELESAI.
+// Finalisasi memicu: LULUS → AKTIF; PERPANJANG → review lanjutan;
+// TIDAK_LULUS → DIHENTIKAN + akun nonaktif.
+// ============================================================
+
+model ProbationReview {
+  id                 String           @id @default(cuid())
+  karyawanId         String
+  karyawan           Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  tanggalMulai       DateTime
+  tanggalSelesai     DateTime
+  status             StatusProbation  @default(DRAFT)
+  hasil              HasilProbation?
+  nilai              Int?
+  catatan            String?
+  tanggalSelesaiBaru DateTime?
+  diajukanPada       DateTime?
+  diputuskanOlehId   String?
+  diputuskanPada     DateTime?
+  createdById        String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([karyawanId, status])
+  @@map("probation_review")
+}
+
+enum StatusProbation {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  SELESAI
+  DIBATALKAN
+}
+
+enum HasilProbation {
+  LULUS
+  PERPANJANG
+  TIDAK_LULUS
 }
 
 // ============================================================

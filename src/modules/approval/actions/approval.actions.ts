@@ -89,6 +89,7 @@ export async function prosesPengajuanAction(
 	revalidatePath("/duty");
 	revalidatePath("/employees/mutasi");
 	revalidatePath("/employees/offboarding");
+	revalidatePath("/employees/probation");
 
 	// PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
 	if (result.success && result.selesai) {
