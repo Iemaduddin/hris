@@ -60,7 +60,7 @@ export default async function SlipSayaPage() {
 										<td className="px-4 py-3">{s.nomor}</td>
 										<td className="px-4 py-3 text-right font-semibold">{rupiah.format(Number(s.gajiBersih))}</td>
 										<td className="px-4 py-3 text-right">
-											<Link href={`/akun/payslip/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+											<Link href={`/account/payslip/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
 												Lihat
 											</Link>
 										</td>
@@ -98,7 +98,7 @@ export default async function SlipSayaPage() {
 									<td className="px-4 py-3">{s.nomor}</td>
 									<td className="px-4 py-3 text-right font-semibold">{rupiah.format(Number(s.bersih))}</td>
 									<td className="px-4 py-3 text-right">
-										<Link href={`/akun/thr/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+										<Link href={`/account/thr/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
 											Lihat
 										</Link>
 									</td>

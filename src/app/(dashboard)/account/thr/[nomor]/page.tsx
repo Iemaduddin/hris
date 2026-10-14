@@ -29,7 +29,7 @@ export default async function ThrSayaDetailPage({ params }: { params: Promise<{ 
 						{slip.karyawanNama} ({slip.nomorKaryawan}) • {slip.nomor}
 					</p>
 				</div>
-				<a href={`/api/akun/thr-slip/${encodeURIComponent(slip.nomor)}`} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700">
+				<a href={`/api/account/thr-slip/${encodeURIComponent(slip.nomor)}`} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700">
 					Unduh PDF
 				</a>
 			</div>

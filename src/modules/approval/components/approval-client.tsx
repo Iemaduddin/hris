@@ -11,6 +11,7 @@ const TYPE_LABEL: Record<string, string> = {
 	CUTI: "Cuti/Izin",
 	LEMBUR: "Lembur",
 	DINAS: "Dinas/WFH",
+	MUTASI: "Mutasi",
 };
 
 export default function ApprovalClient({

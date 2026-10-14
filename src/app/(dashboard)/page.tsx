@@ -381,13 +381,13 @@ export default async function DashboardPage() {
 		<>
 			<HeaderJudul judul={`Halo, ${karyawan?.namaLengkap ?? session.user.name ?? "Karyawan"}`} sub="Ringkasan Anda hari ini." />
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
-				<Card title="Status Hari Ini" value={hariIni?.status.replaceAll("_", " ") ?? "-"} href="/akun/attendance" linkText="Presensi" />
-				<Card title="Sisa Cuti" value={saldo.length > 0 ? saldo.map((s) => `${s.sisa}`).join(" + ") : "-"} href="/akun/requests" linkText="Ajukan" />
-				<Card title="Pengajuan Berjalan" value={String(pengajuanAktif)} href="/akun/requests" linkText="Lacak" />
-				<Card title="Slip Terakhir" value={slips[0]?.periode ?? "-"} href="/akun/payslip" linkText="Slip Saya" />
+				<Card title="Status Hari Ini" value={hariIni?.status.replaceAll("_", " ") ?? "-"} href="/account/attendance" linkText="Presensi" />
+				<Card title="Sisa Cuti" value={saldo.length > 0 ? saldo.map((s) => `${s.sisa}`).join(" + ") : "-"} href="/account/requests" linkText="Ajukan" />
+				<Card title="Pengajuan Berjalan" value={String(pengajuanAktif)} href="/account/requests" linkText="Lacak" />
+				<Card title="Slip Terakhir" value={slips[0]?.periode ?? "-"} href="/account/payslip" linkText="Slip Saya" />
 			</div>
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-				<Panel title="Jadwal Saya Hari Ini" href="/akun/attendance" linkText="Presensi">
+				<Panel title="Jadwal Saya Hari Ini" href="/account/attendance" linkText="Presensi">
 					{shiftSaya ? (
 						<ul>
 							<Baris kiri="Shift" kanan={shiftSaya.shift.nama} />
@@ -398,7 +398,7 @@ export default async function DashboardPage() {
 						<Kosong teks="Tidak ada jadwal/roster hari ini." />
 					)}
 				</Panel>
-				<Panel title="Sisa Cuti per Jenis" href="/akun/requests" linkText="Ajukan">
+				<Panel title="Sisa Cuti per Jenis" href="/account/requests" linkText="Ajukan">
 					{saldo.length === 0 ? (
 						<Kosong teks="Belum ada saldo cuti." />
 					) : (
@@ -409,7 +409,7 @@ export default async function DashboardPage() {
 						</ul>
 					)}
 				</Panel>
-				<Panel title="Pengajuan Terakhir" href="/akun/requests" linkText="Semua">
+				<Panel title="Pengajuan Terakhir" href="/account/requests" linkText="Semua">
 					{pengajuanTerakhir.length === 0 ? (
 						<Kosong teks="Belum ada pengajuan." />
 					) : (

@@ -169,6 +169,7 @@ model UnitOrganisasi {
 
   posisi         Posisi[]
   posisiKaryawan PosisiKaryawan[]
+  mutasiKeUnit   Mutasi[]
 
   @@index([parentId])
   @@map("unit_organisasi")
@@ -209,6 +210,7 @@ model Posisi {
   updatedAt DateTime @updatedAt
 
   posisiKaryawan PosisiKaryawan[]
+  mutasiKePosisi Mutasi[]
 
   @@map("posisi")
 }
@@ -236,6 +238,7 @@ model LokasiKerja {
 
   posisiKaryawan PosisiKaryawan[]
   absensi        Absensi[]
+  mutasiKeLokasi Mutasi[]
 
   @@map("lokasi_kerja")
 }
@@ -287,6 +290,8 @@ model Karyawan {
   payslip           Payslip[]
   thrDetail         ThrDetail[]
   kasbon            Kasbon[]
+  mutasi            Mutasi[]
+  mutasiBaruAtasan  Mutasi[]           @relation("MutasiAtasanBaru")
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -1180,6 +1185,65 @@ model ThrDetail {
   @@unique([runId, karyawanId])
   @@index([karyawanId])
   @@map("thr_detail")
+}
+
+// ============================================================
+// Mutasi / promosi / demosi. Workflow: DRAFT → DIAJUKAN →
+// MENUNGGU_APPROVAL (atasan → HR) → DISETUJUI → DITERAPKAN.
+// Penerapan append-only: tutup penempatan aktif + buka record baru.
+// ============================================================
+
+model Mutasi {
+  id           String       @id @default(cuid())
+  nomor        String       @unique
+  karyawanId   String
+  karyawan     Karyawan     @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  jenis        JenisMutasi
+  dariUnitId   String?
+  dariPosisiId String?
+  dariLokasiId String?
+  dariUnitNama   String?
+  dariPosisiNama String?
+  dariLokasiNama String?
+  keUnitId     String?
+  keUnit       UnitOrganisasi? @relation(fields: [keUnitId], references: [id], onDelete: SetNull)
+  kePosisiId   String?
+  kePosisi     Posisi?         @relation(fields: [kePosisiId], references: [id], onDelete: SetNull)
+  keLokasiId   String?
+  keLokasi     LokasiKerja?    @relation(fields: [keLokasiId], references: [id], onDelete: SetNull)
+  keAtasanId   String?
+  keAtasan     Karyawan?       @relation("MutasiAtasanBaru", fields: [keAtasanId], references: [id], onDelete: SetNull)
+  tanggalEfektif DateTime    @db.Date
+  alasan         String
+  status         StatusMutasi @default(DRAFT)
+  diajukanPada   DateTime?
+  approvedById   String?
+  approvedAt     DateTime?
+  approvedNote   String?
+  diterapkanPada DateTime?
+  diterapkanOlehId String?
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([karyawanId, status])
+  @@map("mutasi")
+}
+
+enum JenisMutasi {
+  MUTASI
+  PROMOSI
+  DEMOSI
+}
+
+enum StatusMutasi {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  DITERAPKAN
+  DIBATALKAN
 }
 
 // ============================================================

@@ -459,7 +459,7 @@
           "name": "Profil Lengkap Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/me/profil",
+            "url": "{{baseUrl}}/api/v1/me/profile",
             "header": [],
             "description": "B6. Read-only + NIK/NPWP ter-mask."
           }

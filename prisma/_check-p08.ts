@@ -4,7 +4,7 @@ import { hapusFile } from "../src/lib/storage-local";
 /**
  * UAT backend P0-8 (hutang mobile):
  * 1. GET /api/v1/home mengembalikan agregat beranda.
- * 2. GET /api/v1/me/profil lengkap + NIK/NPWP ter-mask.
+ * 2. GET /api/v1/me/profile lengkap + NIK/NPWP ter-mask.
  * 3. POST /api/files menerima Bearer (B9) — respons {success:true,...path}.
  * Rerunnable; file uji dihapus di akhir.
  */
@@ -50,9 +50,9 @@ async function main() {
     dh ? Object.keys(dh) : null,
   );
 
-  const profil = await api("/api/v1/me/profil", { headers: auth });
+  const profil = await api("/api/v1/me/profile", { headers: auth });
   const dp = (profil.body as { success?: boolean; data?: { profil?: Record<string, unknown> } })?.data?.profil;
-  cek("GET /me/profil 200 + nomorKaryawan", profil.status === 200 && typeof dp?.nomorKaryawan === "string", profil.status);
+  cek("GET /me/profile 200 + nomorKaryawan", profil.status === 200 && typeof dp?.nomorKaryawan === "string", profil.status);
   const nik = dp?.nik as string | null;
   cek("NIK ter-mask atau null", nik === null || (typeof nik === "string" && nik.includes("•")), nik);
 
