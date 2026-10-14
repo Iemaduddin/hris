@@ -11,7 +11,7 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: proc
  * - 1 dinas WFH (MENUNGGU_APPROVAL + tahap approval)
  * - 1 pasang absensi MASUK/KELUAR
  * Idempoten: tiap skenario dikenali via penanda teks, aman dijalankan berulang.
- * Prasyarat: seed-karyawan (Budi + Sinta) dan seed M2 (jenis CUTI_TAHUNAN).
+ * Prasyarat: seed:karyawan (Budi + Sinta) dan seed:cuti (jenis CUTI_TAHUNAN).
  */
 const TANDA = "Demo dokumentasi";
 const d = (tgl: string, jam = "00:00:00") => new Date(`${tgl}T${jam}Z`);
@@ -50,7 +50,7 @@ async function main() {
 		console.log(`cuti demo sudah ada: ${cutiAda.nomorPengajuan}`);
 	} else {
 		const jenis = await prisma.jenisKetidakhadiran.findFirst({ where: { kode: "CUTI_TAHUNAN" }, select: { id: true } });
-		if (!jenis) throw new Error("Jenis CUTI_TAHUNAN belum ada — jalankan seed M2 dulu.");
+		if (!jenis) throw new Error("Jenis CUTI_TAHUNAN belum ada — jalankan seed:cuti dulu.");
 		const cuti = await prisma.pengajuanKetidakhadiran.create({
 			data: {
 				nomorPengajuan: await nomorBerikut("CUTI", 2026),

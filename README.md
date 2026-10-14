@@ -56,7 +56,8 @@ Akun demo dibuat via seed (`prisma/seed*.ts`): `employee@example.com` dan `admin
 | `npm run build` / `npm start` | build & jalan produksi |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | typecheck |
-| `npx tsx prisma/_check-m4.ts` | cek kesehatan milestone M4 |
+| `npm test` | unit test (Jest) |
+| `npm run seed:all` | seed ulang dev berurutan (master → karyawan → demo) |
 
 ## API v1 (ringkas)
 

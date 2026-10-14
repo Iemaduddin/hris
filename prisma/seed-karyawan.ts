@@ -39,7 +39,7 @@ const DEMO = [
 		masuk: "2024-07-15",
 		resign: null as string | null,
 		atasanNomor: "DEMO-2026-001",
-		tautanUser: null as string | null,
+		tautanUser: "employee@example.com",
 		gajiPokok: 7_000_000,
 		kontrakStatus: "AKTIF" as const,
 	},
@@ -118,6 +118,18 @@ async function main() {
 		}
 		idByNomor.set(k.nomor, row.id);
 	}
+
+	// Tautkan akun user (juga untuk baris yang sudah ada — agar urutan seed bebas).
+	for (const k of DEMO) {
+		if (!k.tautanUser) continue;
+		const karyawanId = idByNomor.get(k.nomor)!;
+		const user = await prisma.user.findUnique({ where: { email: k.tautanUser }, select: { id: true } });
+		if (!user) continue;
+		const sudahTaut = await prisma.karyawan.findUnique({ where: { userId: user.id }, select: { id: true } });
+		if (sudahTaut) continue;
+		await prisma.karyawan.update({ where: { id: karyawanId }, data: { userId: user.id } });
+	}
+	console.log("tautan user: OK");
 
 	// Atasan langsung (tahap 2 setelah semua baris ada).
 	for (const k of DEMO) {
@@ -199,7 +211,7 @@ async function main() {
 		}
 		console.log("saldo cuti 2026: OK");
 	} else {
-		console.log("saldo cuti: LEWAT (jenis CUTI_TAHUNAN belum ada — jalankan seed M2 dulu)");
+		console.log("saldo cuti: LEWAT (jenis CUTI_TAHUNAN belum ada — jalankan seed:cuti dulu)");
 	}
 
 	console.log(`total karyawan: ${await prisma.karyawan.count()}`);

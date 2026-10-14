@@ -9,13 +9,19 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
+    "seed:users": "npx tsx prisma/seed.ts",
     "seed:wilayah": "npx tsx prisma/seed-region.ts",
-    "seed:karyawan": "npx tsx prisma/seed-karyawan.ts",
     "seed:perusahaan": "npx tsx prisma/seed-perusahaan.ts",
+    "seed:org": "npx tsx prisma/seed-organization.ts",
+    "seed:posisi": "npx tsx prisma/seed-position.ts",
+    "seed:kalender": "npx tsx prisma/seed-work-schedule.ts",
+    "seed:karyawan": "npx tsx prisma/seed-karyawan.ts",
     "seed:komponen": "npx tsx prisma/seed-komponen-gaji.ts",
     "seed:pph21": "npx tsx prisma/seed-pph21-ter.ts",
+    "seed:cuti": "npx tsx prisma/seed-leave-types.ts",
+    "seed:jadwal": "npx tsx prisma/seed-penugasan-jadwal.ts",
     "seed:demo": "npx tsx prisma/seed-demo.ts",
-    "seed:jadwal": "npx tsx prisma/seed-penugasan-jadwal.ts"
+    "seed:all": "npm run seed:users && npm run seed:wilayah && npm run seed:perusahaan && npm run seed:org && npm run seed:posisi && npm run seed:kalender && npm run seed:karyawan && npm run seed:komponen && npm run seed:pph21 && npm run seed:cuti && npm run seed:jadwal && npm run seed:demo"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.5.3",
