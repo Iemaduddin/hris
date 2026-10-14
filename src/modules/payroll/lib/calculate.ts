@@ -14,6 +14,8 @@ import {
 import { LEMBUR_SETTING_DEFAULT, KUNCI_LEMBUR_DIVISOR, KUNCI_LEMBUR_TIERED } from "./lembur";
 import { KASBON_SETTING_DEFAULT } from "./kasbon";
 import { hitungPotonganKasbon } from "./kasbon";
+import { KUNCI_SKORSING_TANPA_UPAH } from "@/src/modules/employee/lib/disiplin";
+import { hariSkorsingDalamPeriode } from "@/src/modules/employee/lib/disiplin";
 import {
   hitungUpahLemburSehari,
   hitungUpahSejam,
@@ -385,6 +387,29 @@ export async function hitungGajiKaryawan(
 	if (pph21 > 0 || bruto > 0) {
 		rincian.push({ kode: "POT_PPH21", nama: "PPh 21 TER", kelompok: "POTONGAN", jumlah: pph21, keterangan: ketPph });
 		totalPotongan += pph21;
+	}
+
+		// Skorsing tanpa upah (pengaturan): dipotong seperti alpa.
+	if ((pengaturan[KUNCI_SKORSING_TANPA_UPAH] ?? "0").trim() === "1" && gajiPokok > 0) {
+		const skorsing = await prisma.suratPeringatan.findMany({
+			where: { karyawanId, tingkat: "SKORSING", status: "DITERBITKAN" },
+			select: { tanggalSkorsingMulai: true, tanggalSkorsingSelesai: true },
+		});
+		let hariSkorsing = 0;
+		for (const s of skorsing) {
+			hariSkorsing += hariSkorsingDalamPeriode(s.tanggalSkorsingMulai, s.tanggalSkorsingSelesai, start, end);
+		}
+		if (hariSkorsing > 0) {
+			const jumlah = Math.round((hariSkorsing * gajiPokok) / pembagiAlpa);
+			rincian.push({
+				kode: "POTONGAN_SKORSING",
+				nama: "Potongan Skorsing",
+				kelompok: "POTONGAN",
+				jumlah,
+				keterangan: `${hariSkorsing} hari x GP/${pembagiAlpa}`,
+			});
+			totalPotongan += jumlah;
+		}
 	}
 
 	// Angsuran kasbon otomatis (read-only; pembukuan di salary run).

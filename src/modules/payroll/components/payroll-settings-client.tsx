@@ -20,6 +20,12 @@ import {
   KUNCI_KASBON_MAX_NOMINAL,
   KUNCI_KASBON_MAX_TENOR,
 } from "../lib/kasbon";
+import { KUNCI_SKORSING_TANPA_UPAH } from "@/src/modules/employee/lib/disiplin";
+
+const SKORSING_OPTIONS = [
+  { value: "0", label: "Tetap dibayar" },
+  { value: "1", label: "Tanpa upah (potong seperti alpa)" },
+];
 
 const PEMBAGI_OPTIONS = [
   { value: "25", label: "25 (UU lama / harian)" },
@@ -44,6 +50,7 @@ export default function PayrollSettingsClient({ items }: { items: PayrollSetting
   const [maxJam, setMaxJam] = useState(byKunci[KUNCI_LEMBUR_MAX_JAM] ?? "");
   const [plafon, setPlafon] = useState(byKunci[KUNCI_KASBON_MAX_NOMINAL] ?? "");
   const [maxTenor, setMaxTenor] = useState(byKunci[KUNCI_KASBON_MAX_TENOR] ?? "24");
+  const [skorsing, setSkorsing] = useState(byKunci[KUNCI_SKORSING_TANPA_UPAH] ?? "0");
 
   function handleSave() {
     startTransition(async () => {
@@ -56,6 +63,7 @@ export default function PayrollSettingsClient({ items }: { items: PayrollSetting
         lemburMaxJam: maxJam,
         kasbonMaxNominal: plafon,
         kasbonMaxTenor: maxTenor || "24",
+        skorsingTanpaUpah: skorsing,
       });
       if (!result.success) {
         toast.error(result.message);
@@ -156,6 +164,14 @@ export default function PayrollSettingsClient({ items }: { items: PayrollSetting
           type="number"
           value={maxTenor}
           onChange={(e) => setMaxTenor(e.currentTarget.value)}
+        />
+        <FloatingSelect
+          name="skorsing"
+          label="Upah Saat Skorsing"
+          value={skorsing}
+          onValueChange={setSkorsing}
+          options={SKORSING_OPTIONS}
+          searchable={false}
         />
       </div>
       <div className="mt-4 flex justify-end">

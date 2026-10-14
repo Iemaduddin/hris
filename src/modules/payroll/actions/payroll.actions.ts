@@ -29,6 +29,11 @@ import {
 	KUNCI_KASBON_MAX_TENOR,
 	parseMaxNominalKasbon,
 } from "../lib/kasbon";
+import {
+	KUNCI_SKORSING_TANPA_UPAH,
+	SKORSING_SETTING_DEFAULT,
+	SKORSING_SETTING_DESKRIPSI,
+} from "@/src/modules/employee/lib/disiplin";
 
 export type PayrollActionResult = { success: boolean; message: string; id?: string };
 
@@ -176,18 +181,21 @@ const URUTAN_SETTING = [
 	KUNCI_LEMBUR_MAX_JAM,
 	KUNCI_KASBON_MAX_NOMINAL,
 	KUNCI_KASBON_MAX_TENOR,
+	KUNCI_SKORSING_TANPA_UPAH,
 ];
 
 const DESKRIPSI_SETTING: Record<string, string> = {
 	...PAYROLL_SETTING_DESKRIPSI,
 	...LEMBUR_SETTING_DESKRIPSI,
 	...KASBON_SETTING_DESKRIPSI,
+	...SKORSING_SETTING_DESKRIPSI,
 };
 
 const DEFAULT_SETTING: Record<string, string> = {
 	...PAYROLL_SETTING_DEFAULT,
 	...LEMBUR_SETTING_DEFAULT,
 	...KASBON_SETTING_DEFAULT,
+	...SKORSING_SETTING_DEFAULT,
 };
 
 export async function getPayrollSettings(): Promise<PayrollSettingItem[]> {
@@ -209,6 +217,7 @@ export async function savePayrollSettings(input: {
 	lemburMaxJam: string;
 	kasbonMaxNominal: string;
 	kasbonMaxTenor: string;
+	skorsingTanpaUpah: string;
 }): Promise<PayrollActionResult> {
 	const pembagi = String(input.pembagiAlpa ?? "").trim().toUpperCase();
 	if (!["25", "26", "AKTUAL"].includes(pembagi)) {
@@ -243,6 +252,10 @@ export async function savePayrollSettings(input: {
 	const kasbonTenor = Math.floor(Number(String(input.kasbonMaxTenor ?? "24").trim()));
 	if (!Number.isFinite(kasbonTenor) || kasbonTenor < 1 || kasbonTenor > 120) {
 		return { success: false, message: "Tenor maksimum kasbon 1–120 bulan." };
+	}
+	const skorsing = String(input.skorsingTanpaUpah ?? "0").trim();
+	if (!["0", "1"].includes(skorsing)) {
+		return { success: false, message: "Opsi skorsing tidak valid." };
 	}
 
 	await prisma.$transaction([
@@ -285,6 +298,11 @@ export async function savePayrollSettings(input: {
 			where: { kunci: KUNCI_KASBON_MAX_TENOR },
 			create: { kunci: KUNCI_KASBON_MAX_TENOR, nilai: String(kasbonTenor), deskripsi: KASBON_SETTING_DESKRIPSI[KUNCI_KASBON_MAX_TENOR] },
 			update: { nilai: String(kasbonTenor) },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_SKORSING_TANPA_UPAH },
+			create: { kunci: KUNCI_SKORSING_TANPA_UPAH, nilai: skorsing, deskripsi: SKORSING_SETTING_DESKRIPSI[KUNCI_SKORSING_TANPA_UPAH] },
+			update: { nilai: skorsing },
 		}),
 	]);
 	resetCachePengaturan();

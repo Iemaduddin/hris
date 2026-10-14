@@ -1,0 +1,163 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { toast } from "react-toastify";
+import FloatingInput from "@/src/components/ui/floating-input/input";
+import FloatingSelect from "@/src/components/ui/floating-input/select";
+import {
+  buatDisiplin,
+  hapusDisiplin,
+  terbitkanDisiplin,
+} from "../actions/disiplin.actions";
+
+const TINGKAT_OPTIONS = [
+  { value: "SP1", label: "SP 1" },
+  { value: "SP2", label: "SP 2" },
+  { value: "SP3", label: "SP 3" },
+  { value: "SKORSING", label: "Skorsing" },
+  { value: "PHK", label: "PHK" },
+];
+
+export default function DisiplinListClient({
+  userId,
+  items,
+  karyawanOptions,
+  bolehTerbit,
+}: {
+  userId: string;
+  items: Array<{
+    id: string;
+    nomor: string;
+    karyawanNama: string;
+    tingkatLabel: string;
+    judul: string;
+    tanggalTerbit: string;
+    aktif: boolean;
+    status: string;
+  }>;
+  karyawanOptions: Array<{ value: string; label: string }>;
+  bolehTerbit: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [karyawanId, setKaryawanId] = useState("");
+  const [tingkat, setTingkat] = useState("SP1");
+  const [judul, setJudul] = useState("");
+  const [pelanggaran, setPelanggaran] = useState("");
+  const [berat, setBerat] = useState(false);
+  const [terbit, setTerbit] = useState("");
+  const [skMulai, setSkMulai] = useState("");
+  const [skSelesai, setSkSelesai] = useState("");
+  const [catatan, setCatatan] = useState("");
+
+  function runAction(action: Promise<{ success: boolean; message: string; id?: string }>) {
+    startTransition(async () => {
+      const result = await action;
+      if (!result.success) toast.error(result.message);
+      else toast.success(result.message);
+      router.refresh();
+    });
+  }
+
+  function handleBuat() {
+    if (!karyawanId || !judul.trim() || !pelanggaran.trim() || !terbit) {
+      toast.error("Karyawan, judul, pelanggaran, dan tanggal terbit wajib diisi.");
+      return;
+    }
+    runAction(
+      buatDisiplin({
+        karyawanId, tingkat, judul, pelanggaran, pelanggaranBerat: berat,
+        tanggalTerbit: terbit, berlakuSampai: "", skorsingMulai: skMulai,
+        skorsingSelesai: skSelesai, dokumenUrl: "", catatan,
+      }, userId),
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Usulkan Surat (HR/Manajer)</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Eskalasi SP1 → SP2 → SP3 → Skorsing → PHK dicek saat penerbitan (kecuali pelanggaran berat langsung PHK).
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <FloatingSelect name="karyawan" label="Karyawan" value={karyawanId} onValueChange={setKaryawanId} options={karyawanOptions} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="tingkat" label="Tingkat" value={tingkat} onValueChange={setTingkat} options={TINGKAT_OPTIONS} searchable={false} />
+          <FloatingInput name="terbit" label="Tanggal Terbit" type="date" value={terbit} onChange={(e) => setTerbit(e.currentTarget.value)} />
+          <FloatingInput name="judul" label="Judul" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
+          <FloatingInput name="pelanggaran" label="Pelanggaran" value={pelanggaran} onChange={(e) => setPelanggaran(e.currentTarget.value)} />
+          <FloatingInput name="catatan" label="Catatan (opsional)" value={catatan} onChange={(e) => setCatatan(e.currentTarget.value)} />
+          {tingkat === "SKORSING" ? (
+            <>
+              <FloatingInput name="skMulai" label="Skorsing Mulai" type="date" value={skMulai} onChange={(e) => setSkMulai(e.currentTarget.value)} />
+              <FloatingInput name="skSelesai" label="Skorsing Selesai" type="date" value={skSelesai} onChange={(e) => setSkSelesai(e.currentTarget.value)} />
+            </>
+          ) : null}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={berat} onChange={() => setBerat((v) => !v)} className="h-4 w-4" />
+            Pelanggaran berat (bisa langsung PHK)
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button type="button" onClick={handleBuat} disabled={isPending} className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
+            Buat Draf
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-blue-100 dark:border-blue-900/60">
+                <th className="px-4 py-3 text-left font-semibold">Nomor</th>
+                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
+                <th className="px-4 py-3 text-left font-semibold">Tingkat</th>
+                <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada surat.</td>
+                </tr>
+              ) : (
+                items.map((d) => (
+                  <tr key={d.id} className="border-b border-blue-100 dark:border-blue-900/60">
+                    <td className="px-4 py-3 font-medium">{d.nomor}</td>
+                    <td className="px-4 py-3">{d.karyawanNama}</td>
+                    <td className="px-4 py-3">
+                      {d.tingkatLabel}
+                      {d.aktif ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">aktif</span> : null}
+                    </td>
+                    <td className="px-4 py-3">{d.status.replaceAll("_", " ")}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex flex-wrap justify-end gap-2">
+                        <Link href={`/employees/disiplin/${d.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+                          Buka
+                        </Link>
+                        {d.status === "DRAFT" && bolehTerbit ? (
+                          <button type="button" disabled={isPending} onClick={() => runAction(terbitkanDisiplin(d.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+                            Terbitkan
+                          </button>
+                        ) : null}
+                        {d.status === "DRAFT" ? (
+                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus draf ini?")) return; runAction(hapusDisiplin(d.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+                            Hapus
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

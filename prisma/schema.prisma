@@ -297,6 +297,7 @@ model Karyawan {
   onboarding        Onboarding[]
   offboarding       Offboarding[]
   probationReviews  ProbationReview[]
+  suratPeringatan   SuratPeringatan[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -1484,6 +1485,57 @@ model KontrakTandaTangan {
 enum PihakTandaTangan {
   HRD
   KARYAWAN
+}
+
+// ============================================================
+// Surat peringatan & PHK. Eskalasi: SP1 → SP2 → SP3 → SKORSING → PHK
+// (pelanggaran berat bisa langsung PHK). Berlaku 6 bulan default.
+// Skorsing tanpa upah memotong gaji (pengaturan) seperti alpa.
+// ============================================================
+
+model SuratPeringatan {
+  id                   String       @id @default(cuid())
+  nomor                String       @unique
+  karyawanId           String
+  karyawan             Karyawan     @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  tingkat              TingkatSP
+  judul                String
+  pelanggaran          String
+  pelanggaranBerat     Boolean      @default(false)
+  tanggalTerbit        DateTime     @db.Date
+  berlakuSampai        DateTime?    @db.Date
+  tanggalSkorsingMulai DateTime?    @db.Date
+  tanggalSkorsingSelesai DateTime?  @db.Date
+  status               StatusSP     @default(DRAFT)
+  dokumenUrl           String?
+  ttdKaryawanPada      DateTime?
+  ttdKaryawanNama      String?
+  catatan              String?
+  diterbitkanOlehId    String?
+  diterbitkanPada      DateTime?
+  dicabutOlehId        String?
+  dicabutPada          DateTime?
+  alasanCabut          String?
+  createdById          String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([karyawanId, status])
+  @@map("surat_peringatan")
+}
+
+enum TingkatSP {
+  SP1
+  SP2
+  SP3
+  SKORSING
+  PHK
+}
+
+enum StatusSP {
+  DRAFT
+  DITERBITKAN
+  DICABUT
 }
 
 // ============================================================

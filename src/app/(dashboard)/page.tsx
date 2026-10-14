@@ -9,6 +9,7 @@ import { getKontrakMasaBerakhir } from "@/src/modules/employee/actions/employee.
 import { getSisaSaldoSaya } from "@/src/modules/leave/actions/leave.actions";
 import { getSlipSaya } from "@/src/modules/payroll/actions/payroll.actions";
 import { getProbationMendekati } from "@/src/modules/employee/actions/probation.actions";
+import { getSPAktif } from "@/src/modules/employee/actions/disiplin.actions";
 import { hitungRekapHarian } from "@/src/modules/recap/lib/recap-engine";
 import { Baris, Kosong, Panel } from "@/src/components/dashboard/panel";
 import KehadiranChart, { type IrisanKehadiran } from "@/src/components/dashboard/kehadiran-chart";
@@ -106,6 +107,7 @@ export default async function DashboardPage() {
 			getAntrianSaya(session.user.id),
 		]);
 		const probasi = await getProbationMendekati(30);
+		const spAktif = await getSPAktif();
 		const weekAgo = new Date();
 		weekAgo.setDate(weekAgo.getDate() - 7);
 		const [
@@ -185,7 +187,7 @@ export default async function DashboardPage() {
 
 				<div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
 					<Panel title="Perlu Perhatian" href="/approval" linkText="Approval Center">
-						{antrian.length === 0 && kontrak.length === 0 && alpaHariIni.length === 0 && probasi.length === 0 ? (
+						{antrian.length === 0 && kontrak.length === 0 && alpaHariIni.length === 0 && probasi.length === 0 && spAktif.length === 0 ? (
 							<Kosong teks="Semua aman. Tidak ada yang menunggu." />
 						) : (
 							<ul>
@@ -197,6 +199,9 @@ export default async function DashboardPage() {
 								))}
 								{probasi.slice(0, 5).map((r) => (
 									<Baris key={r.id} kiri={`Probasi ${r.karyawanNama} berakhir ${r.tanggalSelesai}`} kanan={r.sisaHari < 0 ? `lewat ${-r.sisaHari} hari` : `H-${r.sisaHari}`} />
+								))}
+								{spAktif.map((s) => (
+									<Baris key={s.id} kiri={`${s.tingkatLabel} aktif: ${s.karyawanNama}`} kanan={s.nomor} />
 								))}
 								{alpaHariIni.map((r) => (
 									<Baris key={r.karyawan.nomorKaryawan} kiri={`${r.karyawan.namaLengkap} tidak hadir hari ini`} kanan="ALPA" />

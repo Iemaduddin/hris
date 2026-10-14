@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -53,6 +53,7 @@ const sidebarSections: SidebarSection[] = [
 			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/account/payslip", icon: LuWallet },
 			{ id: "kasbon-saya", label: "Kasbon Saya", href: "/account/kasbon", icon: LuHandCoins },
 			{ id: "onboarding-saya", label: "Onboarding Saya", href: "/account/onboarding", icon: LuListChecks },
+			{ id: "disiplin-saya", label: "SP Saya", href: "/account/disiplin", icon: LuTriangleAlert },
 			{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
 		],
 	},
@@ -78,6 +79,7 @@ const sidebarSections: SidebarSection[] = [
 					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuList, allowedRoles: HR_ROLES },
 					{ id: "kontrak", label: "Kontrak", href: "/employees/kontrak", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
 					{ id: "mutasi", label: "Mutasi / Promosi", href: "/employees/mutasi", icon: LuRepeat, allowedRoles: [...HR_ROLES, "MANAJER"] },
+					{ id: "disiplin", label: "Disiplin / SP", href: "/employees/disiplin", icon: LuTriangleAlert, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "onboarding", label: "Onboarding", href: "/employees/onboarding", icon: LuListChecks, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "probation", label: "Probation", href: "/employees/probation", icon: LuBadgeCheck, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "offboarding", label: "Offboarding", href: "/employees/offboarding", icon: LuLogOut, allowedRoles: HR_ROLES },
