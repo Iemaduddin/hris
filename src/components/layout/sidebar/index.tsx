@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -79,6 +79,7 @@ const sidebarSections: SidebarSection[] = [
 					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuList, allowedRoles: HR_ROLES },
 					{ id: "kontrak", label: "Kontrak", href: "/employees/kontrak", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
 					{ id: "mutasi", label: "Mutasi / Promosi", href: "/employees/mutasi", icon: LuRepeat, allowedRoles: [...HR_ROLES, "MANAJER"] },
+					{ id: "surat", label: "Surat Keluar", href: "/employees/surat", icon: LuMail, allowedRoles: HR_ROLES },
 					{ id: "disiplin", label: "Disiplin / SP", href: "/employees/disiplin", icon: LuTriangleAlert, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "onboarding", label: "Onboarding", href: "/employees/onboarding", icon: LuListChecks, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "probation", label: "Probation", href: "/employees/probation", icon: LuBadgeCheck, allowedRoles: [...HR_ROLES, "MANAJER"] },
@@ -188,6 +189,7 @@ const sidebarSections: SidebarSection[] = [
 					{ id: "work-schedule-item", label: "Jadwal Kerja", href: "/settings/work-schedule", icon: LuCalendarDays },
 					{ id: "shift-item", label: "Shift Kerja", href: "/settings/shift", icon: LuRepeat },
 					{ id: "jenis-item", label: "Jenis Ketidakhadiran", href: "/settings/leave-types", icon: LuCalendarX },
+					{ id: "surat-item", label: "Template Surat", href: "/settings/surat", icon: LuMail },
 				]
 			 }
 		],

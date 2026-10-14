@@ -298,6 +298,7 @@ model Karyawan {
   offboarding       Offboarding[]
   probationReviews  ProbationReview[]
   suratPeringatan   SuratPeringatan[]
+  suratKeluar       SuratKeluar[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -1415,6 +1416,47 @@ enum StatusOffboarding {
 enum StatusClearance {
   BELUM
   SELESAI
+}
+
+// ============================================================
+// Template + penomoran surat keluar. Nomor formal SEQ/KODE/
+// bulan-romawi/tahun; kode verifikasi untuk cek QR publik.
+// Variabel isi {{nama}} dirender saat penerbitan (snapshot JSON).
+// ============================================================
+
+model SuratTemplate {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  judul     String
+  badan     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  suratKeluar SuratKeluar[]
+
+  @@map("surat_template")
+}
+
+model SuratKeluar {
+  id             String         @id @default(cuid())
+  nomor          String         @unique
+  kodeVerifikasi String?        @unique
+  templateId     String?
+  template       SuratTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  jenis          String
+  referensiType  String?
+  referensiId    String?
+  karyawanId     String?
+  karyawan       Karyawan?      @relation(fields: [karyawanId], references: [id], onDelete: SetNull)
+  vars           Json?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([jenis])
+  @@index([referensiType, referensiId])
+  @@map("surat_keluar")
 }
 
 // ============================================================
