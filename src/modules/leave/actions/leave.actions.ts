@@ -10,6 +10,20 @@ import { generateSaldoTahunan, getSaldo, hitungHariPengajuan, kembalikanSaldo } 
 
 export type CutiActionResult = { success: boolean; message: string; id?: string };
 
+/** Kalender penugasan karyawan pada tanggal (untuk hitung hari cuti). */
+async function kalenderKaryawan(karyawanId: string, tanggal: Date): Promise<number | null> {
+	const penugasan = await prisma.penugasanKalender.findFirst({
+		where: {
+			karyawanId,
+			tanggalMulai: { lte: tanggal },
+			OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gte: tanggal } }],
+		},
+		orderBy: { tanggalMulai: "desc" },
+		select: { kalenderKerjaId: true },
+	});
+	return penugasan?.kalenderKerjaId ?? null;
+}
+
 export type JenisCutiItem = {
 	id: number;
 	kode: string;
@@ -205,7 +219,7 @@ export async function buatPengajuanCuti(input: {
 		return { success: false, message: "Bertabrakan dengan pengajuan aktif lain." };
 	}
 
-	const jumlahHari = await hitungHariPengajuan(mulai, selesai);
+	const jumlahHari = await hitungHariPengajuan(mulai, selesai, await kalenderKaryawan(input.karyawanId, mulai));
 	if (jumlahHari <= 0) return { success: false, message: "Periode hanya berisi hari libur." };
 
 	const nomor = await nomorUrut("CUTI", mulai.getUTCFullYear());

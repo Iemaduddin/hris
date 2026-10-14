@@ -4,21 +4,30 @@ import { toDbDate } from "@/src/lib/time";
 
 /**
  * Hitung jumlah hari pengajuan: inklusif, dikurangi hari non-kerja
- * kalender default + hari libur kalender default. Tanpa kalender default,
- * fallback ke jumlah hari kalender.
+ * + hari libur (termasuk cuti bersama — otomatis tak memotong saldo).
+ * kalenderId opsional: kalender penugasan karyawan; tanpa itu dipakai
+ * kalender default, tanpa kalender default fallback ke hari kalender.
  */
-export async function hitungHariPengajuan(mulai: Date, selesai: Date): Promise<number> {
+export async function hitungHariPengajuan(mulai: Date, selesai: Date, kalenderId?: number | null): Promise<number> {
 	const start = toDbDate(mulai);
 	const end = toDbDate(selesai);
 	if (end < start) return 0;
 
-	const kalender = await prisma.kalenderKerja.findFirst({
-		where: { isDefault: true, isActive: true },
-		include: {
-			jadwalKerja: { select: { hari: true, isHariKerja: true } },
-			hariLibur: { select: { tanggal: true } },
-		},
-	});
+	const kalender = kalenderId
+		? await prisma.kalenderKerja.findUnique({
+				where: { id: kalenderId },
+				include: {
+					jadwalKerja: { select: { hari: true, isHariKerja: true } },
+					hariLibur: { select: { tanggal: true } },
+				},
+			})
+		: await prisma.kalenderKerja.findFirst({
+				where: { isDefault: true, isActive: true },
+				include: {
+					jadwalKerja: { select: { hari: true, isHariKerja: true } },
+					hariLibur: { select: { tanggal: true } },
+				},
+			});
 
 	const HARI = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"] as HariDalamMinggu[];
 	const liburSet = new Set((kalender?.hariLibur ?? []).map((h) => toDbDate(h.tanggal).getTime()));
