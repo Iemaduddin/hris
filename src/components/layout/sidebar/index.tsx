@@ -76,6 +76,7 @@ const sidebarSections: SidebarSection[] = [
 				allowedRoles: [...HR_ROLES, "MANAJER"],
 				children: [
 					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuList, allowedRoles: HR_ROLES },
+					{ id: "kontrak", label: "Kontrak", href: "/employees/kontrak", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
 					{ id: "mutasi", label: "Mutasi / Promosi", href: "/employees/mutasi", icon: LuRepeat, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "onboarding", label: "Onboarding", href: "/employees/onboarding", icon: LuListChecks, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "probation", label: "Probation", href: "/employees/probation", icon: LuBadgeCheck, allowedRoles: [...HR_ROLES, "MANAJER"] },

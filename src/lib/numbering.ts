@@ -19,7 +19,9 @@ export async function nomorUrut(prefix: string, tahun: number, digits = 5, maxAt
 				? await prisma.pengajuanKetidakhadiran.findUnique({ where: { nomorPengajuan: nomor }, select: { id: true } })
 				: prefix === "DINAS"
 					? await prisma.dinasWFH.findUnique({ where: { nomorPengajuan: nomor }, select: { id: true } })
-					: null;
+					: prefix === "KTR"
+						? await prisma.kontrakKerja.findUnique({ where: { nomorKontrak: nomor }, select: { id: true } })
+						: null;
 		if (!clash) return nomor;
 	}
 	throw new Error("Gagal mengenerate nomor pengajuan.");

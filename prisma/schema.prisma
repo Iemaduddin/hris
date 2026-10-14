@@ -331,6 +331,8 @@ model KontrakKerja {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tandaTangan KontrakTandaTangan[]
+
   @@index([karyawanId])
   @@index([karyawanId, status])
   @@index([tanggalMulai])
@@ -1457,6 +1459,31 @@ enum HasilProbation {
   LULUS
   PERPANJANG
   TIDAK_LULUS
+}
+
+// ============================================================
+// Tanda tangan kontrak (e-sign sederhana). File disimpan
+// via /api/files (ownerType karyawan, subfolder kontrak).
+// ============================================================
+
+model KontrakTandaTangan {
+  id                 String   @id @default(cuid())
+  kontrakId          String
+  kontrak            KontrakKerja @relation(fields: [kontrakId], references: [id], onDelete: Cascade)
+  pihak              PihakTandaTangan
+  namaPenanda        String?
+  fileUrl            String
+  ditandatanganiPada DateTime @default(now())
+  createdById        String?
+  createdAt          DateTime @default(now())
+
+  @@unique([kontrakId, pihak])
+  @@map("kontrak_tanda_tangan")
+}
+
+enum PihakTandaTangan {
+  HRD
+  KARYAWAN
 }
 
 // ============================================================
