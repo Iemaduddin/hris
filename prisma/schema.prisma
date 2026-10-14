@@ -310,6 +310,7 @@ model Karyawan {
   lembur         Lembur[]
   tukarDiminta   TukarShift[] @relation("TukarPemohon")
   tukarDitawari  TukarShift[] @relation("TukarPasangan")
+  koreksiPresensi KoreksiPresensi[]
 
   @@unique([nomorKaryawan])
   @@index([status])
@@ -1741,4 +1742,31 @@ enum StatusTukarShift {
   DISETUJUI
   DITOLAK
   DIBATALKAN
+}
+
+// ============================================================
+// Koreksi presensi mandiri (ESS). Karyawan mengusulkan jam yang
+// benar + bukti; saat disetujui final, event lama dibatalkan dan
+// event koreksi MANUAL dibuat — rekap menghitung ulang otomatis.
+// ============================================================
+
+model KoreksiPresensi {
+  id           String                          @id @default(cuid())
+  karyawanId   String
+  karyawan     Karyawan                        @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  tanggal      DateTime                        @db.Date
+  tipe         TipeAbsensi
+  waktuBaru    DateTime
+  absensiId    String?
+  alasan       String
+  lampiranUrl  String?
+  status       StatusPengajuanKetidakhadiran   @default(DRAFT)
+  diajukanPada DateTime?
+  createdById  String?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+
+  @@index([karyawanId, tanggal])
+  @@index([status])
+  @@map("koreksi_presensi")
 }

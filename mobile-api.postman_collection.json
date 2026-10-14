@@ -649,6 +649,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "Koreksi Presensi",
+      "item": [
+        {
+          "name": "Daftar Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/koreksi",
+            "header": []
+          }
+        },
+        {
+          "name": "Buat Draf",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/koreksi",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tanggal\": \"2026-11-01\",\n  \"tipe\": \"MASUK\",\n  \"jam\": \"07:55\",\n  \"alasan\": \"Lupa clock-in\",\n  \"lampiranUrl\": \"\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ajukan / Batal",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/koreksi",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"ID_KOREKSI\",\n  \"aksi\": \"ajukan\"\n}"
+            },
+            "description": "aksi: \"ajukan\" | \"batal\"."
+          }
+        }
+      ]
     }
   ]
 }

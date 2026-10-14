@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuPencilLine, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -44,6 +44,12 @@ const sidebarSections: SidebarSection[] = [
 		items: [{ id: "dashboard", label: "Dashboard", href: "/", icon: LuHouse }],
 	},
 	{
+		id: "tim",
+		label: "Tim",
+		allowedRoles: [...HR_ROLES, "MANAJER"],
+		items: [{ id: "tim-saya", label: "Tim Saya", href: "/team", icon: LuUsers }],
+	},
+	{
 		id: "akun",
 		label: "Akun",
 		items: [
@@ -55,6 +61,7 @@ const sidebarSections: SidebarSection[] = [
 			{ id: "onboarding-saya", label: "Onboarding Saya", href: "/account/onboarding", icon: LuListChecks },
 			{ id: "disiplin-saya", label: "SP Saya", href: "/account/disiplin", icon: LuTriangleAlert },
 			{ id: "tukar-saya", label: "Tukar Shift", href: "/account/tukar", icon: LuRepeat },
+			{ id: "koreksi-saya", label: "Koreksi Presensi", href: "/account/koreksi", icon: LuPencilLine },
 			{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
 		],
 	},

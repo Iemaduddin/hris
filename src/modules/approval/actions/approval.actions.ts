@@ -5,6 +5,7 @@ import prisma from "@/src/lib/prisma";
 import { potongSaldo } from "@/src/modules/leave/lib/balance";
 import { bukaClearance } from "@/src/modules/employee/actions/offboarding.actions";
 import { eksekusiTukar } from "@/src/modules/roster/actions/tukar.actions";
+import { terapkanKoreksi } from "@/src/modules/attendance/actions/koreksi.actions";
 import { notifikasiKeputusanPengajuan } from "../lib/approval-notify";
 import {
 	getAntrianApproval,
@@ -73,7 +74,9 @@ export async function prosesPengajuanAction(
 				}
 			: type === "TUKAR_SHIFT"
 				? async () => eksekusiTukar(id)
-				: undefined;
+				: type === "KOREKSI"
+					? async () => terapkanKoreksi(id)
+					: undefined;
 
 	const result = await prosesApproval({
 		type,
