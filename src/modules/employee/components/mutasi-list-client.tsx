@@ -14,6 +14,7 @@ import {
   type MutasiItem,
   type MutasiOption,
 } from "../actions/mutasi.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const JENIS_OPTIONS = [
   { value: "MUTASI", label: "Mutasi (lateral)" },
@@ -82,6 +83,63 @@ export default function MutasiListClient({
     );
   }
 
+  const kolomMutasi: DataTableColumn<MutasiItem>[] = [
+    {
+      id: "nomor",
+      header: "Nomor",
+      render: (m) => <span className="font-medium">{m.nomor}</span>,
+      sortValue: (m) => m.nomor,
+      searchValue: (m) => m.nomor,
+    },
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "jenis", header: "Jenis", accessor: "jenisLabel" },
+    {
+      id: "rute",
+      header: "Dari → Ke",
+      sortable: false,
+      searchValue: (m) => `${m.dari} ${m.ke}`,
+      render: (m) => <span className="text-xs">{m.dari} → {m.ke}</span>,
+    },
+    { id: "efektif", header: "Efektif", accessor: "tanggalEfektif" },
+    {
+      id: "status",
+      header: "Status",
+      render: (m) => <span>{m.status.replaceAll("_", " ")}</span>,
+      sortValue: (m) => m.status,
+      searchValue: (m) => m.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (m) => (
+        <div className="inline-flex flex-wrap justify-end gap-2">
+          <Link href={`/employees/mutasi/${m.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          {m.status === "DRAFT" ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(ajukanMutasi(m.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              Ajukan
+            </button>
+          ) : null}
+          {["DRAFT", "DIAJUKAN"].includes(m.status) ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(batalkanMutasi(m.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              Batal
+            </button>
+          ) : null}
+          {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(m.status) ? (
+            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(hapusMutasi(m.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -107,60 +165,13 @@ export default function MutasiListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nomor</th>
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Jenis</th>
-                <th className="px-4 py-3 text-left font-semibold">Dari → Ke</th>
-                <th className="px-4 py-3 text-left font-semibold">Efektif</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">Belum ada usulan.</td>
-                </tr>
-              ) : (
-                items.map((m) => (
-                  <tr key={m.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{m.nomor}</td>
-                    <td className="px-4 py-3">{m.karyawanNama}</td>
-                    <td className="px-4 py-3">{m.jenisLabel}</td>
-                    <td className="px-4 py-3 text-xs">{m.dari} → {m.ke}</td>
-                    <td className="px-4 py-3">{m.tanggalEfektif}</td>
-                    <td className="px-4 py-3">{m.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-2">
-                        <Link href={`/employees/mutasi/${m.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        {m.status === "DRAFT" ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(ajukanMutasi(m.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                            Ajukan
-                          </button>
-                        ) : null}
-                        {["DRAFT", "DIAJUKAN"].includes(m.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(batalkanMutasi(m.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                            Batal
-                          </button>
-                        ) : null}
-                        {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(m.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(hapusMutasi(m.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomMutasi}
+            getRowId={(m) => m.id}
+            emptyMessage="Belum ada usulan."
+          />
         </div>
       </div>
     </div>

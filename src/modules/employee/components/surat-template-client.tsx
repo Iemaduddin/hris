@@ -6,13 +6,16 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
 import { hapusTemplate, saveTemplate, seedTemplateBawaan } from "@/src/modules/employee/actions/surat.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
+
+type SuratTemplateRow = { id: string; kode: string; nama: string; judul: string; isActive: boolean };
 
 export default function SuratTemplateClient({
   userId,
   items,
 }: {
   userId: string;
-  items: Array<{ id: string; kode: string; nama: string; judul: string; isActive: boolean }>;
+  items: SuratTemplateRow[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -63,6 +66,52 @@ export default function SuratTemplateClient({
     setAktif(true);
   }
 
+  function handleHapus(id: string) {
+    if (!confirm("Hapus template ini?")) return;
+    runAction(hapusTemplate(id, userId));
+  }
+
+  const kolomTemplate: DataTableColumn<SuratTemplateRow>[] = [
+    {
+      id: "kode",
+      header: "Kode",
+      render: (t) => <span className="font-medium">{t.kode}</span>,
+      sortValue: (t) => t.kode,
+      searchValue: (t) => `${t.kode} ${t.nama}`,
+    },
+    { id: "nama", header: "Nama", accessor: "nama" },
+    {
+      id: "status",
+      header: "Status",
+      render: (t) => <span>{t.isActive ? "Aktif" : "Nonaktif"}</span>,
+      sortValue: (t) => (t.isActive ? "Aktif" : "Nonaktif"),
+      searchValue: (t) => (t.isActive ? "Aktif" : "Nonaktif"),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (t) => (
+        <div className="inline-flex gap-2">
+          <button type="button" onClick={() => void muatEdit(t.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Edit
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleHapus(t.id)}
+            className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+          >
+            Hapus
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -77,41 +126,13 @@ export default function SuratTemplateClient({
             Seed Bawaan
           </button>
         </div>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Kode</th>
-                <th className="px-4 py-3 text-left font-semibold">Nama</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((t) => (
-                <tr key={t.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                  <td className="px-4 py-3 font-medium">{t.kode}</td>
-                  <td className="px-4 py-3">{t.nama}</td>
-                  <td className="px-4 py-3">{t.isActive ? "Aktif" : "Nonaktif"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="inline-flex gap-2">
-                      <button type="button" onClick={() => void muatEdit(t.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => { if (!confirm("Hapus template ini?")) return; runAction(hapusTemplate(t.id, userId)); }}
-                        className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <DataTable
+            data={items}
+            columns={kolomTemplate}
+            getRowId={(t) => t.id}
+            emptyMessage="Belum ada template. Klik “Seed Bawaan”."
+          />
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import type {
 	PositionOption,
 	PositionSelectOption,
 } from "../types/position.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const EMPTY_FORM: PositionFormValues = {
 	id: "",
@@ -100,6 +101,60 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 		() => formOptions.jobGrades.map((item) => ({ label: toGradeLabel(item), value: item.id })),
 		[formOptions.jobGrades],
 	);
+
+	function handlePilihEdit(id: string) {
+		setSelectedPositionId(id);
+		formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	const kolomPosisi: DataTableColumn<PositionOption>[] = [
+		{
+			id: "nama",
+			header: "Nama",
+			render: (position) => <span className="font-medium">{position.nama}</span>,
+			sortValue: (position) => position.nama,
+			searchValue: (position) => `${position.nama} ${position.kode ?? ""}`,
+		},
+		{
+			id: "kode",
+			header: "Kode",
+			render: (position) => <span>{position.kode ?? "-"}</span>,
+			sortValue: (position) => position.kode ?? "-",
+			searchValue: (position) => position.kode ?? "",
+		},
+		{
+			id: "unit",
+			header: "Unit",
+			render: (position) => <span>{position.unitOrganisasiNama ?? "-"}</span>,
+			sortValue: (position) => position.unitOrganisasiNama ?? "-",
+			searchValue: (position) => position.unitOrganisasiNama ?? "",
+		},
+		{
+			id: "grade",
+			header: "Grade",
+			render: (position) => <span>{position.golonganPosisiNama ?? "-"}</span>,
+			sortValue: (position) => position.golonganPosisiNama ?? "-",
+			searchValue: (position) => position.golonganPosisiNama ?? "",
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (position) => (
+				<EditButton
+					type="button"
+					size="xs"
+					withIcon={false}
+					onClick={() => handlePilihEdit(position.id)}
+				>
+					Edit
+				</EditButton>
+			),
+		},
+	];
 
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
@@ -228,52 +283,13 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Unit</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Grade</th>
-								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{positions.length === 0 ? (
-								<tr>
-									<td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada posisi.
-									</td>
-								</tr>
-							) : (
-								positions.map((position) => (
-									<tr
-										key={position.id}
-										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedPositionId === position.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
-									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.nama}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.kode ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.unitOrganisasiNama ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{position.golonganPosisiNama ?? "-"}</td>
-										<td className="px-4 py-3 text-right">
-												<EditButton
-													type="button"
-													size="xs"
-													withIcon={false}
-													onClick={() => {
-														setSelectedPositionId(position.id);
-														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-													}}
-												>
-													Edit
-												</EditButton>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="p-4">
+					<DataTable
+						data={positions}
+						columns={kolomPosisi}
+						getRowId={(position) => position.id}
+						emptyMessage="Belum ada posisi."
+					/>
 				</div>
 			</div>
 		</form>

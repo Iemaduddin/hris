@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { getOnboardingSaya } from "@/src/modules/employee/actions/onboarding.actions";
-import Link from "next/link";
+import OnboardingTable from "./onboarding-table";
 
 export default async function OnboardingSayaPage() {
   const session = await getCurrentSession();
@@ -31,37 +31,8 @@ export default async function OnboardingSayaPage() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Checklist</th>
-                <th className="px-4 py-3 text-right font-semibold">Progres</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Tidak ada onboarding.</td>
-                </tr>
-              ) : (
-                items.map((o) => (
-                  <tr key={o.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{o.templateNama ?? "Kustom"}</td>
-                    <td className="px-4 py-3 text-right">{o.persen}% ({o.wajibSelesai} wajib)</td>
-                    <td className="px-4 py-3">{o.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/account/onboarding/${o.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                        Buka
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <OnboardingTable items={items} />
         </div>
       </div>
     </>

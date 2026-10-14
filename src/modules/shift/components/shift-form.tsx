@@ -9,6 +9,7 @@ import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { AddButton, EditButton } from "@/src/components/ui/button";
 import { deleteShiftAction, submitShiftAction } from "../actions/shift.actions";
 import type { ShiftActionResult, ShiftListItem } from "../types/shift.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const EMPTY = { kode: "", nama: "", jamMasuk: "", jamKeluar: "", lintasHari: false, toleransiTelatMenit: "0", isActive: true };
 
@@ -72,6 +73,56 @@ export default function ShiftForm({ shifts }: { shifts: ShiftListItem[] }) {
 			toast.error(result.message);
 		}
 	}
+
+	const kolomShift: DataTableColumn<ShiftListItem>[] = [
+		{
+			id: "kode",
+			header: "Kode",
+			render: (s) => <span className="font-medium">{s.kode}</span>,
+			sortValue: (s) => s.kode,
+			searchValue: (s) => `${s.kode} ${s.nama}`,
+		},
+		{ id: "nama", header: "Nama", accessor: "nama" },
+		{
+			id: "jam",
+			header: "Jam",
+			sortable: false,
+			searchable: false,
+			render: (s) => <span>{s.jamMasuk}–{s.jamKeluar}</span>,
+		},
+		{
+			id: "lintasHari",
+			header: "Lintas Hari",
+			render: (s) => <span>{s.lintasHari ? "Ya" : "Tidak"}</span>,
+			sortValue: (s) => (s.lintasHari ? "Ya" : "Tidak"),
+			searchable: false,
+		},
+		{
+			id: "status",
+			header: "Status",
+			render: (s) => <span>{s.isActive ? "Aktif" : "Nonaktif"}</span>,
+			sortValue: (s) => (s.isActive ? "Aktif" : "Nonaktif"),
+			searchable: false,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (s) => (
+				<div className="inline-flex gap-2">
+					<EditButton type="button" size="xs" withIcon={false} onClick={() => applySelection(s.id)}>
+						Edit
+					</EditButton>
+					<EditButton type="button" size="xs" withIcon={false} onClick={() => void handleDelete(s.id)}>
+						Hapus
+					</EditButton>
+				</div>
+			),
+		},
+	];
 
 	return (
 		<form ref={formRef} action={formAction} className="mt-4">
@@ -144,54 +195,17 @@ export default function ShiftForm({ shifts }: { shifts: ShiftListItem[] }) {
 				<SubmitButton hasId={Boolean(selectedId)} />
 			</div>
 
-			<div className="mt-6 rounded-xl border border-blue-100 dark:border-blue-900/60">
+		<div className="mt-6 rounded-xl border border-blue-100 dark:border-blue-900/60">
 				<div className="border-b border-blue-100 px-4 py-3 dark:border-blue-900/60">
 					<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Daftar Shift</h3>
 				</div>
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Jam</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Lintas Hari</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Status</th>
-								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{shifts.length === 0 ? (
-								<tr>
-									<td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-										Belum ada shift.
-									</td>
-								</tr>
-							) : (
-								shifts.map((s) => (
-									<tr key={s.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">{s.kode}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{s.nama}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-											{s.jamMasuk}–{s.jamKeluar}
-										</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{s.lintasHari ? "Ya" : "Tidak"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{s.isActive ? "Aktif" : "Nonaktif"}</td>
-										<td className="px-4 py-3 text-right">
-											<div className="inline-flex gap-2">
-												<EditButton type="button" size="xs" withIcon={false} onClick={() => applySelection(s.id)}>
-													Edit
-												</EditButton>
-												<EditButton type="button" size="xs" withIcon={false} onClick={() => handleDelete(s.id)}>
-													Hapus
-												</EditButton>
-											</div>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="p-4">
+					<DataTable
+						data={shifts}
+						columns={kolomShift}
+						getRowId={(s) => s.id}
+						emptyMessage="Belum ada shift."
+					/>
 				</div>
 			</div>
 		</form>

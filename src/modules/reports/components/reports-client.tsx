@@ -3,12 +3,15 @@
 import { useEffect, useState, useTransition } from "react";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { getLaporan, type LaporanHasil } from "../actions/reports.actions";
 
 const JENIS_OPTIONS = [
 	{ value: "kehadiran", label: "Kehadiran" },
 	{ value: "cuti", label: "Cuti & Izin" },
 	{ value: "lembur", label: "Lembur" },
+	{ value: "telat", label: "Keterlambatan (ringkas)" },
+	{ value: "saldo", label: "Saldo Cuti" },
 	{ value: "turnover", label: "Turnover (Masuk/Keluar)" },
 	{ value: "kontrak", label: "Kontrak Berakhir" },
 ];
@@ -54,6 +57,20 @@ export default function LaporanClient() {
 		});
 	}
 
+	type BarisLaporan = { key: string; cells: string[] };
+
+	const kolomLaporan: DataTableColumn<BarisLaporan>[] = (hasil?.columns ?? []).map(
+		(c, i): DataTableColumn<BarisLaporan> => ({
+			id: `kolom-${i}`,
+			header: c,
+			render: (row) => <span>{row.cells[i] ?? ""}</span>,
+			sortValue: (row) => row.cells[i] ?? "",
+			searchValue: (row) => row.cells[i] ?? "",
+		}),
+	);
+
+	const barisLaporan: BarisLaporan[] = (hasil?.rows ?? []).map((row, i) => ({ key: `baris-${i}`, cells: row }));
+
 	function handleUnduh() {
 		if (!hasil || hasil.rows.length === 0) return;
 		const blob = new Blob(["\uFEFF" + toCsv(hasil.columns, hasil.rows)], { type: "text/csv;charset=utf-8" });
@@ -93,40 +110,13 @@ export default function LaporanClient() {
 
 		{hasil ? (
 				<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-					<div className="overflow-x-auto">
-						<table className="min-w-full text-sm">
-							<thead>
-								<tr className="border-b border-blue-100 dark:border-blue-900/60">
-									{hasil.columns.map((c) => (
-										<th key={c} className="px-4 py-3 text-left font-semibold">
-											{c}
-										</th>
-									))}
-								</tr>
-							</thead>
-							<tbody>
-								{hasil.rows.length === 0 ? (
-									<tr>
-										<td colSpan={hasil.columns.length} className="px-4 py-6 text-center text-slate-500">
-											Tidak ada data.
-										</td>
-									</tr>
-								) : (
-									hasil.rows.slice(0, 200).map((row, i) => (
-										<tr key={i} className="border-b border-blue-100 dark:border-blue-900/60">
-											{row.map((cell, j) => (
-												<td key={j} className="px-4 py-3">
-													{cell}
-												</td>
-											))}
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
-						{hasil.rows.length > 200 ? (
-							<p className="mt-2 text-xs text-slate-400">Menampilkan 200 baris pertama. Unduh CSV untuk semua.</p>
-						) : null}
+					<div className="mt-2">
+						<DataTable
+							data={barisLaporan}
+							columns={kolomLaporan}
+							getRowId={(row) => row.key}
+							emptyMessage="Tidak ada data."
+						/>
 					</div>
 				</div>
 			) : null}

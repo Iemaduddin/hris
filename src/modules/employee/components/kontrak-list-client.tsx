@@ -8,6 +8,7 @@ import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { perpanjangKontrakBatch } from "../actions/kontrak.actions";
 import type { KontrakMasaBerakhirItem } from "../actions/employee.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const JENIS_OPTIONS = [
   { value: "PKWT", label: "PKWT" },
@@ -27,14 +28,11 @@ export default function KontrakListClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checked, setChecked] = useState<string[]>([]);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
   const [selesai, setSelesai] = useState("");
   const [jenis, setJenis] = useState("PKWT");
   const [gapok, setGapok] = useState("");
   const [catatan, setCatatan] = useState("");
-
-  function toggle(id: string) {
-    setChecked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
 
   function handleBatch() {
     if (checked.length === 0) {
@@ -55,10 +53,51 @@ export default function KontrakListClient({
       else {
         toast.success(result.message);
         setChecked([]);
+        setSelectionResetKey((prev) => prev + 1);
       }
       router.refresh();
     });
   }
+
+  const kolomKontrak: DataTableColumn<KontrakMasaBerakhirItem>[] = [
+    {
+      id: "nomor",
+      header: "Kontrak",
+      render: (k) => <span className="font-medium">{k.nomorKontrak} <span className="text-xs font-normal text-slate-500">({k.jenisKontrak})</span></span>,
+      sortValue: (k) => k.nomorKontrak,
+      searchValue: (k) => `${k.nomorKontrak} ${k.jenisKontrak}`,
+    },
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    {
+      id: "selesai",
+      header: "Selesai",
+      render: (k) => <span>{k.tanggalSelesai.slice(0, 10)}</span>,
+      sortValue: (k) => k.tanggalSelesai,
+      searchable: false,
+    },
+    {
+      id: "sisa",
+      header: "Sisa",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (k) => <span>H-{k.sisaHari}</span>,
+      sortValue: (k) => k.sisaHari,
+      searchable: false,
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (k) => (
+        <Link href={`/employees/kontrak/${k.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+          Buka
+        </Link>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-5">
@@ -84,43 +123,15 @@ export default function KontrakListClient({
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Akan Berakhir (H-60)</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Pilih</th>
-                <th className="px-4 py-3 text-left font-semibold">Kontrak</th>
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Selesai</th>
-                <th className="px-4 py-3 text-right font-semibold">Sisa</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">Tidak ada kontrak mendekati akhir.</td>
-                </tr>
-              ) : (
-                items.map((k) => (
-                  <tr key={k.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={checked.includes(k.id)} onChange={() => toggle(k.id)} className="h-4 w-4" />
-                    </td>
-                    <td className="px-4 py-3 font-medium">{k.nomorKontrak} <span className="text-xs text-slate-500">({k.jenisKontrak})</span></td>
-                    <td className="px-4 py-3">{k.karyawanNama}</td>
-                    <td className="px-4 py-3">{k.tanggalSelesai.slice(0, 10)}</td>
-                    <td className="px-4 py-3 text-right">H-{k.sisaHari}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/employees/kontrak/${k.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                        Buka
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <DataTable
+            data={items}
+            columns={kolomKontrak}
+            getRowId={(k) => k.id}
+            emptyMessage="Tidak ada kontrak mendekati akhir."
+            onSelectionChange={setChecked}
+            selectionResetKey={selectionResetKey}
+          />
         </div>
       </div>
     </div>

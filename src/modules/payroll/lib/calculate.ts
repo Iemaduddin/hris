@@ -47,6 +47,8 @@ export type HitungGaji = {
 	gajiBersih: number;
 	/** Premi ditanggung perusahaan (info slip, tak mengurangi bersih). */
 	totalBiayaPerusahaan: number;
+	/** Reimbursement periode ini (masuk bersih, di luar bruto PPh). */
+	totalReimburse: number;
 	hariHadir: number;
 	hariAlpa: number;
 	/** Menit rekap TERLAMBAT (toleransi shift dihormati). */
@@ -62,6 +64,8 @@ export type HitungGaji = {
 		angsuranKe: number;
 		sisaSesudah: number;
 	}>;
+	/** Klaim yang dibayar run ini (dibukukan salary run). */
+	reimburseBayar: Array<{ claimId: string; nomor: string; jumlah: number }>;
 };
 
 /**
@@ -85,6 +89,8 @@ export type AkumulasiTahunanPPh = {
   pphJanNov: number;
   /** Total iuran pengurang (JHT+JP) Jan–Nov. */
   iuranJanNov: number;
+  /** Reimburse Jan–Nov (di luar bruto). */
+  reimburseJanNov: number;
   /** Jumlah bulan bekerja dalam tahun berjalan (1–12). */
   bulanKerja: number;
 };
@@ -358,8 +364,34 @@ export async function hitungGajiKaryawan(
 		totalBiayaPerusahaan = acc.biayaPerusahaan;
 	}
 
-	// PPh 21 TER otomatis (PP 58/2023). Bruto = totalPendapatan.
-	const bruto = Math.round(totalPendapatan);
+	// Reimbursement disetujui yang belum dibayar: ikut gaji (TUNJANGAN),
+	// tapi di luar bruto PPh (ganti rugi riil berkwiansi).
+	const klaim = await prisma.expenseClaim.findMany({
+		where: { karyawanId, status: "DISETUJUI", pembayaran: { none: {} } },
+		orderBy: { createdAt: "asc" },
+		select: { id: true, nomor: true, nominal: true },
+	});
+	let totalReimburse = 0;
+	const reimburseBayar: HitungGaji["reimburseBayar"] = [];
+	for (const c of klaim) {
+		const jumlah = Math.max(0, Math.round(Number(c.nominal)));
+		if (jumlah <= 0) continue;
+		totalReimburse += jumlah;
+		reimburseBayar.push({ claimId: c.id, nomor: c.nomor, jumlah });
+	}
+	if (totalReimburse > 0) {
+		rincian.push({
+			kode: "REIMBURSE",
+			nama: `Reimbursement (${klaim.length} klaim)`,
+			kelompok: "TUNJANGAN",
+			jumlah: totalReimburse,
+			keterangan: reimburseBayar.map((r) => r.nomor).join(", "),
+		});
+		totalPendapatan += totalReimburse;
+	}
+
+	// PPh 21 TER otomatis (PP 58/2023). Bruto = totalPendapatan tanpa reimburse.
+	const bruto = Math.round(totalPendapatan) - totalReimburse;
 	const kategori = kategoriTerDariPtkp(ptkp);
 	const lapis = await getLapisTer(kategori);
 	const bulanSelesai = new Date(selesai).getUTCMonth() + 1;
@@ -371,7 +403,7 @@ export async function hitungGajiKaryawan(
 			.reduce((acc, r) => acc + r.jumlah, 0);
 		const koreksi = hitungPPhDesemberKoreksi({
 			ptkp,
-			brutoSetahun: akumulasi.brutoJanNov + bruto,
+			brutoSetahun: akumulasi.brutoJanNov + bruto - akumulasi.reimburseJanNov,
 			iuranSetahun: akumulasi.iuranJanNov + iuranBerjalan,
 			bulanKerja: akumulasi.bulanKerja,
 			pphJanNov: akumulasi.pphJanNov,
@@ -451,6 +483,7 @@ export async function hitungGajiKaryawan(
 		totalPotongan,
 		gajiBersih: totalPendapatan - totalPotongan,
 		totalBiayaPerusahaan,
+		totalReimburse,
 		hariHadir,
 		hariAlpa,
 		totalTelatMenit,
@@ -458,5 +491,6 @@ export async function hitungGajiKaryawan(
 		shiftMalam,
 		rincian,
 		kasbonPotongan,
+		reimburseBayar,
 	};
 }

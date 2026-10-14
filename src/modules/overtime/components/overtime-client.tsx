@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { ajukanLembur, batalLembur, buatLembur, type LemburItem } from "../actions/overtime.actions";
 
 function todayInput(): string {
@@ -40,6 +41,56 @@ export default function LemburClient({
 		});
 	}
 
+	const kolomLembur: DataTableColumn<LemburItem>[] = [
+		{ id: "tanggal", header: "Tanggal", accessor: "tanggal" },
+		{ id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+		{
+			id: "jam",
+			header: "Jam",
+			sortable: false,
+			searchable: false,
+			render: (item) => <span>{item.jamMulai}–{item.jamSelesai}</span>,
+		},
+		{
+			id: "jumlahJam",
+			header: "Total",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.jumlahJam} jam</span>,
+			sortValue: (item) => item.jumlahJam,
+			searchable: false,
+		},
+		{
+			id: "status",
+			header: "Status",
+			render: (item) => <span>{item.status.replaceAll("_", " ")}</span>,
+			sortValue: (item) => item.status,
+			searchValue: (item) => item.status.replaceAll("_", " "),
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (item) => (
+				<div className="inline-flex gap-2">
+					{item.status === "DRAFT" ? (
+						<button type="button" onClick={() => run(ajukanLembur(item.id))} disabled={isPending} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
+							Ajukan
+						</button>
+					) : null}
+					{["DRAFT", "DIAJUKAN"].includes(item.status) ? (
+						<button type="button" onClick={() => run(batalLembur(item.id))} disabled={isPending} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+							Batal
+						</button>
+					) : null}
+				</div>
+			),
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -70,54 +121,13 @@ export default function LemburClient({
 			</div>
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Jam</th>
-								<th className="px-4 py-3 text-right font-semibold">Total</th>
-								<th className="px-4 py-3 text-left font-semibold">Status</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.length === 0 ? (
-								<tr>
-									<td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-										Belum ada lembur.
-									</td>
-								</tr>
-							) : (
-								items.map((item) => (
-									<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{item.tanggal}</td>
-										<td className="px-4 py-3">{item.karyawanNama}</td>
-										<td className="px-4 py-3">
-											{item.jamMulai}–{item.jamSelesai}
-										</td>
-										<td className="px-4 py-3 text-right">{item.jumlahJam} jam</td>
-										<td className="px-4 py-3">{item.status.replaceAll("_", " ")}</td>
-										<td className="px-4 py-3 text-right">
-											<div className="inline-flex gap-2">
-												{item.status === "DRAFT" ? (
-													<button type="button" onClick={() => run(ajukanLembur(item.id))} disabled={isPending} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
-														Ajukan
-													</button>
-												) : null}
-												{["DRAFT", "DIAJUKAN"].includes(item.status) ? (
-													<button type="button" onClick={() => run(batalLembur(item.id))} disabled={isPending} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-														Batal
-													</button>
-												) : null}
-											</div>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-2">
+					<DataTable
+						data={items}
+						columns={kolomLembur}
+						getRowId={(item) => item.id}
+						emptyMessage="Belum ada lembur."
+					/>
 				</div>
 			</div>
 		</div>

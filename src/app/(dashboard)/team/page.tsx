@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
 import { getTimHariIni } from "@/src/modules/employee/actions/team.actions";
-import Link from "next/link";
+import TeamTable from "./team-table";
 
 const hariIniIso = () => {
   const kini = new Date();
@@ -45,35 +45,8 @@ export default async function TimPage({
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nama</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-left font-semibold">Shift</th>
-                <th className="px-4 py-3 text-left font-semibold">Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {anggota.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                    Belum ada anggota tim. <Link href="/employees" className="text-blue-600 hover:underline">Kelola karyawan</Link>
-                  </td>
-                </tr>
-              ) : (
-                anggota.map((a) => (
-                  <tr key={a.karyawanId} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3">{a.nama} <span className="text-xs text-slate-500">({a.nomorKaryawan})</span></td>
-                    <td className="px-4 py-3 font-medium">{a.status}</td>
-                    <td className="px-4 py-3">{a.shift ?? "-"}</td>
-                    <td className="px-4 py-3">{a.info ?? "-"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <TeamTable anggota={anggota} />
         </div>
       </div>
     </>

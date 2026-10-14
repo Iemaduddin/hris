@@ -11,6 +11,18 @@ import {
   hapusDisiplin,
   terbitkanDisiplin,
 } from "../actions/disiplin.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
+
+type DisiplinRow = {
+  id: string;
+  nomor: string;
+  karyawanNama: string;
+  tingkatLabel: string;
+  judul: string;
+  tanggalTerbit: string;
+  aktif: boolean;
+  status: string;
+};
 
 const TINGKAT_OPTIONS = [
   { value: "SP1", label: "SP 1" },
@@ -27,16 +39,7 @@ export default function DisiplinListClient({
   bolehTerbit,
 }: {
   userId: string;
-  items: Array<{
-    id: string;
-    nomor: string;
-    karyawanNama: string;
-    tingkatLabel: string;
-    judul: string;
-    tanggalTerbit: string;
-    aktif: boolean;
-    status: string;
-  }>;
+  items: DisiplinRow[];
   karyawanOptions: Array<{ value: string; label: string }>;
   bolehTerbit: boolean;
 }) {
@@ -75,6 +78,66 @@ export default function DisiplinListClient({
     );
   }
 
+  function handleHapus(id: string) {
+    if (!confirm("Hapus draf ini?")) return;
+    runAction(hapusDisiplin(id, userId));
+  }
+
+  const kolomDisiplin: DataTableColumn<DisiplinRow>[] = [
+    {
+      id: "nomor",
+      header: "Nomor",
+      render: (d) => <span className="font-medium">{d.nomor}</span>,
+      sortValue: (d) => d.nomor,
+      searchValue: (d) => `${d.nomor} ${d.judul}`,
+    },
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    {
+      id: "tingkat",
+      header: "Tingkat",
+      render: (d) => (
+        <span>
+          {d.tingkatLabel}
+          {d.aktif ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">aktif</span> : null}
+        </span>
+      ),
+      sortValue: (d) => d.tingkatLabel,
+      searchValue: (d) => d.tingkatLabel,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (d) => <span>{d.status.replaceAll("_", " ")}</span>,
+      sortValue: (d) => d.status,
+      searchValue: (d) => d.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (d) => (
+        <div className="inline-flex flex-wrap justify-end gap-2">
+          <Link href={`/employees/disiplin/${d.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          {d.status === "DRAFT" && bolehTerbit ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(terbitkanDisiplin(d.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              Terbitkan
+            </button>
+          ) : null}
+          {d.status === "DRAFT" ? (
+            <button type="button" disabled={isPending} onClick={() => handleHapus(d.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -108,54 +171,13 @@ export default function DisiplinListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nomor</th>
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Tingkat</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada surat.</td>
-                </tr>
-              ) : (
-                items.map((d) => (
-                  <tr key={d.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{d.nomor}</td>
-                    <td className="px-4 py-3">{d.karyawanNama}</td>
-                    <td className="px-4 py-3">
-                      {d.tingkatLabel}
-                      {d.aktif ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">aktif</span> : null}
-                    </td>
-                    <td className="px-4 py-3">{d.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-2">
-                        <Link href={`/employees/disiplin/${d.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        {d.status === "DRAFT" && bolehTerbit ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(terbitkanDisiplin(d.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                            Terbitkan
-                          </button>
-                        ) : null}
-                        {d.status === "DRAFT" ? (
-                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus draf ini?")) return; runAction(hapusDisiplin(d.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomDisiplin}
+            getRowId={(d) => d.id}
+            emptyMessage="Belum ada surat."
+          />
         </div>
       </div>
     </div>

@@ -411,8 +411,9 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 		select: { id: true, tanggalMasuk: true },
 	});
 
-	// Pulihkan angsuran kasbon milik run ini agar hitung-ulang idempoten.
-	// Tx terpisah (commit dulu) supaya hitung berikutnya membaca sisa bersih.
+	// Pulihkan angsuran kasbon + pembayaran reimbursement milik run ini
+	// agar hitung-ulang idempoten. Tx terpisah (commit dulu) supaya hitung
+	// berikutnya membaca sisa bersih.
 	const angsuranLama = await prisma.kasbonAngsuran.findMany({
 		where: { runId },
 		select: { kasbonId: true, jumlah: true },
@@ -432,6 +433,21 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 			}
 		});
 	}
+	const bayarLama = await prisma.expensePembayaran.findMany({
+		where: { runId },
+		select: { claimId: true },
+	});
+	if (bayarLama.length > 0) {
+		await prisma.$transaction(async (tx) => {
+			await tx.expensePembayaran.deleteMany({ where: { runId } });
+			for (const b of bayarLama) {
+				await tx.expenseClaim.update({
+					where: { id: b.claimId },
+					data: { status: "DISETUJUI", dibayarPada: null, dibayarVia: null },
+				});
+			}
+		});
+	}
 
 	// Akumulasi Jan–Nov untuk koreksi Desember (PMK 168/2023).
 	const bulanRun = run.tanggalSelesai.getUTCMonth() + 1;
@@ -445,15 +461,16 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 			},
 			select: { karyawanId: true, totalPendapatan: true, rincian: true },
 		});
-		const agg = new Map<string, { bruto: number; pph: number; iuran: number }>();
+		const agg = new Map<string, { bruto: number; pph: number; iuran: number; reimburse: number }>();
 		for (const d of prior) {
-			const cur = agg.get(d.karyawanId) ?? { bruto: 0, pph: 0, iuran: 0 };
+			const cur = agg.get(d.karyawanId) ?? { bruto: 0, pph: 0, iuran: 0, reimburse: 0 };
 			cur.bruto += Number(d.totalPendapatan);
 			const rincian = d.rincian as Array<{ kode: string; jumlah: number }>;
 			if (Array.isArray(rincian)) {
 				for (const r of rincian) {
 					if (r.kode === "POT_PPH21" || r.kode === "POTONGAN_PPH21") cur.pph += Number(r.jumlah ?? 0);
 					if (r.kode === "BPJS_JHT" || r.kode === "BPJS_JP") cur.iuran += Number(r.jumlah ?? 0);
+					if (r.kode === "REIMBURSE") cur.reimburse += Number(r.jumlah ?? 0);
 				}
 			}
 			agg.set(d.karyawanId, cur);
@@ -462,11 +479,12 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 			const masuk = k.tanggalMasuk;
 			const bulanMasuk =
 				masuk.getUTCFullYear() < tahunRun ? 1 : Math.min(12, Math.max(1, masuk.getUTCMonth() + 1));
-			const a = agg.get(k.id) ?? { bruto: 0, pph: 0, iuran: 0 };
+			const a = agg.get(k.id) ?? { bruto: 0, pph: 0, iuran: 0, reimburse: 0 };
 			akumulasiMap.set(k.id, {
 				brutoJanNov: Math.round(a.bruto),
 				pphJanNov: Math.round(a.pph),
 				iuranJanNov: Math.round(a.iuran),
+				reimburseJanNov: Math.round(a.reimburse),
 				bulanKerja: Math.min(12, Math.max(1, 13 - bulanMasuk)),
 			});
 		}
@@ -502,6 +520,16 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 						sisaHutang: { decrement: pot.jumlah },
 						...(pot.sisaSesudah === 0 ? { status: "LUNAS" as never } : {}),
 					},
+				});
+			}
+			// Bukukan pembayaran reimbursement periode ini.
+			for (const bayar of hasil.reimburseBayar) {
+				await tx.expensePembayaran.create({
+					data: { claimId: bayar.claimId, runId, metode: "PAYROLL", jumlah: bayar.jumlah },
+				});
+				await tx.expenseClaim.update({
+					where: { id: bayar.claimId },
+					data: { status: "DIBAYAR", dibayarPada: new Date(), dibayarVia: `PAYROLL ${run.periode}` },
 				});
 			}
 		}
@@ -571,6 +599,21 @@ export async function hapusRun(runId: string): Promise<PayrollActionResult> {
 						sisaHutang: { increment: a.jumlah },
 						...(kb?.status === "LUNAS" ? { status: "DISETUJUI" as never } : {}),
 					},
+				});
+			}
+		});
+	}
+	// Kembalikan klaim yang sempat dibayar run ini.
+	const dibayar = await prisma.expensePembayaran.findMany({
+		where: { runId },
+		select: { claimId: true },
+	});
+	if (dibayar.length > 0) {
+		await prisma.$transaction(async (tx) => {
+			for (const b of dibayar) {
+				await tx.expenseClaim.update({
+					where: { id: b.claimId },
+					data: { status: "DISETUJUI", dibayarPada: null, dibayarVia: null },
 				});
 			}
 		});

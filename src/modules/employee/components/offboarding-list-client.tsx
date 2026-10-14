@@ -12,6 +12,15 @@ import {
   buatOffboarding,
   hapusOffboarding,
 } from "../actions/offboarding.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
+
+type OffboardingRow = {
+  id: string;
+  karyawanNama: string;
+  tanggalRencana: string;
+  status: string;
+  clearanceSelesai: string;
+};
 
 export default function OffboardingListClient({
   userId,
@@ -19,13 +28,7 @@ export default function OffboardingListClient({
   karyawanOptions,
 }: {
   userId: string;
-  items: Array<{
-    id: string;
-    karyawanNama: string;
-    tanggalRencana: string;
-    status: string;
-    clearanceSelesai: string;
-  }>;
+  items: OffboardingRow[];
   karyawanOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
@@ -51,6 +54,60 @@ export default function OffboardingListClient({
     runAction(buatOffboarding({ karyawanId, tanggalRencana: rencana, alasan }, userId));
   }
 
+  function handleHapus(id: string) {
+    if (!confirm("Hapus data ini?")) return;
+    runAction(hapusOffboarding(id, userId));
+  }
+
+  const kolomOffboarding: DataTableColumn<OffboardingRow>[] = [
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "rencana", header: "Rencana", accessor: "tanggalRencana" },
+    {
+      id: "clearance",
+      header: "Clearance",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      accessor: "clearanceSelesai",
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (o) => <span>{o.status.replaceAll("_", " ")}</span>,
+      sortValue: (o) => o.status,
+      searchValue: (o) => o.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (o) => (
+        <div className="inline-flex flex-wrap justify-end gap-2">
+          <Link href={`/employees/offboarding/${o.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          {o.status === "DIAJUKAN" ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              Ajukan
+            </button>
+          ) : null}
+          {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              Batal
+            </button>
+          ) : null}
+          {["DITOLAK", "DIBATALKAN"].includes(o.status) ? (
+            <button type="button" disabled={isPending} onClick={() => handleHapus(o.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -68,56 +125,13 @@ export default function OffboardingListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Rencana</th>
-                <th className="px-4 py-3 text-right font-semibold">Clearance</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada pengajuan.</td>
-                </tr>
-              ) : (
-                items.map((o) => (
-                  <tr key={o.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3">{o.karyawanNama}</td>
-                    <td className="px-4 py-3">{o.tanggalRencana}</td>
-                    <td className="px-4 py-3 text-right">{o.clearanceSelesai}</td>
-                    <td className="px-4 py-3">{o.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-2">
-                        <Link href={`/employees/offboarding/${o.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        {o.status === "DIAJUKAN" ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                            Ajukan
-                          </button>
-                        ) : null}
-                        {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                            Batal
-                          </button>
-                        ) : null}
-                        {["DITOLAK", "DIBATALKAN"].includes(o.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus data ini?")) return; runAction(hapusOffboarding(o.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomOffboarding}
+            getRowId={(o) => o.id}
+            emptyMessage="Belum ada pengajuan."
+          />
         </div>
       </div>
     </div>

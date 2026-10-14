@@ -311,6 +311,8 @@ model Karyawan {
   tukarDiminta   TukarShift[] @relation("TukarPemohon")
   tukarDitawari  TukarShift[] @relation("TukarPasangan")
   koreksiPresensi KoreksiPresensi[]
+  reimburse       ExpenseClaim[]
+  uangDinas       UangDinas[]
 
   @@unique([nomorKaryawan])
   @@index([status])
@@ -1117,6 +1119,7 @@ model SalaryRun {
   detail  SalaryRunDetail[]
   payslip Payslip[]
   angsuranKasbon KasbonAngsuran[]
+  expensePembayaran ExpensePembayaran[]
 
   @@map("salary_run")
 }
@@ -1670,6 +1673,8 @@ model DinasWFH {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  uangDinas UangDinas?
+
   @@index([karyawanId, tanggalMulai])
   @@index([status])
   @@map("dinas_wfh")
@@ -1742,6 +1747,114 @@ enum StatusTukarShift {
   DISETUJUI
   DITOLAK
   DIBATALKAN
+}
+
+// ============================================================
+// Reimbursement + uang dinas. Klaim disetujui dibayar tunai atau
+// lewat salary run (dibukukan per run agar hitung-ulang idempoten).
+// Uang muka dinas dipertanggungjawabkan (LPJ): sisa dikembalikan
+// atau dipotong gaji (kasbon otomatis), kurang jadi reimbursement.
+// ============================================================
+
+model ExpenseClaim {
+  id               String              @id @default(cuid())
+  nomor            String              @unique
+  karyawanId       String
+  karyawan         Karyawan            @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  kategori         KategoriReimburse
+  tanggalKwitansi  DateTime?           @db.Date
+  nominal          Decimal             @db.Decimal(15, 2)
+  keterangan       String
+  lampiranUrl      String?
+  status           StatusReimburse     @default(DRAFT)
+  diajukanPada     DateTime?
+  approvedById     String?
+  approvedAt       DateTime?
+  dibayarPada      DateTime?
+  dibayarVia       String?
+  createdById      String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  pembayaran ExpensePembayaran[]
+
+  @@index([karyawanId, status])
+  @@map("expense_claim")
+}
+
+enum KategoriReimburse {
+  TRANSPORT
+  KONSUMSI
+  PARKIR
+  TOL
+  PENGINAPAN
+  KESEHATAN
+  DINAS
+  LAINNYA
+}
+
+enum StatusReimburse {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  DIBAYAR
+  DIBATALKAN
+}
+
+model ExpensePembayaran {
+  id        String       @id @default(cuid())
+  claimId   String
+  claim     ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  runId     String?
+  run       SalaryRun?   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  metode    String
+  jumlah    Decimal      @db.Decimal(15, 2)
+  bukti     String?
+  createdById String?
+  createdAt DateTime     @default(now())
+
+  @@index([claimId])
+  @@index([runId])
+  @@map("expense_pembayaran")
+}
+
+model UangDinas {
+  id              String            @id @default(cuid())
+  nomor           String            @unique
+  dinasId         String            @unique
+  dinas           DinasWFH          @relation(fields: [dinasId], references: [id], onDelete: Cascade)
+  karyawanId      String
+  karyawan        Karyawan          @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  nominalMuka     Decimal           @db.Decimal(15, 2)
+  keperluan       String?
+  status          StatusUangDinas   @default(DRAFT)
+  diajukanPada    DateTime?
+  approvedById    String?
+  approvedAt      DateTime?
+  tanggalSerah    DateTime?         @db.Date
+  totalRealisasi  Decimal?          @db.Decimal(15, 2)
+  lampiranLpjUrl  String?
+  tanggalLpj      DateTime?
+  dikembalikan    Decimal?          @db.Decimal(15, 2)
+  createdById     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([karyawanId, status])
+  @@map("uang_dinas")
+}
+
+enum StatusUangDinas {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
+  LPJ_DIAJUKAN
+  SELESAI
 }
 
 // ============================================================

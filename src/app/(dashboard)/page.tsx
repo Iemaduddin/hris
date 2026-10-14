@@ -278,12 +278,31 @@ export default async function DashboardPage() {
 			},
 			orderBy: { namaLengkap: "asc" },
 		});
+		const timIds = tim.map((t) => t.id);
+		const [telatBulan, alpaBulan, lemburAgg, cutiBerjalan] = await Promise.all([
+			prisma.rekapHarian.count({ where: { karyawanId: { in: timIds }, status: "TERLAMBAT", tanggal: { gte: awalBulan } } }),
+			prisma.rekapHarian.count({ where: { karyawanId: { in: timIds }, status: "ALPA", tanggal: { gte: awalBulan } } }),
+			prisma.lembur.aggregate({
+				where: { karyawanId: { in: timIds }, status: "DISETUJUI", tanggal: { gte: awalBulan } },
+				_sum: { jumlahJam: true },
+			}),
+			prisma.pengajuanKetidakhadiran.count({
+				where: { karyawanId: { in: timIds }, status: { in: ["DIAJUKAN", "MENUNGGU_APPROVAL"] } },
+			}),
+		]);
+		const jamLemburTim = Number(lemburAgg._sum.jumlahJam ?? 0);
 		return (
 			<>
 				<HeaderJudul judul="Dashboard Manajer" />
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
 					<Card title="Persetujuan Menunggu" value={String(antrian.length)} href="/approval" linkText="Proses" />
-					<Card title="Anggota Tim" value={String(tim.length)} />
+					<Card title="Anggota Tim" value={String(tim.length)} href="/team" linkText="Lihat Tim" />
+				</div>
+				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
+					<Card title="Telat Bulan Ini" value={String(telatBulan)} href="/reports" linkText="Laporan" />
+					<Card title="Alpa Bulan Ini" value={String(alpaBulan)} href="/reports" linkText="Laporan" />
+					<Card title="Lembur (jam)" value={String(Math.round(jamLemburTim * 10) / 10)} href="/reports" linkText="Laporan" />
+					<Card title="Cuti Berjalan" value={String(cutiBerjalan)} href="/reports" linkText="Laporan" />
 				</div>
 				<div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
 					<Panel title="Antrean Saya" href="/approval" linkText="Proses Semua">

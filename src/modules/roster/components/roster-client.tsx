@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import {
 	hapusPenugasanKalender,
 	hapusRoster,
@@ -136,6 +137,62 @@ export default function RosterClient({
 		});
 	}
 
+	const kolomPenugasan: DataTableColumn<PenugasanKalenderItem>[] = [
+		{ id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+		{ id: "kalender", header: "Kalender", accessor: "kalenderNama" },
+		{
+			id: "periode",
+			header: "Periode",
+			render: (p) => <span>{p.tanggalMulai} – {p.tanggalSelesai ?? "…"}</span>,
+			sortValue: (p) => p.tanggalMulai,
+			searchValue: (p) => `${p.tanggalMulai} ${p.tanggalSelesai ?? ""}`,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (p) => (
+				<button
+					type="button"
+					onClick={() => handleHapusPenugasan(p.id)}
+					disabled={isPending}
+					className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+				>
+					Hapus
+				</button>
+			),
+		},
+	];
+
+	const kolomRoster: DataTableColumn<RosterListItem>[] = [
+		{ id: "tanggal", header: "Tanggal", accessor: "tanggal" },
+		{
+			id: "karyawan",
+			header: "Karyawan",
+			render: (r) => (
+				<span>
+					{r.karyawanNama} <span className="text-xs text-slate-500">({r.nomorKaryawan})</span>
+				</span>
+			),
+			sortValue: (r) => r.karyawanNama,
+			searchValue: (r) => `${r.karyawanNama} ${r.nomorKaryawan}`,
+		},
+		{
+			id: "shift",
+			header: "Shift",
+			render: (r) => (
+				<span className="font-medium">
+					{r.shiftKode} <span className="font-normal text-slate-500">({r.shiftNama})</span>
+				</span>
+			),
+			sortValue: (r) => r.shiftKode,
+			searchValue: (r) => `${r.shiftKode} ${r.shiftNama}`,
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -174,46 +231,13 @@ export default function RosterClient({
 						Simpan Penugasan
 					</button>
 				</div>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Kalender</th>
-								<th className="px-4 py-3 text-left font-semibold">Periode</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{penugasan.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-										Belum ada penugasan kalender.
-									</td>
-								</tr>
-							) : (
-								penugasan.map((p) => (
-									<tr key={p.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{p.karyawanNama}</td>
-										<td className="px-4 py-3">{p.kalenderNama}</td>
-										<td className="px-4 py-3">
-											{p.tanggalMulai} – {p.tanggalSelesai ?? "…"}
-										</td>
-										<td className="px-4 py-3 text-right">
-											<button
-												type="button"
-												onClick={() => handleHapusPenugasan(p.id)}
-												disabled={isPending}
-												className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-											>
-												Hapus
-											</button>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={penugasan}
+						columns={kolomPenugasan}
+						getRowId={(p) => String(p.id)}
+						emptyMessage="Belum ada penugasan kalender."
+					/>
 				</div>
 			</div>
 
@@ -264,37 +288,13 @@ export default function RosterClient({
 						{isPending ? "Menyimpan..." : "Simpan Roster"}
 					</button>
 				</div>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Shift</th>
-							</tr>
-						</thead>
-						<tbody>
-							{roster.length === 0 ? (
-								<tr>
-									<td colSpan={3} className="px-4 py-6 text-center text-slate-500">
-										Belum ada roster pada periode ini.
-									</td>
-								</tr>
-							) : (
-								roster.map((r) => (
-									<tr key={r.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{r.tanggal}</td>
-										<td className="px-4 py-3">
-											{r.karyawanNama} <span className="text-xs text-slate-500">({r.nomorKaryawan})</span>
-										</td>
-										<td className="px-4 py-3 font-medium">
-											{r.shiftKode} <span className="font-normal text-slate-500">({r.shiftNama})</span>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={roster}
+						columns={kolomRoster}
+						getRowId={(r) => String(r.id)}
+						emptyMessage="Belum ada roster pada periode ini."
+					/>
 				</div>
 			</div>
 		</div>

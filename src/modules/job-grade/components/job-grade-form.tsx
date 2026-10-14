@@ -14,6 +14,7 @@ import type {
 	JobGradeFormValues,
 	JobGradeOption,
 } from "../types/job-grade.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const EMPTY_FORM: JobGradeFormValues = {
 	id: "",
@@ -41,7 +42,7 @@ function toGradeLabel(grade: JobGradeOption) {
 	return `${grade.nama}${kodeSuffix}`;
 }
 
-function toFormValues(grade?: JobGradeOption): JobGradeFormValues {
+	function toFormValues(grade?: JobGradeOption): JobGradeFormValues {
 	if (!grade) return EMPTY_FORM;
 
 	return {
@@ -73,6 +74,53 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 		() => grades.map((item) => ({ label: toGradeLabel(item), value: item.id })),
 		[grades],
 	);
+
+	function handlePilihEdit(id: string) {
+		setSelectedGradeId(id);
+		formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	const kolomGrade: DataTableColumn<JobGradeOption>[] = [
+		{
+			id: "nama",
+			header: "Nama",
+			render: (grade) => <span className="font-medium">{grade.nama}</span>,
+			sortValue: (grade) => grade.nama,
+			searchValue: (grade) => `${grade.nama} ${grade.kode ?? ""}`,
+		},
+		{
+			id: "kode",
+			header: "Kode",
+			render: (grade) => <span>{grade.kode ?? "-"}</span>,
+			sortValue: (grade) => grade.kode ?? "-",
+			searchValue: (grade) => grade.kode ?? "",
+		},
+		{
+			id: "deskripsi",
+			header: "Deskripsi",
+			sortable: false,
+			searchable: false,
+			render: (grade) => <span>{grade.deskripsi ?? "-"}</span>,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (grade) => (
+				<EditButton
+					type="button"
+					size="xs"
+					withIcon={false}
+					onClick={() => handlePilihEdit(grade.id)}
+				>
+					Edit
+				</EditButton>
+			),
+		},
+	];
 
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
@@ -182,50 +230,13 @@ export default function JobGradeForm({ grades }: JobGradeFormProps) {
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Deskripsi</th>
-								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{grades.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada golongan posisi.
-									</td>
-								</tr>
-							) : (
-								grades.map((grade) => (
-									<tr
-										key={grade.id}
-										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedGradeId === grade.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
-									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.nama}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.kode ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{grade.deskripsi ?? "-"}</td>
-										<td className="px-4 py-3 text-right">
-												<EditButton
-													type="button"
-													size="xs"
-													withIcon={false}
-													onClick={() => {
-														setSelectedGradeId(grade.id);
-														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-													}}
-												>
-													Edit
-												</EditButton>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="p-4">
+					<DataTable
+						data={grades}
+						columns={kolomGrade}
+						getRowId={(grade) => grade.id}
+						emptyMessage="Belum ada golongan posisi."
+					/>
 				</div>
 			</div>
 		</form>

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { toast } from "react-toastify";
-import { LuX, LuTrash2, LuCalendarOff } from "react-icons/lu";
+import { LuX, LuTrash2 } from "react-icons/lu";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
@@ -15,6 +15,7 @@ import type {
 	HariLiburFormValues,
 	HariLiburListItem,
 } from "../types/work-schedule.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
 	dateStyle: "medium",
@@ -84,76 +85,71 @@ export default function HariLiburForm({ kalenderKerjaId, hariLiburList, onRefres
 		}
 	};
 
+	const kolomLibur: DataTableColumn<HariLiburListItem>[] = [
+		{
+			id: "tanggal",
+			header: "Tanggal",
+			render: (h) => <span>{dateFormatter.format(new Date(h.tanggal))}</span>,
+			sortValue: (h) => h.tanggal,
+			searchValue: (h) => dateFormatter.format(new Date(h.tanggal)),
+		},
+		{ id: "nama", header: "Nama", accessor: "nama" },
+		{
+			id: "deskripsi",
+			header: "Deskripsi",
+			sortable: false,
+			searchable: false,
+			render: (h) => <span>{h.deskripsi || "-"}</span>,
+		},
+		{
+			id: "jenis",
+			header: "Jenis",
+			headerClassName: "text-center",
+			cellClassName: "text-center",
+			render: (h) =>
+				h.isCutiBersama ? (
+					<span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+						Cuti Bersama
+					</span>
+				) : (
+					<span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+						Libur Nasional
+					</span>
+				),
+			sortValue: (h) => (h.isCutiBersama ? "Cuti Bersama" : "Libur Nasional"),
+			searchValue: (h) => (h.isCutiBersama ? "Cuti Bersama" : "Libur Nasional"),
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (h) => (
+				<button
+					type="button"
+					onClick={() => void handleDelete(h.id)}
+					className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+					title="Hapus"
+				>
+					<LuTrash2 className="h-4 w-4" />
+				</button>
+			),
+		},
+	];
+
 	return (
 		<div className="space-y-4">
 			{/* Table */}
-			{hariLiburList.length > 0 ? (
-				<div className="overflow-x-auto">
-					<table className="min-w-full border-separate border-spacing-0 text-sm">
-						<thead>
-							<tr>
-								<th className="border-b border-blue-100 px-4 py-3 text-left font-semibold text-slate-700 dark:border-blue-900/60 dark:text-slate-100">
-									Tanggal
-								</th>
-								<th className="border-b border-blue-100 px-4 py-3 text-left font-semibold text-slate-700 dark:border-blue-900/60 dark:text-slate-100">
-									Nama
-								</th>
-								<th className="border-b border-blue-100 px-4 py-3 text-left font-semibold text-slate-700 dark:border-blue-900/60 dark:text-slate-100">
-									Deskripsi
-								</th>
-								<th className="border-b border-blue-100 px-4 py-3 text-center font-semibold text-slate-700 dark:border-blue-900/60 dark:text-slate-100">
-									Jenis
-								</th>
-								<th className="border-b border-blue-100 px-4 py-3 text-right font-semibold text-slate-700 dark:border-blue-900/60 dark:text-slate-100">
-									Aksi
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{hariLiburList.map((h) => (
-								<tr key={h.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20">
-									<td className="border-b border-blue-100 px-4 py-3 text-slate-900 dark:border-blue-900/60 dark:text-slate-100">
-										{dateFormatter.format(new Date(h.tanggal))}
-									</td>
-									<td className="border-b border-blue-100 px-4 py-3 font-medium text-slate-900 dark:border-blue-900/60 dark:text-slate-100">
-										{h.nama}
-									</td>
-									<td className="border-b border-blue-100 px-4 py-3 text-slate-600 dark:border-blue-900/60 dark:text-slate-400">
-										{h.deskripsi || "-"}
-									</td>
-									<td className="border-b border-blue-100 px-4 py-3 text-center dark:border-blue-900/60">
-										{h.isCutiBersama ? (
-											<span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-												Cuti Bersama
-											</span>
-										) : (
-											<span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-												Libur Nasional
-											</span>
-										)}
-									</td>
-									<td className="border-b border-blue-100 px-4 py-3 text-right dark:border-blue-900/60">
-										<button
-											type="button"
-											onClick={() => handleDelete(h.id)}
-											className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
-											title="Hapus"
-										>
-											<LuTrash2 className="h-4 w-4" />
-										</button>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			) : (
-				<div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-6 text-center dark:border-blue-800 dark:bg-blue-900/20">
-					<LuCalendarOff className="mx-auto h-8 w-8 text-blue-400" />
-					<p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Belum ada hari libur.</p>
-					<p className="mt-1 text-xs text-slate-500 dark:text-slate-500">Klik tombol di bawah untuk menambah hari libur.</p>
-				</div>
-			)}
+			<div className="mt-2">
+				<DataTable
+					data={hariLiburList}
+					columns={kolomLibur}
+					getRowId={(h) => String(h.id)}
+					emptyMessage="Belum ada hari libur. Klik tombol di bawah untuk menambah hari libur."
+				/>
+			</div>
 
 			{/* Add Button */}
 			{!showForm && (

@@ -14,6 +14,7 @@ import {
   tolakKasbon,
   type KasbonItem,
 } from "../actions/kasbon.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
@@ -71,6 +72,88 @@ export default function KasbonListClient({
     });
   }
 
+  const kolomKasbon: DataTableColumn<KasbonItem>[] = [
+    {
+      id: "nomor",
+      header: "Nomor",
+      render: (k) => <span className="font-medium">{k.nomor}</span>,
+      sortValue: (k) => k.nomor,
+      searchValue: (k) => k.nomor,
+    },
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    {
+      id: "nominal",
+      header: "Nominal",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (k) => <span>{rupiah.format(Number(k.nominal))}</span>,
+      sortValue: (k) => Number(k.nominal),
+      searchable: false,
+    },
+    {
+      id: "angsuran",
+      header: "Angsuran",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (k) => <span>{rupiah.format(Number(k.angsuranPerBulan))} × {k.tenorBulan}</span>,
+    },
+    {
+      id: "sisa",
+      header: "Sisa",
+      headerClassName: "text-right",
+      cellClassName: "text-right font-semibold",
+      render: (k) => <span>{rupiah.format(Number(k.sisaHutang))}</span>,
+      sortValue: (k) => Number(k.sisaHutang),
+      searchable: false,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (k) => <span>{k.status.replaceAll("_", " ")}{k.angsuranKe > 0 ? ` (${k.angsuranKe}x cicil)` : ""}</span>,
+      sortValue: (k) => k.status,
+      searchValue: (k) => k.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (k) => (
+        <div className="inline-flex flex-wrap justify-end gap-2">
+          {k.status === "DRAFT" ? (
+            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await ajukanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
+              Ajukan
+            </button>
+          ) : null}
+          {k.status === "DIAJUKAN" ? (
+            <>
+              <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await setujuiKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+                Setujui
+              </button>
+              <button type="button" disabled={isPending} onClick={() => setTolakId(k.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+                Tolak
+              </button>
+            </>
+          ) : null}
+          {["DRAFT", "DIAJUKAN"].includes(k.status) ? (
+            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await batalkanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              Batal
+            </button>
+          ) : null}
+          {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(k.status) ? (
+            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus kasbon ini?")) return; startTransition(async () => { const r = await hapusKasbon(k.id); refresh(r.success, r.message); }); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -98,67 +181,13 @@ export default function KasbonListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nomor</th>
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-right font-semibold">Nominal</th>
-                <th className="px-4 py-3 text-right font-semibold">Angsuran</th>
-                <th className="px-4 py-3 text-right font-semibold">Sisa</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">Belum ada kasbon.</td>
-                </tr>
-              ) : (
-                items.map((k) => (
-                  <tr key={k.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{k.nomor}</td>
-                    <td className="px-4 py-3">{k.karyawanNama}</td>
-                    <td className="px-4 py-3 text-right">{rupiah.format(Number(k.nominal))}</td>
-                    <td className="px-4 py-3 text-right">{rupiah.format(Number(k.angsuranPerBulan))} × {k.tenorBulan}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{rupiah.format(Number(k.sisaHutang))}</td>
-                    <td className="px-4 py-3">{k.status.replaceAll("_", " ")}{k.angsuranKe > 0 ? ` (${k.angsuranKe}x cicil)` : ""}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-2">
-                        {k.status === "DRAFT" ? (
-                          <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await ajukanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
-                            Ajukan
-                          </button>
-                        ) : null}
-                        {k.status === "DIAJUKAN" ? (
-                          <>
-                            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await setujuiKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                              Setujui
-                            </button>
-                            <button type="button" disabled={isPending} onClick={() => setTolakId(k.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                              Tolak
-                            </button>
-                          </>
-                        ) : null}
-                        {["DRAFT", "DIAJUKAN"].includes(k.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await batalkanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                            Batal
-                          </button>
-                        ) : null}
-                        {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(k.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus kasbon ini?")) return; startTransition(async () => { const r = await hapusKasbon(k.id); refresh(r.success, r.message); }); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomKasbon}
+            getRowId={(k) => k.id}
+            emptyMessage="Belum ada kasbon."
+          />
         </div>
       </div>
 

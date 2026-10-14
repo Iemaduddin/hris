@@ -11,6 +11,9 @@ import {
   terbitkanSurat,
   type OpsiRef,
 } from "../actions/surat.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
+
+type SuratRow = { id: string; nomor: string; jenis: string; karyawanNama: string | null; createdAt: string };
 
 const JENIS_OPTIONS = [
   { value: "MUT", label: "Mutasi / Promosi (dari data)" },
@@ -27,7 +30,7 @@ export default function SuratTerbitClient({
   templates,
 }: {
   userId: string;
-  items: Array<{ id: string; nomor: string; jenis: string; karyawanNama: string | null; createdAt: string }>;
+  items: SuratRow[];
   refs: Record<string, OpsiRef[]>;
   karyawans: OpsiRef[];
   templates: Array<{ value: string; label: string; kode: string }>;
@@ -52,6 +55,53 @@ export default function SuratTerbitClient({
   const templateOpsi = templates.filter(
     (t) => t.kode === ({ MUT: "MUTASI", PAK: "PAKLARING", SP: "SP", KET: "KETERANGAN" } as Record<string, string>)[jenis],
   );
+
+  function handleHapus(id: string) {
+    if (!confirm("Hapus surat ini?")) return;
+    runAction(hapusSurat(id, userId));
+  }
+
+  const kolomSurat: DataTableColumn<SuratRow>[] = [
+    {
+      id: "nomor",
+      header: "Nomor",
+      render: (s) => <span className="font-medium">{s.nomor}</span>,
+      sortValue: (s) => s.nomor,
+      searchValue: (s) => s.nomor,
+    },
+    { id: "jenis", header: "Jenis", accessor: "jenis" },
+    {
+      id: "karyawan",
+      header: "Karyawan",
+      render: (s) => <span>{s.karyawanNama ?? "-"}</span>,
+      sortValue: (s) => s.karyawanNama ?? "-",
+      searchValue: (s) => s.karyawanNama ?? "",
+    },
+    { id: "terbit", header: "Terbit", accessor: "createdAt" },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (s) => (
+        <div className="inline-flex gap-2">
+          <Link href={`/employees/surat/${s.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleHapus(s.id)}
+            className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+          >
+            Hapus
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-5">
@@ -83,49 +133,13 @@ export default function SuratTerbitClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nomor</th>
-                <th className="px-4 py-3 text-left font-semibold">Jenis</th>
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Terbit</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada surat terbit.</td>
-                </tr>
-              ) : (
-                items.map((s) => (
-                  <tr key={s.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{s.nomor}</td>
-                    <td className="px-4 py-3">{s.jenis}</td>
-                    <td className="px-4 py-3">{s.karyawanNama ?? "-"}</td>
-                    <td className="px-4 py-3">{s.createdAt}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-2">
-                        <Link href={`/employees/surat/${s.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => { if (!confirm("Hapus surat ini?")) return; runAction(hapusSurat(s.id, userId)); }}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomSurat}
+            getRowId={(s) => s.id}
+            emptyMessage="Belum ada surat terbit."
+          />
         </div>
       </div>
     </div>

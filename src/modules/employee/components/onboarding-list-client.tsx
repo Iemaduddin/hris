@@ -17,6 +17,7 @@ import {
   type OnboardingItem,
   type TemplateItem,
 } from "../actions/onboarding.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const KATEGORI_OPTIONS = [
   { value: "DOKUMEN", label: "Dokumen" },
@@ -83,6 +84,117 @@ export default function OnboardingListClient({
     runAction(buatOnboarding({ karyawanId, templateId, targetSelesai: target }, userId));
   }
 
+  function handleHapusTemplate(id: string) {
+    if (!confirm("Hapus template ini?")) return;
+    runAction(hapusTemplate(id));
+  }
+
+  function handleHapus(id: string) {
+    if (!confirm("Hapus onboarding ini?")) return;
+    runAction(hapusOnboarding(id, userId));
+  }
+
+  const kolomTemplate: DataTableColumn<TemplateItem>[] = [
+    {
+      id: "nama",
+      header: "Nama",
+      render: (t) => <span className="font-medium">{t.templateNama}</span>,
+      sortValue: (t) => t.templateNama,
+      searchValue: (t) => t.templateNama,
+    },
+    {
+      id: "kontrak",
+      header: "Kontrak",
+      render: (t) => <span>{t.jenisKontrak ?? "Umum"}</span>,
+      sortValue: (t) => t.jenisKontrak ?? "Umum",
+      searchValue: (t) => t.jenisKontrak ?? "Umum",
+    },
+    {
+      id: "jumlah",
+      header: "Item",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (t) => <span>{t.jumlahItem}</span>,
+      sortValue: (t) => t.jumlahItem,
+      searchable: false,
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (t) => (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => handleHapusTemplate(t.id)}
+          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+        >
+          Hapus
+        </button>
+      ),
+    },
+  ];
+
+  const kolomOnboarding: DataTableColumn<OnboardingItem>[] = [
+    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    {
+      id: "template",
+      header: "Template",
+      render: (o) => <span>{o.templateNama ?? "-"}</span>,
+      sortValue: (o) => o.templateNama ?? "-",
+      searchValue: (o) => o.templateNama ?? "",
+    },
+    {
+      id: "progres",
+      header: "Progres",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (o) => <span>{o.persen}% ({o.wajibSelesai} wajib)</span>,
+      sortValue: (o) => o.persen,
+      searchable: false,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (o) => <span>{o.status.replaceAll("_", " ")}</span>,
+      sortValue: (o) => o.status,
+      searchValue: (o) => o.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (o) => (
+        <div className="inline-flex flex-wrap justify-end gap-2">
+          <Link href={`/employees/onboarding/${o.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          {o.status === "BERJALAN" ? (
+            <>
+              <button type="button" disabled={isPending} onClick={() => runAction(tutupOnboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+                Tutup
+              </button>
+              <button type="button" disabled={isPending} onClick={() => runAction(batalkanOnboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+                Batal
+              </button>
+            </>
+          ) : null}
+          {o.status === "DIBATALKAN" ? (
+            <button type="button" disabled={isPending} onClick={() => handleHapus(o.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   function handleSimpanTemplate() {
     runAction(
       saveTemplate({
@@ -108,42 +220,13 @@ export default function OnboardingListClient({
             Seed Bawaan
           </button>
         </div>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Nama</th>
-                <th className="px-4 py-3 text-left font-semibold">Kontrak</th>
-                <th className="px-4 py-3 text-right font-semibold">Item</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Belum ada template.</td>
-                </tr>
-              ) : (
-                templates.map((t) => (
-                  <tr key={t.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{t.templateNama}</td>
-                    <td className="px-4 py-3">{t.jenisKontrak ?? "Umum"}</td>
-                    <td className="px-4 py-3 text-right">{t.jumlahItem}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => { if (!confirm("Hapus template ini?")) return; runAction(hapusTemplate(t.id)); }}
-                        className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <DataTable
+            data={templates}
+            columns={kolomTemplate}
+            getRowId={(t) => t.id}
+            emptyMessage="Belum ada template."
+          />
         </div>
 
         <h3 className="mt-5 font-semibold">Template Baru</h3>
@@ -196,56 +279,13 @@ export default function OnboardingListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-left font-semibold">Template</th>
-                <th className="px-4 py-3 text-right font-semibold">Progres</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada onboarding.</td>
-                </tr>
-              ) : (
-                items.map((o) => (
-                  <tr key={o.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3">{o.karyawanNama}</td>
-                    <td className="px-4 py-3">{o.templateNama ?? "-"}</td>
-                    <td className="px-4 py-3 text-right">{o.persen}% ({o.wajibSelesai} wajib)</td>
-                    <td className="px-4 py-3">{o.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-2">
-                        <Link href={`/employees/onboarding/${o.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        {o.status === "BERJALAN" ? (
-                          <>
-                            <button type="button" disabled={isPending} onClick={() => runAction(tutupOnboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                              Tutup
-                            </button>
-                            <button type="button" disabled={isPending} onClick={() => runAction(batalkanOnboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                              Batal
-                            </button>
-                          </>
-                        ) : null}
-                        {o.status === "DIBATALKAN" ? (
-                          <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus onboarding ini?")) return; runAction(hapusOnboarding(o.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomOnboarding}
+            getRowId={(o) => o.id}
+            emptyMessage="Belum ada onboarding."
+          />
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ export const REFERENSI_RESIGN = "RESIGN";
 export const REFERENSI_PROBATION = "PROBATION";
 export const REFERENSI_TUKAR = "TUKAR_SHIFT";
 export const REFERENSI_KOREKSI = "KOREKSI";
+export const REFERENSI_REIMBURSE = "REIMBURSE";
+export const REFERENSI_UANGDINAS = "UANGDINAS";
 
 export type ReferensiType =
   | typeof REFERENSI_CUTI
@@ -19,7 +21,9 @@ export type ReferensiType =
   | typeof REFERENSI_RESIGN
   | typeof REFERENSI_PROBATION
   | typeof REFERENSI_TUKAR
-  | typeof REFERENSI_KOREKSI;
+  | typeof REFERENSI_KOREKSI
+  | typeof REFERENSI_REIMBURSE
+  | typeof REFERENSI_UANGDINAS;
 
 type SetStatus = (
   status: "DIAJUKAN" | "MENUNGGU_APPROVAL" | "DISETUJUI" | "DITOLAK" | "DIBATALKAN",
@@ -41,6 +45,10 @@ async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: 
 		await prisma.tukarShift.update({ where: { id }, data: { status: status as never } });
 	} else if (type === REFERENSI_KOREKSI) {
 		await prisma.koreksiPresensi.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_REIMBURSE) {
+		await prisma.expenseClaim.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_UANGDINAS) {
+		await prisma.uangDinas.update({ where: { id }, data: { status: status as never } });
 	} else {
 		await prisma.dinasWFH.update({ where: { id }, data: { status: status as never } });
 	}
@@ -73,6 +81,14 @@ async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<st
 	}
 	if (type === REFERENSI_KOREKSI) {
 		const r = await prisma.koreksiPresensi.findUnique({ where: { id }, select: { karyawanId: true } });
+		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_REIMBURSE) {
+		const r = await prisma.expenseClaim.findUnique({ where: { id }, select: { karyawanId: true } });
+		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_UANGDINAS) {
+		const r = await prisma.uangDinas.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
 	}
 	const r = await prisma.dinasWFH.findUnique({ where: { id }, select: { karyawanId: true } });
@@ -118,6 +134,10 @@ export async function mulaiAlurApproval(type: ReferensiType, id: string): Promis
 		await prisma.probationReview.update({ where: { id }, data: { diajukanPada: new Date() } });
 	} else if (type === REFERENSI_KOREKSI) {
 		await prisma.koreksiPresensi.update({ where: { id }, data: { diajukanPada: new Date() } });
+	} else if (type === REFERENSI_REIMBURSE) {
+		await prisma.expenseClaim.update({ where: { id }, data: { diajukanPada: new Date() } });
+	} else if (type === REFERENSI_UANGDINAS) {
+		await prisma.uangDinas.update({ where: { id }, data: { diajukanPada: new Date() } });
 	}
 }
 
@@ -218,9 +238,13 @@ function namaJenis(type: ReferensiType): string {
 				? "Probation"
 			: type === REFERENSI_TUKAR
 				? "Tukar Shift"
-				: type === REFERENSI_KOREKSI
-					? "Koreksi Presensi"
-					: "Dinas/WFH";
+			: type === REFERENSI_KOREKSI
+				? "Koreksi Presensi"
+				: type === REFERENSI_REIMBURSE
+					? "Reimbursement"
+					: type === REFERENSI_UANGDINAS
+						? "Uang Dinas"
+						: "Dinas/WFH";
 }
 
 export async function getAntrianApproval(
@@ -381,6 +405,38 @@ export async function getRingkasanPengajuan(
 			karyawanNama: r.karyawan.namaLengkap,
 			nomorKaryawan: r.karyawan.nomorKaryawan,
 			ringkasan: `Koreksi ${r.tipe} → ${r.waktuBaru.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} • ${r.alasan}`,
+			diajukanPada: r.diajukanPada?.toISOString() ?? null,
+		};
+	}
+	if (type === REFERENSI_REIMBURSE) {
+		const r = await prisma.expenseClaim.findUnique({
+			where: { id },
+			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+		});
+		if (!r) return null;
+		return {
+			id: r.id,
+			nomor: r.nomor,
+			karyawanId: r.karyawanId,
+			karyawanNama: r.karyawan.namaLengkap,
+			nomorKaryawan: r.karyawan.nomorKaryawan,
+			ringkasan: `Reimburse ${r.kategori} Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.keterangan}`,
+			diajukanPada: r.diajukanPada?.toISOString() ?? null,
+		};
+	}
+	if (type === REFERENSI_UANGDINAS) {
+		const r = await prisma.uangDinas.findUnique({
+			where: { id },
+			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+		});
+		if (!r) return null;
+		return {
+			id: r.id,
+			nomor: r.nomor,
+			karyawanId: r.karyawanId,
+			karyawanNama: r.karyawan.namaLengkap,
+			nomorKaryawan: r.karyawan.nomorKaryawan,
+			ringkasan: `Uang muka Rp${Number(r.nominalMuka).toLocaleString("id-ID")}`,
 			diajukanPada: r.diajukanPada?.toISOString() ?? null,
 		};
 	}

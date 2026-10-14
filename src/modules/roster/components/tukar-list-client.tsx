@@ -7,40 +7,55 @@ import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { prosesPengajuanAction } from "@/src/modules/approval/actions/approval.actions";
 import { ajukanTukar, batalkanTukar, buatTukar, type TukarItem } from "@/src/modules/roster/actions/tukar.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
-function Tabel({ judul, items, children }: { judul: string; items: TukarItem[]; children: (t: TukarItem) => React.ReactNode }) {
+function kolomTukar(aksi: (t: TukarItem) => React.ReactNode): DataTableColumn<TukarItem>[] {
+  return [
+    {
+      id: "tanggal",
+      header: "Tanggal",
+      render: (t) => <span className="font-medium">{t.tanggal}</span>,
+      sortValue: (t) => t.tanggal,
+      searchValue: (t) => t.tanggal,
+    },
+    { id: "lawan", header: "Lawan", accessor: "lawanNama" },
+    {
+      id: "shift",
+      header: "Shift",
+      sortable: false,
+      searchValue: (t) => `${t.shiftSaya} ${t.shiftLawan}`,
+      render: (t) => <span className="text-xs">{t.shiftSaya} → {t.shiftLawan}</span>,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (t) => <span>{t.status.replaceAll("_", " ")}</span>,
+      sortValue: (t) => t.status,
+      searchValue: (t) => t.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: aksi,
+    },
+  ];
+}
+
+function Tabel({ judul, items, emptyMessage, children }: { judul: string; items: TukarItem[]; emptyMessage?: string; children: (t: TukarItem) => React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{judul}</h2>
-      <div className="mt-3 overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-blue-100 dark:border-blue-900/60">
-              <th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-              <th className="px-4 py-3 text-left font-semibold">Lawan</th>
-              <th className="px-4 py-3 text-left font-semibold">Shift</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-              <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Kosong.</td>
-              </tr>
-            ) : (
-              items.map((t) => (
-                <tr key={t.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                  <td className="px-4 py-3 font-medium">{t.tanggal}</td>
-                  <td className="px-4 py-3">{t.lawanNama}</td>
-                  <td className="px-4 py-3 text-xs">{t.shiftSaya} → {t.shiftLawan}</td>
-                  <td className="px-4 py-3">{t.status.replaceAll("_", " ")}</td>
-                  <td className="px-4 py-3 text-right">{children(t)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="mt-3">
+        <DataTable
+          data={items}
+          columns={kolomTukar(children)}
+          getRowId={(t) => t.id}
+          emptyMessage={emptyMessage ?? "Kosong."}
+        />
       </div>
     </div>
   );

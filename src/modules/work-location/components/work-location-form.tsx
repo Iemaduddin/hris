@@ -14,6 +14,7 @@ import type {
 	WorkLocationFormValues,
 	WorkLocationOption,
 } from "../types/work-location.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const EMPTY_FORM: WorkLocationFormValues = {
 	id: "",
@@ -79,6 +80,76 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 	const router = useRouter();
 	const formRef = useRef<HTMLFormElement>(null);
 	const [selectedLocationId, setSelectedLocationId] = useState("");
+
+	function handlePilihEdit(id: string) {
+		setSelectedLocationId(id);
+		formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	const kolomLokasi: DataTableColumn<WorkLocationOption>[] = [
+		{
+			id: "nama",
+			header: "Nama",
+			render: (location) => <span className="font-medium">{location.nama}</span>,
+			sortValue: (location) => location.nama,
+			searchValue: (location) => `${location.nama} ${location.kode ?? ""} ${location.kota ?? ""}`,
+		},
+		{
+			id: "kode",
+			header: "Kode",
+			render: (location) => <span>{location.kode ?? "-"}</span>,
+			sortValue: (location) => location.kode ?? "-",
+			searchValue: (location) => location.kode ?? "",
+		},
+		{
+			id: "kota",
+			header: "Kota",
+			render: (location) => <span>{location.kota ?? "-"}</span>,
+			sortValue: (location) => location.kota ?? "-",
+			searchValue: (location) => location.kota ?? "",
+		},
+		{
+			id: "provinsi",
+			header: "Provinsi",
+			render: (location) => <span>{location.provinsi ?? "-"}</span>,
+			sortValue: (location) => location.provinsi ?? "-",
+			searchValue: (location) => location.provinsi ?? "",
+		},
+		{
+			id: "radius",
+			header: "Radius",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (location) => <span>{location.radiusMeter == null ? "-" : `${location.radiusMeter} m`}</span>,
+			sortValue: (location) => location.radiusMeter ?? 0,
+			searchable: false,
+		},
+		{
+			id: "status",
+			header: "Status",
+			render: (location) => <span>{location.isActive ? "Aktif" : "Tidak Aktif"}</span>,
+			sortValue: (location) => (location.isActive ? "Aktif" : "Tidak Aktif"),
+			searchable: false,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (location) => (
+				<EditButton
+					type="button"
+					size="xs"
+					withIcon={false}
+					onClick={() => handlePilihEdit(location.id)}
+				>
+					Edit
+				</EditButton>
+			),
+		},
+	];
 
 	const selectedLocation = useMemo(
 		() => locations.find((item) => item.id === selectedLocationId),
@@ -274,58 +345,13 @@ export default function WorkLocationForm({ locations }: WorkLocationFormProps) {
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kota</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Provinsi</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Radius</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Status</th>
-								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{locations.length === 0 ? (
-								<tr>
-									<td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada lokasi kerja.
-									</td>
-								</tr>
-							) : (
-								locations.map((location) => (
-									<tr
-										key={location.id}
-										className={`border-b border-blue-100 dark:border-blue-900/60 ${selectedLocationId === location.id ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
-									>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.nama}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kode ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.kota ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.provinsi ?? "-"}</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-											{location.radiusMeter == null ? "-" : `${location.radiusMeter} m`}
-										</td>
-										<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{location.isActive ? "Aktif" : "Tidak Aktif"}</td>
-										<td className="px-4 py-3 text-right">
-												<EditButton
-													type="button"
-													size="xs"
-													withIcon={false}
-													onClick={() => {
-														setSelectedLocationId(location.id);
-														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-													}}
-												>
-													Edit
-												</EditButton>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="p-4">
+					<DataTable
+						data={locations}
+						columns={kolomLokasi}
+						getRowId={(location) => location.id}
+						emptyMessage="Belum ada lokasi kerja."
+					/>
 				</div>
 			</div>
 		</form>

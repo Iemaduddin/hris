@@ -13,6 +13,7 @@ import {
 	type GajiKaryawanItem,
 	type KomponenItem,
 } from "../actions/payroll.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const KELOMPOK_OPTIONS = [
 	{ value: "PENDAPATAN", label: "Pendapatan" },
@@ -116,6 +117,70 @@ export default function KomponenClient({
 		});
 	}
 
+	function handleHapusKomponen(id: string) {
+		if (!confirm("Hapus komponen ini?")) return;
+		startTransition(async () => {
+			const result = await deleteKomponen(id);
+			if (!result.success) {
+				toast.error(result.message);
+				return;
+			}
+			toast.success(result.message);
+			router.refresh();
+		});
+	}
+
+	const kolomKomponen: DataTableColumn<KomponenItem>[] = [
+		{
+			id: "kode",
+			header: "Kode",
+			render: (item) => <span className="font-medium">{item.kode}</span>,
+			sortValue: (item) => item.kode,
+			searchValue: (item) => `${item.kode} ${item.nama}`,
+		},
+		{ id: "nama", header: "Nama", accessor: "nama" },
+		{ id: "kelompok", header: "Kelompok", accessor: "kelompok" },
+		{
+			id: "tipe",
+			header: "Tipe",
+			render: (item) => <span>{item.tipe.replaceAll("_", " ")}</span>,
+			sortValue: (item) => item.tipe,
+			searchValue: (item) => item.tipe.replaceAll("_", " "),
+		},
+		{
+			id: "nilai",
+			header: "Nilai",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.tipe === "PERSEN" ? `${item.nilai}%` : rupiah.format(Number(item.nilai))}</span>,
+			sortValue: (item) => Number(item.nilai),
+			searchable: false,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (item) => (
+				<div className="inline-flex gap-2">
+					<button type="button" onClick={() => applySelection(item.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+						Edit
+					</button>
+					<button
+						type="button"
+						disabled={isPending}
+						onClick={() => handleHapusKomponen(item.id)}
+						className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+					>
+						Hapus
+					</button>
+				</div>
+			),
+		},
+	];
+
 	function pickAssignKaryawan(id: string) {
 		setAssignKaryawan(id);
 		const found = assignMap.find((a) => a.karyawanId === id);
@@ -168,56 +233,13 @@ export default function KomponenClient({
 						Simpan
 					</button>
 				</div>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold">Kelompok</th>
-								<th className="px-4 py-3 text-left font-semibold">Tipe</th>
-								<th className="px-4 py-3 text-right font-semibold">Nilai</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.map((item) => (
-								<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-									<td className="px-4 py-3 font-medium">{item.kode}</td>
-									<td className="px-4 py-3">{item.nama}</td>
-									<td className="px-4 py-3">{item.kelompok}</td>
-									<td className="px-4 py-3">{item.tipe.replaceAll("_", " ")}</td>
-									<td className="px-4 py-3 text-right">{item.tipe === "PERSEN" ? `${item.nilai}%` : rupiah.format(Number(item.nilai))}</td>
-									<td className="px-4 py-3 text-right">
-										<div className="inline-flex gap-2">
-											<button type="button" onClick={() => applySelection(item.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-												Edit
-											</button>
-											<button
-												type="button"
-												disabled={isPending}
-												onClick={() => {
-													if (!confirm("Hapus komponen ini?")) return;
-													startTransition(async () => {
-														const result = await deleteKomponen(item.id);
-														if (!result.success) {
-															toast.error(result.message);
-															return;
-														}
-														toast.success(result.message);
-														router.refresh();
-													});
-												}}
-												className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-											>
-												Hapus
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={items}
+						columns={kolomKomponen}
+						getRowId={(item) => item.id}
+						emptyMessage="Belum ada komponen. Klik “Seed Default MVP”."
+					/>
 				</div>
 			</div>
 

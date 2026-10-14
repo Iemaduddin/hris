@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { ajukanOffboarding, batalkanOffboarding, buatOffboarding } from "@/src/modules/employee/actions/offboarding.actions";
+
+type OffboardingSayaRow = { id: string; tanggalRencana: string; status: string; nomorPaklaring: string | null };
 
 export default function OffboardingSayaClient({
   userId,
@@ -13,7 +16,7 @@ export default function OffboardingSayaClient({
 }: {
   userId: string;
   karyawanId: string;
-  items: Array<{ id: string; tanggalRencana: string; status: string; nomorPaklaring: string | null }>;
+  items: OffboardingSayaRow[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -46,6 +49,54 @@ export default function OffboardingSayaClient({
     });
   }
 
+  const kolomRiwayat: DataTableColumn<OffboardingSayaRow>[] = [
+    {
+      id: "rencana",
+      header: "Rencana",
+      render: (o) => <span className="font-medium">{o.tanggalRencana}</span>,
+      sortValue: (o) => o.tanggalRencana,
+      searchValue: (o) => o.tanggalRencana,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (o) => <span>{o.status.replaceAll("_", " ")}</span>,
+      sortValue: (o) => o.status,
+      searchValue: (o) => o.status.replaceAll("_", " "),
+    },
+    {
+      id: "paklaring",
+      header: "Paklaring",
+      render: (o) => <span>{o.nomorPaklaring ?? "-"}</span>,
+      sortValue: (o) => o.nomorPaklaring ?? "-",
+      searchValue: (o) => o.nomorPaklaring ?? "",
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (o) => (
+        <div className="inline-flex gap-2">
+          {o.status === "DIAJUKAN" ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              Ajukan
+            </button>
+          ) : null}
+          {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
+            <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              Batalkan
+            </button>
+          ) : (
+            <span className="text-xs text-slate-400">-</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -65,48 +116,13 @@ export default function OffboardingSayaClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Rencana</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-left font-semibold">Paklaring</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Belum ada pengajuan.</td>
-                </tr>
-              ) : (
-                items.map((o) => (
-                  <tr key={o.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{o.tanggalRencana}</td>
-                    <td className="px-4 py-3">{o.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3">{o.nomorPaklaring ?? "-"}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-2">
-                        {o.status === "DIAJUKAN" ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                            Ajukan
-                          </button>
-                        ) : null}
-                        {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
-                          <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                            Batalkan
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">-</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomRiwayat}
+            getRowId={(o) => o.id}
+            emptyMessage="Belum ada pengajuan."
+          />
         </div>
       </div>
     </div>

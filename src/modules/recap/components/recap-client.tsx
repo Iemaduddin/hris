@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { getRekapBulanan, hitungUlangRekapAction, type RekapBulananItem } from "../actions/recap.actions";
 
 type RekapClientProps = {
@@ -69,6 +70,78 @@ export default function RekapClient({ tahun, bulan, karyawanId, items, karyawanO
 		return acc;
 	}, {});
 
+	const kolomRekap: DataTableColumn<RekapBulananItem>[] = [
+		{
+			id: "tanggal",
+			header: "Tanggal",
+			render: (item) => <span>{dateFormatter.format(new Date(item.tanggal))}</span>,
+			sortValue: (item) => item.tanggal,
+			searchValue: (item) => dateFormatter.format(new Date(item.tanggal)),
+		},
+		{
+			id: "karyawan",
+			header: "Karyawan",
+			render: (item) => (
+				<span>
+					{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
+				</span>
+			),
+			sortValue: (item) => item.karyawanNama,
+			searchValue: (item) => `${item.karyawanNama} ${item.nomorKaryawan}`,
+		},
+		{
+			id: "status",
+			header: "Status",
+			render: (item) => (
+				<span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[item.status] ?? ""}`}>
+					{item.status}
+				</span>
+			),
+			sortValue: (item) => item.status,
+			searchValue: (item) => item.status,
+		},
+		{
+			id: "telat",
+			header: "Telat",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.telatMenit}&prime;</span>,
+			sortValue: (item) => item.telatMenit,
+			searchable: false,
+		},
+		{
+			id: "pulangCepat",
+			header: "Pulang Cepat",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.pulangCepatMenit}&prime;</span>,
+			sortValue: (item) => item.pulangCepatMenit,
+			searchable: false,
+		},
+		{
+			id: "lembur",
+			header: "Lembur",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.lemburMenit}&prime;</span>,
+			sortValue: (item) => item.lemburMenit,
+			searchable: false,
+		},
+		{
+			id: "masukKeluar",
+			header: "Masuk–Keluar",
+			sortable: false,
+			searchable: false,
+			render: (item) => (
+				<span>
+					{item.masukAktual ? timeFormatter.format(new Date(item.masukAktual)) : "-"}
+					{" – "}
+					{item.keluarAktual ? timeFormatter.format(new Date(item.keluarAktual)) : "-"}
+				</span>
+			),
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -115,51 +188,13 @@ export default function RekapClient({ tahun, bulan, karyawanId, items, karyawanO
 			</div>
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Status</th>
-								<th className="px-4 py-3 text-right font-semibold">Telat</th>
-								<th className="px-4 py-3 text-right font-semibold">Pulang Cepat</th>
-								<th className="px-4 py-3 text-right font-semibold">Lembur</th>
-								<th className="px-4 py-3 text-left font-semibold">Masuk–Keluar</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.length === 0 ? (
-								<tr>
-									<td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-										Belum ada rekap. Klik “Hitung Ulang Periode Ini”.
-									</td>
-								</tr>
-							) : (
-								items.map((item) => (
-									<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{dateFormatter.format(new Date(item.tanggal))}</td>
-										<td className="px-4 py-3">
-											{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
-										</td>
-										<td className="px-4 py-3">
-											<span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[item.status] ?? ""}`}>
-												{item.status}
-											</span>
-										</td>
-										<td className="px-4 py-3 text-right">{item.telatMenit}&prime;</td>
-										<td className="px-4 py-3 text-right">{item.pulangCepatMenit}&prime;</td>
-										<td className="px-4 py-3 text-right">{item.lemburMenit}&prime;</td>
-										<td className="px-4 py-3">
-											{item.masukAktual ? timeFormatter.format(new Date(item.masukAktual)) : "-"}
-											{" – "}
-											{item.keluarAktual ? timeFormatter.format(new Date(item.keluarAktual)) : "-"}
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={items}
+						columns={kolomRekap}
+						getRowId={(item) => String(item.id)}
+						emptyMessage="Belum ada rekap. Klik “Hitung Ulang Periode Ini”."
+					/>
 				</div>
 			</div>
 		</div>

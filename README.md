@@ -58,6 +58,7 @@ Akun demo dibuat via seed (`prisma/seed*.ts`): `employee@example.com` dan `admin
 | `npx tsc --noEmit` | typecheck |
 | `npm test` | unit test (Jest) |
 | `npm run seed:all` | seed ulang dev berurutan (master → karyawan → demo) |
+| `npm run seed:demo-besar` | dataset demo ~300 karyawan (rekap, roster, run terbit; idempoten) |
 
 ## API v1 (ringkas)
 

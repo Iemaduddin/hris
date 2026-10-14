@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { prosesPengajuanAction, type RiwayatApprovalItem } from "../actions/approval.actions";
 import type { AntrianItem, ReferensiType } from "../lib/approval-engine";
 
@@ -16,6 +17,8 @@ const TYPE_LABEL: Record<string, string> = {
 	PROBATION: "Probation",
 	TUKAR_SHIFT: "Tukar Shift",
 	KOREKSI: "Koreksi Presensi",
+	REIMBURSE: "Reimbursement",
+	UANGDINAS: "Uang Dinas",
 };
 
 export default function ApprovalClient({
@@ -46,64 +49,87 @@ export default function ApprovalClient({
 		});
 	}
 
+	const kolomAntrian: DataTableColumn<AntrianItem>[] = [
+		{
+			id: "jenis",
+			header: "Jenis",
+			render: (item) => <span className="font-medium">{TYPE_LABEL[item.type] ?? item.type}</span>,
+			sortValue: (item) => TYPE_LABEL[item.type] ?? item.type,
+			searchValue: (item) => `${TYPE_LABEL[item.type] ?? item.type} ${item.type}`,
+		},
+		{ id: "nomor", header: "Nomor", accessor: "nomor" },
+		{
+			id: "karyawan",
+			header: "Karyawan",
+			render: (item) => (
+				<span>
+					{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
+				</span>
+			),
+			sortValue: (item) => item.karyawanNama,
+			searchValue: (item) => `${item.karyawanNama} ${item.nomorKaryawan}`,
+		},
+		{ id: "ringkasan", header: "Ringkasan", accessor: "ringkasan" },
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (item) => (
+				<div className="inline-flex gap-2">
+					<button
+						type="button"
+						onClick={() => handleProses(item.type, item.id, "SETUJU")}
+						disabled={isPending}
+						className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+					>
+						Setuju
+					</button>
+					<button
+						type="button"
+						onClick={() => handleProses(item.type, item.id, "TOLAK")}
+						disabled={isPending}
+						className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+					>
+						Tolak
+					</button>
+				</div>
+			),
+		},
+	];
+
+	const kolomRiwayat: DataTableColumn<RiwayatApprovalItem>[] = [
+		{
+			id: "jenis",
+			header: "Jenis",
+			render: (r) => <span>{TYPE_LABEL[r.type] ?? r.type}</span>,
+			sortValue: (r) => TYPE_LABEL[r.type] ?? r.type,
+		},
+		{ id: "tahap", header: "Tahap", accessor: "tahap" },
+		{ id: "status", header: "Keputusan", accessor: "status" },
+		{
+			id: "waktu",
+			header: "Waktu",
+			render: (r) => <span>{r.diprosesPada ? new Date(r.diprosesPada).toLocaleString("id-ID") : "-"}</span>,
+			sortValue: (r) => r.diprosesPada ?? "",
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 				<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
 					Menunggu Persetujuan ({antrian.length})
 				</h2>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Jenis</th>
-								<th className="px-4 py-3 text-left font-semibold">Nomor</th>
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Ringkasan</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{antrian.length === 0 ? (
-								<tr>
-									<td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-										Tidak ada yang menunggu.
-									</td>
-								</tr>
-							) : (
-								antrian.map((item) => (
-									<tr key={`${item.type}-${item.id}`} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3 font-medium">{TYPE_LABEL[item.type] ?? item.type}</td>
-										<td className="px-4 py-3">{item.nomor}</td>
-										<td className="px-4 py-3">
-											{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
-										</td>
-										<td className="px-4 py-3">{item.ringkasan}</td>
-										<td className="px-4 py-3 text-right">
-											<div className="inline-flex gap-2">
-												<button
-													type="button"
-													onClick={() => handleProses(item.type, item.id, "SETUJU")}
-													disabled={isPending}
-													className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-												>
-													Setuju
-												</button>
-												<button
-													type="button"
-													onClick={() => handleProses(item.type, item.id, "TOLAK")}
-													disabled={isPending}
-													className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-												>
-													Tolak
-												</button>
-											</div>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={antrian}
+						columns={kolomAntrian}
+						getRowId={(item) => `${item.type}-${item.id}`}
+						emptyMessage="Tidak ada yang menunggu."
+					/>
 				</div>
 				<div className="mt-4 max-w-md">
 					<FloatingInput
@@ -117,35 +143,13 @@ export default function ApprovalClient({
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 				<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Riwayat Keputusan Saya</h2>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Jenis</th>
-								<th className="px-4 py-3 text-left font-semibold">Tahap</th>
-								<th className="px-4 py-3 text-left font-semibold">Keputusan</th>
-								<th className="px-4 py-3 text-left font-semibold">Waktu</th>
-							</tr>
-						</thead>
-						<tbody>
-							{riwayat.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-										Belum ada riwayat.
-									</td>
-								</tr>
-							) : (
-								riwayat.map((r) => (
-									<tr key={r.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{TYPE_LABEL[r.type] ?? r.type}</td>
-										<td className="px-4 py-3">{r.tahap}</td>
-										<td className="px-4 py-3 font-medium">{r.status}</td>
-										<td className="px-4 py-3">{r.diprosesPada ? new Date(r.diprosesPada).toLocaleString("id-ID") : "-"}</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={riwayat}
+						columns={kolomRiwayat}
+						getRowId={(r) => r.id}
+						emptyMessage="Belum ada riwayat."
+					/>
 				</div>
 			</div>
 		</div>

@@ -697,6 +697,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "Reimbursement",
+      "item": [
+        {
+          "name": "Daftar Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/reimburse",
+            "header": []
+          }
+        },
+        {
+          "name": "Buat Draf",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/reimburse",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kategori\": \"TRANSPORT\",\n  \"tanggalKwitansi\": \"2026-11-01\",\n  \"nominal\": 150000,\n  \"keterangan\": \"Bensin dinas\",\n  \"lampiranUrl\": \"pengajuan/xxx/struk.jpg\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ajukan / Batal",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/reimburse",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"ID_KLAIM\",\n  \"aksi\": \"ajukan\"\n}"
+            },
+            "description": "aksi: \"ajukan\" | \"batal\". Lampiran diunggah via POST /api/files."
+          }
+        }
+      ]
     }
   ]
 }

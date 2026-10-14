@@ -14,6 +14,7 @@ import type {
 	OrganizationalUnitFormValues,
 	OrganizationalUnitOption,
 } from "../types/organizational-unit.type";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const EMPTY_FORM: OrganizationalUnitFormValues = {
 	id: "",
@@ -63,6 +64,19 @@ function toFormValues(unit?: OrganizationalUnitOption): OrganizationalUnitFormVa
 	};
 }
 
+function UnitAksiCell({ unitId, onPilih }: { unitId: string; onPilih: (id: string) => void }) {
+	return (
+		<EditButton
+			type="button"
+			size="xs"
+			withIcon={false}
+			onClick={() => onPilih(unitId)}
+		>
+			Edit
+		</EditButton>
+	);
+}
+
 export default function OrganizationalUnitForm({ units }: OrganizationalUnitFormProps) {
 	const [state, formAction] = useActionState<OrganizationalUnitActionResult | null, FormData>(submitOrganizationalUnitAction, null);
 	const router = useRouter();
@@ -103,6 +117,52 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 		}
 		return map;
 	}, [units]);
+
+	function handlePilihEdit(id: string) {
+		setSelectedUnitId(id);
+		formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	const kolomUnit: DataTableColumn<OrganizationalUnitOption>[] = [
+		{
+			id: "nama",
+			header: "Nama Unit",
+			render: (unit) => {
+				const depth = getDepth(unit, units);
+				return (
+					<span style={{ paddingLeft: `${depth * 16}px` }} className="inline-flex items-center gap-2">
+						{depth > 0 ? <span className="text-slate-400 dark:text-slate-500">↳</span> : null}
+						<span className="font-medium">{unit.nama}</span>
+					</span>
+				);
+			},
+			sortValue: (unit) => unit.nama,
+			searchValue: (unit) => `${unit.nama} ${unit.kode ?? ""}`,
+		},
+		{
+			id: "kode",
+			header: "Kode",
+			render: (unit) => <span>{unit.kode ?? "-"}</span>,
+			sortValue: (unit) => unit.kode ?? "-",
+			searchValue: (unit) => unit.kode ?? "",
+		},
+		{
+			id: "parent",
+			header: "Parent",
+			render: (unit) => <span>{unit.parentId ? (parentNameMap.get(unit.parentId) ?? "-") : "Root"}</span>,
+			sortValue: (unit) => (unit.parentId ? (parentNameMap.get(unit.parentId) ?? "-") : "Root"),
+			searchValue: (unit) => (unit.parentId ? (parentNameMap.get(unit.parentId) ?? "") : "Root"),
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (unit) => <UnitAksiCell unitId={unit.id} onPilih={handlePilihEdit} />,
+		},
+	];
 
 	useEffect(() => {
 		if (!state || state.success || !state.errors) return;
@@ -225,59 +285,13 @@ export default function OrganizationalUnitForm({ units }: OrganizationalUnitForm
 					<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Klik Edit untuk memuat data ke form di atas.</p>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Nama Unit</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-100">Parent</th>
-								<th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-100">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{units.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-										Belum ada unit organisasi.
-									</td>
-								</tr>
-							) : (
-								units.map((unit) => {
-									const isSelected = selectedUnitId === unit.id;
-									const depth = getDepth(unit, units);
-									return (
-										<tr
-											key={unit.id}
-											className={`border-b border-blue-100 dark:border-blue-900/60 ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
-										>
-											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-												<span style={{ paddingLeft: `${depth * 16}px` }} className="inline-flex items-center gap-2">
-													{depth > 0 ? <span className="text-slate-400 dark:text-slate-500">↳</span> : null}
-													<span>{unit.nama}</span>
-												</span>
-											</td>
-											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.kode ?? "-"}</td>
-											<td className="px-4 py-3 text-slate-700 dark:text-slate-200">{unit.parentId ? (parentNameMap.get(unit.parentId) ?? "-") : "Root"}</td>
-											<td className="px-4 py-3 text-right">
-												<EditButton
-													type="button"
-													size="xs"
-													withIcon={false}
-													onClick={() => {
-														setSelectedUnitId(unit.id);
-														formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-													}}
-												>
-													Edit
-												</EditButton>
-											</td>
-										</tr>
-									);
-								})
-							)}
-						</tbody>
-					</table>
+				<div className="p-4">
+					<DataTable
+						data={units}
+						columns={kolomUnit}
+						getRowId={(unit) => unit.id}
+						emptyMessage="Belum ada unit organisasi."
+					/>
 				</div>
 			</div>
 		</form>

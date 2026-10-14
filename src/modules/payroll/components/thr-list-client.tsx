@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { buatThrRun, hapusThrRun, type ThrRunItem } from "../actions/thr.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
@@ -40,6 +41,94 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
     });
   }
 
+  function handleHapus(id: string) {
+    if (!confirm("Hapus THR run ini?")) return;
+    startTransition(async () => {
+      const result = await hapusThrRun(id);
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
+  }
+
+  const kolomThr: DataTableColumn<ThrRunItem>[] = [
+    {
+      id: "thr",
+      header: "THR",
+      render: (r) => <span className="font-medium">{r.namaHariRaya} {r.tahun}</span>,
+      sortValue: (r) => `${r.tahun} ${r.namaHariRaya}`,
+      searchValue: (r) => `${r.namaHariRaya} ${r.tahun}`,
+    },
+    { id: "hariRaya", header: "Hari Raya", accessor: "tanggalHariRaya" },
+    {
+      id: "bayar",
+      header: "Bayar",
+      render: (r) => (
+        <span>
+          {r.tanggalBayar}
+          {r.terlambat ? (
+            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">lewat H-7</span>
+          ) : null}
+        </span>
+      ),
+      sortValue: (r) => r.tanggalBayar,
+      searchable: false,
+    },
+    {
+      id: "status",
+      header: "Status",
+      render: (r) => <span>{r.status.replaceAll("_", " ")}</span>,
+      sortValue: (r) => r.status,
+      searchValue: (r) => r.status.replaceAll("_", " "),
+    },
+    {
+      id: "jumlahKaryawan",
+      header: "Karyawan",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (r) => <span>{r.jumlahKaryawan}</span>,
+      sortValue: (r) => r.jumlahKaryawan,
+      searchable: false,
+    },
+    {
+      id: "totalBersih",
+      header: "Total Bersih",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (r) => <span>{rupiah.format(Number(r.totalBersih))}</span>,
+      sortValue: (r) => Number(r.totalBersih),
+      searchable: false,
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (r) => (
+        <div className="inline-flex gap-2">
+          <Link href={`/payroll/thr/${r.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+            Buka
+          </Link>
+          {["DRAF", "DIHITUNG"].includes(r.status) ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => handleHapus(r.id)}
+              className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+            >
+              Hapus
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -71,73 +160,13 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">THR</th>
-                <th className="px-4 py-3 text-left font-semibold">Hari Raya</th>
-                <th className="px-4 py-3 text-left font-semibold">Bayar</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Karyawan</th>
-                <th className="px-4 py-3 text-right font-semibold">Total Bersih</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                    Belum ada THR run.
-                  </td>
-                </tr>
-              ) : (
-                runs.map((r) => (
-                  <tr key={r.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{r.namaHariRaya} {r.tahun}</td>
-                    <td className="px-4 py-3">{r.tanggalHariRaya}</td>
-                    <td className="px-4 py-3">
-                      {r.tanggalBayar}
-                      {r.terlambat ? (
-                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">lewat H-7</span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">{r.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">{r.jumlahKaryawan}</td>
-                    <td className="px-4 py-3 text-right">{rupiah.format(Number(r.totalBersih))}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-2">
-                        <Link href={`/payroll/thr/${r.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-                          Buka
-                        </Link>
-                        {["DRAF", "DIHITUNG"].includes(r.status) ? (
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => {
-                              if (!confirm("Hapus THR run ini?")) return;
-                              startTransition(async () => {
-                                const result = await hapusThrRun(r.id);
-                                if (!result.success) {
-                                  toast.error(result.message);
-                                  return;
-                                }
-                                toast.success(result.message);
-                                router.refresh();
-                              });
-                            }}
-                            className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-                          >
-                            Hapus
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={runs}
+            columns={kolomThr}
+            getRowId={(r) => r.id}
+            emptyMessage="Belum ada THR run."
+          />
         </div>
       </div>
     </div>

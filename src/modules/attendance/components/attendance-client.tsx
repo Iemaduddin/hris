@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { catatPresensi, koreksiPresensi, type PresensiListItem } from "../actions/attendance.actions";
 
 const TIPE_OPTIONS = [
@@ -63,6 +64,67 @@ export default function PresensiClient({ tanggal, items, karyawanOptions }: Pres
 			router.refresh();
 		});
 	}
+
+	const kolomPresensi: DataTableColumn<PresensiListItem>[] = [
+		{
+			id: "waktu",
+			header: "Waktu",
+			render: (item) => <span>{timeFormatter.format(new Date(item.waktu))}</span>,
+			sortValue: (item) => item.waktu,
+			searchable: false,
+		},
+		{
+			id: "karyawan",
+			header: "Karyawan",
+			render: (item) => (
+				<span>
+					{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
+				</span>
+			),
+			sortValue: (item) => item.karyawanNama,
+			searchValue: (item) => `${item.karyawanNama} ${item.nomorKaryawan}`,
+		},
+		{
+			id: "tipe",
+			header: "Tipe",
+			render: (item) => <span>{item.tipe.replaceAll("_", " ")}</span>,
+			sortValue: (item) => item.tipe,
+			searchValue: (item) => item.tipe.replaceAll("_", " "),
+		},
+		{ id: "sumber", header: "Sumber", accessor: "sumber" },
+		{ id: "status", header: "Status", accessor: "status" },
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (item) =>
+				item.status === "VALID" ? (
+					<div className="inline-flex gap-2">
+						<button
+							type="button"
+							onClick={() => handleKoreksi(item.id, "DIKOREKSI")}
+							disabled={isPending}
+							className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60"
+						>
+							Koreksi
+						</button>
+						<button
+							type="button"
+							onClick={() => handleKoreksi(item.id, "DIBATALKAN")}
+							disabled={isPending}
+							className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+						>
+							Batal
+						</button>
+					</div>
+				) : (
+					<span className="text-xs text-slate-400">{item.catatan ?? "-"}</span>
+				),
+		},
+	];
 
 	return (
 		<div className="space-y-5">
@@ -124,64 +186,13 @@ export default function PresensiClient({ tanggal, items, karyawanOptions }: Pres
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 				<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log {tanggal}</h2>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Waktu</th>
-								<th className="px-4 py-3 text-left font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-left font-semibold">Tipe</th>
-								<th className="px-4 py-3 text-left font-semibold">Sumber</th>
-								<th className="px-4 py-3 text-left font-semibold">Status</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.length === 0 ? (
-								<tr>
-									<td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-										Belum ada presensi pada tanggal ini.
-									</td>
-								</tr>
-							) : (
-								items.map((item) => (
-									<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{timeFormatter.format(new Date(item.waktu))}</td>
-										<td className="px-4 py-3">
-											{item.karyawanNama} <span className="text-xs text-slate-500">({item.nomorKaryawan})</span>
-										</td>
-										<td className="px-4 py-3">{item.tipe.replaceAll("_", " ")}</td>
-										<td className="px-4 py-3">{item.sumber}</td>
-										<td className="px-4 py-3">{item.status}</td>
-										<td className="px-4 py-3 text-right">
-											{item.status === "VALID" ? (
-												<div className="inline-flex gap-2">
-													<button
-														type="button"
-														onClick={() => handleKoreksi(item.id, "DIKOREKSI")}
-														disabled={isPending}
-														className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60"
-													>
-														Koreksi
-													</button>
-													<button
-														type="button"
-														onClick={() => handleKoreksi(item.id, "DIBATALKAN")}
-														disabled={isPending}
-														className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-													>
-														Batal
-													</button>
-												</div>
-											) : (
-												<span className="text-xs text-slate-400">{item.catatan ?? "-"}</span>
-											)}
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<DataTable
+						data={items}
+						columns={kolomPresensi}
+						getRowId={(item) => item.id}
+						emptyMessage="Belum ada presensi pada tanggal ini."
+					/>
 				</div>
 			</div>
 		</div>

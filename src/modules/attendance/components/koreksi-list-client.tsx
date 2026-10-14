@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { ajukanKoreksi, batalkanKoreksi, buatKoreksi, type KoreksiItem } from "@/src/modules/attendance/actions/koreksi.actions";
 
 const TIPE_OPTIONS = [
@@ -40,6 +41,51 @@ export default function KoreksiListClient({
     });
   }
 
+  const kolomKoreksi: DataTableColumn<KoreksiItem>[] = [
+    {
+      id: "tanggal",
+      header: "Tanggal",
+      render: (k) => <span className="font-medium">{k.tanggal}</span>,
+      sortValue: (k) => k.tanggal,
+      searchValue: (k) => k.tanggal,
+    },
+    {
+      id: "tipe",
+      header: "Tipe",
+      render: (k) => <span>{k.tipe.replaceAll("_", " ")}</span>,
+      sortValue: (k) => k.tipe,
+      searchValue: (k) => k.tipe.replaceAll("_", " "),
+    },
+    { id: "waktuBaru", header: "Jam Benar", accessor: "waktuBaru" },
+    {
+      id: "status",
+      header: "Status",
+      render: (k) => <span>{k.status.replaceAll("_", " ")}</span>,
+      sortValue: (k) => k.status,
+      searchValue: (k) => k.status.replaceAll("_", " "),
+    },
+    {
+      id: "aksi",
+      header: "Aksi",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      sortable: false,
+      searchable: false,
+      render: (k) =>
+        k.status === "DRAFT" ? (
+          <button type="button" disabled={isPending} onClick={() => runAction(ajukanKoreksi(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            Ajukan
+          </button>
+        ) : ["DRAFT", "DIAJUKAN"].includes(k.status) ? (
+          <button type="button" disabled={isPending} onClick={() => runAction(batalkanKoreksi(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            Batalkan
+          </button>
+        ) : (
+          <span className="text-xs text-slate-400">-</span>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -73,47 +119,13 @@ export default function KoreksiListClient({
       </div>
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-blue-100 dark:border-blue-900/60">
-                <th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-                <th className="px-4 py-3 text-left font-semibold">Tipe</th>
-                <th className="px-4 py-3 text-left font-semibold">Jam Benar</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Belum ada pengajuan.</td>
-                </tr>
-              ) : (
-                items.map((k) => (
-                  <tr key={k.id} className="border-b border-blue-100 dark:border-blue-900/60">
-                    <td className="px-4 py-3 font-medium">{k.tanggal}</td>
-                    <td className="px-4 py-3">{k.tipe.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3">{k.waktuBaru}</td>
-                    <td className="px-4 py-3">{k.status.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 text-right">
-                      {k.status === "DRAFT" ? (
-                        <button type="button" disabled={isPending} onClick={() => runAction(ajukanKoreksi(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                          Ajukan
-                        </button>
-                      ) : ["DRAFT", "DIAJUKAN"].includes(k.status) ? (
-                        <button type="button" disabled={isPending} onClick={() => runAction(batalkanKoreksi(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                          Batalkan
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-2">
+          <DataTable
+            data={items}
+            columns={kolomKoreksi}
+            getRowId={(k) => k.id}
+            emptyMessage="Belum ada pengajuan."
+          />
         </div>
       </div>
     </div>

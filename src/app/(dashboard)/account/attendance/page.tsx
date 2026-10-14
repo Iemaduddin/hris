@@ -3,8 +3,7 @@ import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { getRekapBulanan } from "@/src/modules/recap/actions/recap.actions";
 import { hitungRekapHarian } from "@/src/modules/recap/lib/recap-engine";
-
-const dateFormatter = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short" });
+import AttendanceTable from "./attendance-table";
 
 export default async function PresensiSayaPage({
 	searchParams,
@@ -57,35 +56,8 @@ export default async function PresensiSayaPage({
 				<h2 className="text-lg font-semibold">
 					Rekap {tahun}-{String(bulan).padStart(2, "0")}
 				</h2>
-				<div className="mt-4 overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Tanggal</th>
-								<th className="px-4 py-3 text-left font-semibold">Status</th>
-								<th className="px-4 py-3 text-right font-semibold">Telat</th>
-								<th className="px-4 py-3 text-right font-semibold">Lembur</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-										Belum ada rekap periode ini.
-									</td>
-								</tr>
-							) : (
-								items.map((item) => (
-									<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3">{dateFormatter.format(new Date(item.tanggal))}</td>
-										<td className="px-4 py-3 font-medium">{item.status.replaceAll("_", " ")}</td>
-										<td className="px-4 py-3 text-right">{item.telatMenit}&prime;</td>
-										<td className="px-4 py-3 text-right">{item.lemburMenit}&prime;</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-4">
+					<AttendanceTable items={items} />
 				</div>
 				<p className="mt-3 text-xs text-slate-400">
 					Untuk presensi mandiri gunakan aplikasi mobile (clock-in/out).

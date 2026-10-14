@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { deleteJenisCuti, generateSaldoAction, saveJenisCuti, type JenisCutiItem } from "../actions/leave.actions";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const KATEGORI_OPTIONS = [
 	{ value: "CUTI", label: "Cuti" },
@@ -93,6 +94,52 @@ export default function JenisCutiForm({ items, tahunAktif }: { items: JenisCutiI
 		});
 	}
 
+	const kolomJenis: DataTableColumn<JenisCutiItem>[] = [
+		{
+			id: "kode",
+			header: "Kode",
+			render: (item) => <span className="font-medium">{item.kode}</span>,
+			sortValue: (item) => item.kode,
+			searchValue: (item) => `${item.kode} ${item.nama}`,
+		},
+		{ id: "nama", header: "Nama", accessor: "nama" },
+		{ id: "kategori", header: "Kategori", accessor: "kategori" },
+		{
+			id: "jatah",
+			header: "Jatah",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (item) => <span>{item.menggunakanSaldo ? item.jatahTahunan : "-"}</span>,
+			sortValue: (item) => Number(item.jatahTahunan ?? 0),
+			searchable: false,
+		},
+		{
+			id: "aktif",
+			header: "Aktif",
+			render: (item) => <span>{item.isActive ? "Ya" : "Tidak"}</span>,
+			sortValue: (item) => (item.isActive ? "Ya" : "Tidak"),
+			searchable: false,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (item) => (
+				<div className="inline-flex gap-2">
+					<button type="button" onClick={() => applySelection(item.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+						Edit
+					</button>
+					<button type="button" onClick={() => handleDelete(item.id)} disabled={isPending} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+						Hapus
+					</button>
+				</div>
+			),
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -130,41 +177,14 @@ export default function JenisCutiForm({ items, tahunAktif }: { items: JenisCutiI
 				</div>
 			</div>
 
-			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Kode</th>
-								<th className="px-4 py-3 text-left font-semibold">Nama</th>
-								<th className="px-4 py-3 text-left font-semibold">Kategori</th>
-								<th className="px-4 py-3 text-right font-semibold">Jatah</th>
-								<th className="px-4 py-3 text-left font-semibold">Aktif</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.map((item) => (
-								<tr key={item.id} className="border-b border-blue-100 dark:border-blue-900/60">
-									<td className="px-4 py-3 font-medium">{item.kode}</td>
-									<td className="px-4 py-3">{item.nama}</td>
-									<td className="px-4 py-3">{item.kategori}</td>
-									<td className="px-4 py-3 text-right">{item.menggunakanSaldo ? item.jatahTahunan : "-"}</td>
-									<td className="px-4 py-3">{item.isActive ? "Ya" : "Tidak"}</td>
-									<td className="px-4 py-3 text-right">
-										<div className="inline-flex gap-2">
-											<button type="button" onClick={() => applySelection(item.id)} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-												Edit
-											</button>
-											<button type="button" onClick={() => handleDelete(item.id)} disabled={isPending} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
-												Hapus
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+		<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+				<div className="mt-2">
+					<DataTable
+						data={items}
+						columns={kolomJenis}
+						getRowId={(item) => String(item.id)}
+						emptyMessage="Belum ada jenis cuti/izin."
+					/>
 				</div>
 			</div>
 		</div>

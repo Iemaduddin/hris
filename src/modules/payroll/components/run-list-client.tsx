@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
+import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import { buatSalaryRun, hapusRun, type SalaryRunItem } from "../actions/payroll.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
@@ -31,6 +32,79 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 		});
 	}
 
+	function handleHapus(id: string) {
+		if (!confirm("Hapus run ini?")) return;
+		startTransition(async () => {
+			const result = await hapusRun(id);
+			if (!result.success) {
+				toast.error(result.message);
+				return;
+			}
+			toast.success(result.message);
+			router.refresh();
+		});
+	}
+
+	const kolomRun: DataTableColumn<SalaryRunItem>[] = [
+		{
+			id: "periode",
+			header: "Periode",
+			render: (r) => <span className="font-medium">{r.periode}</span>,
+			sortValue: (r) => r.periode,
+			searchValue: (r) => r.periode,
+		},
+		{
+			id: "status",
+			header: "Status",
+			render: (r) => <span>{r.status.replaceAll("_", " ")}</span>,
+			sortValue: (r) => r.status,
+			searchValue: (r) => r.status.replaceAll("_", " "),
+		},
+		{
+			id: "jumlahKaryawan",
+			header: "Karyawan",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (r) => <span>{r.jumlahKaryawan}</span>,
+			sortValue: (r) => r.jumlahKaryawan,
+			searchable: false,
+		},
+		{
+			id: "totalBersih",
+			header: "Total Bersih",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			render: (r) => <span>{rupiah.format(Number(r.totalBersih))}</span>,
+			sortValue: (r) => Number(r.totalBersih),
+			searchable: false,
+		},
+		{
+			id: "aksi",
+			header: "Aksi",
+			headerClassName: "text-right",
+			cellClassName: "text-right",
+			sortable: false,
+			searchable: false,
+			render: (r) => (
+				<div className="inline-flex gap-2">
+					<Link href={`/payroll/run/${r.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+						Buka
+					</Link>
+					{["DRAF", "DIHITUNG"].includes(r.status) ? (
+						<button
+							type="button"
+							disabled={isPending}
+							onClick={() => handleHapus(r.id)}
+							className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+						>
+							Hapus
+						</button>
+					) : null}
+				</div>
+			),
+		},
+	];
+
 	return (
 		<div className="space-y-5">
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -44,64 +118,13 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 			</div>
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<div className="overflow-x-auto">
-					<table className="min-w-full text-sm">
-						<thead>
-							<tr className="border-b border-blue-100 dark:border-blue-900/60">
-								<th className="px-4 py-3 text-left font-semibold">Periode</th>
-								<th className="px-4 py-3 text-left font-semibold">Status</th>
-								<th className="px-4 py-3 text-right font-semibold">Karyawan</th>
-								<th className="px-4 py-3 text-right font-semibold">Total Bersih</th>
-								<th className="px-4 py-3 text-right font-semibold">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							{runs.length === 0 ? (
-								<tr>
-									<td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-										Belum ada salary run.
-									</td>
-								</tr>
-							) : (
-								runs.map((r) => (
-									<tr key={r.id} className="border-b border-blue-100 dark:border-blue-900/60">
-										<td className="px-4 py-3 font-medium">{r.periode}</td>
-										<td className="px-4 py-3">{r.status.replaceAll("_", " ")}</td>
-										<td className="px-4 py-3 text-right">{r.jumlahKaryawan}</td>
-										<td className="px-4 py-3 text-right">{rupiah.format(Number(r.totalBersih))}</td>
-										<td className="px-4 py-3 text-right">
-											<div className="inline-flex gap-2">
-												<Link href={`/payroll/run/${r.id}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
-													Buka
-												</Link>
-												{["DRAF", "DIHITUNG"].includes(r.status) ? (
-													<button
-														type="button"
-														disabled={isPending}
-														onClick={() => {
-															if (!confirm("Hapus run ini?")) return;
-															startTransition(async () => {
-																const result = await hapusRun(r.id);
-																if (!result.success) {
-																	toast.error(result.message);
-																	return;
-																}
-																toast.success(result.message);
-																router.refresh();
-															});
-														}}
-														className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-													>
-														Hapus
-													</button>
-												) : null}
-											</div>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+				<div className="mt-2">
+					<DataTable
+						data={runs}
+						columns={kolomRun}
+						getRowId={(r) => r.id}
+						emptyMessage="Belum ada salary run."
+					/>
 				</div>
 			</div>
 		</div>
