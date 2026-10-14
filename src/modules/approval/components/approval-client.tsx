@@ -12,6 +12,7 @@ const TYPE_LABEL: Record<string, string> = {
 	LEMBUR: "Lembur",
 	DINAS: "Dinas/WFH",
 	MUTASI: "Mutasi",
+	RESIGN: "Resign",
 };
 
 export default function ApprovalClient({

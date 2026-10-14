@@ -37,5 +37,6 @@ export type UserSummary = {
 	email: string;
 	role: UserRole;
 	emailVerified: boolean;
+	isActive: boolean;
 	createdAt: string;
 };

@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import ConfirmDialog from "@/src/components/ui/confirm-dialog";
 import {
   deleteUserAction,
+  setUserActiveAction,
 } from "../actions/user.actions";
 import type { UserSummary } from "../types/user.type";
 import Button from "@/src/components/ui/button";
@@ -77,6 +78,27 @@ export default function UserActionsCell({ user }: UserActionsCellProps) {
         className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-3 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
       >
         Hapus
+      </Button>
+
+      <Button
+        variant="soft"
+        styleMode="outline"
+        type="button"
+        onClick={() => {
+          startTransition(async () => {
+            const result = await setUserActiveAction(user.id, !user.isActive);
+            if (!result.success) {
+              toast.error(result.message || "Gagal mengubah status akun.");
+              return;
+            }
+            toast.success(result.message || "Status akun diubah.");
+            router.refresh();
+          });
+        }}
+        disabled={isPending || user.role === "SUPER_ADMIN"}
+        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 px-3 text-xs font-medium transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {user.isActive ? "Nonaktifkan" : "Aktifkan"}
       </Button>
 
       <ConfirmDialog

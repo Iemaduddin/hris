@@ -22,6 +22,16 @@ export async function requireAuthenticatedUser(redirectTo = "/login") {
 		redirect(redirectTo);
 	}
 
+	// Akun dinonaktifkan (mis. offboarding selesai) → cabut sesi + login ulang.
+	const currentUser = await prisma.user.findUnique({
+		where: { id: session.user.id },
+		select: { isActive: true },
+	});
+	if (!currentUser || currentUser.isActive === false) {
+		await prisma.session.deleteMany({ where: { userId: session.user.id } });
+		redirect(redirectTo);
+	}
+
 	return session;
 }
 

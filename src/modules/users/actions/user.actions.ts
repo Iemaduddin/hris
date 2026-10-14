@@ -36,6 +36,7 @@ export async function getUserSummaries(): Promise<UserSummary[]> {
 			email: true,
 			role: true,
 			emailVerified: true,
+			isActive: true,
 			createdAt: true,
 		},
 	});
@@ -46,6 +47,7 @@ export async function getUserSummaries(): Promise<UserSummary[]> {
 		email: user.email,
 		role: user.role as UserRole,
 		emailVerified: user.emailVerified,
+		isActive: user.isActive,
 		createdAt: user.createdAt.toISOString(),
 	}));
 }
@@ -286,6 +288,32 @@ export async function deleteUserAction(formData: FormData): Promise<UserActionRe
 		success: true,
 		message: "User berhasil dihapus.",
 	};
+}
+
+export async function setUserActiveAction(userId: string, aktif: boolean): Promise<UserActionResult> {
+	if (!(await canManageUsers())) {
+		return { success: false, message: "Anda tidak memiliki izin." };
+	}
+	if (!userId) return { success: false, message: "Pilih user." };
+
+	const { headers } = await import("next/headers");
+	const session = await auth.api.getSession({ headers: await headers() });
+	if (session && session.user.id === userId && !aktif) {
+		return { success: false, message: "Tidak bisa menonaktifkan akun sendiri." };
+	}
+
+	const target = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+	if (!target) return { success: false, message: "User tidak ditemukan." };
+	if (target.role === "SUPER_ADMIN" && !aktif) {
+		return { success: false, message: "Super Admin tidak boleh dinonaktifkan." };
+	}
+
+	await prisma.$transaction([
+		prisma.user.update({ where: { id: userId }, data: { isActive: aktif } }),
+		...(aktif ? [] : [prisma.session.deleteMany({ where: { userId } })]),
+	]);
+	revalidatePath("/users");
+	return { success: true, message: aktif ? "Akun diaktifkan." : "Akun dinonaktifkan + sesi dicabut." };
 }
 
 export async function getUserById(userId: string){

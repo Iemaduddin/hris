@@ -5,12 +5,14 @@ export const REFERENSI_CUTI = "CUTI";
 export const REFERENSI_LEMBUR = "LEMBUR";
 export const REFERENSI_DINAS = "DINAS";
 export const REFERENSI_MUTASI = "MUTASI";
+export const REFERENSI_RESIGN = "RESIGN";
 
 export type ReferensiType =
   | typeof REFERENSI_CUTI
   | typeof REFERENSI_LEMBUR
   | typeof REFERENSI_DINAS
-  | typeof REFERENSI_MUTASI;
+  | typeof REFERENSI_MUTASI
+  | typeof REFERENSI_RESIGN;
 
 type SetStatus = (
   status: "DIAJUKAN" | "MENUNGGU_APPROVAL" | "DISETUJUI" | "DITOLAK" | "DIBATALKAN",
@@ -24,6 +26,8 @@ async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: 
 		await prisma.lembur.update({ where: { id }, data: { status: mapped as never } });
 	} else if (type === REFERENSI_MUTASI) {
 		await prisma.mutasi.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_RESIGN) {
+		await prisma.offboarding.update({ where: { id }, data: { status: status as never } });
 	} else {
 		await prisma.dinasWFH.update({ where: { id }, data: { status: status as never } });
 	}
@@ -40,6 +44,10 @@ async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<st
 	}
 	if (type === REFERENSI_MUTASI) {
 		const r = await prisma.mutasi.findUnique({ where: { id }, select: { karyawanId: true } });
+		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_RESIGN) {
+		const r = await prisma.offboarding.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
 	}
 	const r = await prisma.dinasWFH.findUnique({ where: { id }, select: { karyawanId: true } });
@@ -79,6 +87,8 @@ export async function mulaiAlurApproval(type: ReferensiType, id: string): Promis
 		await prisma.dinasWFH.update({ where: { id }, data: { diajukanPada: new Date() } });
 	} else if (type === REFERENSI_MUTASI) {
 		await prisma.mutasi.update({ where: { id }, data: { diajukanPada: new Date() } });
+	} else if (type === REFERENSI_RESIGN) {
+		await prisma.offboarding.update({ where: { id }, data: { diajukanPada: new Date() } });
 	}
 }
 
@@ -173,7 +183,9 @@ function namaJenis(type: ReferensiType): string {
 			? "Lembur"
 			: type === REFERENSI_MUTASI
 				? "Mutasi"
-				: "Dinas/WFH";
+				: type === REFERENSI_RESIGN
+					? "Resign"
+					: "Dinas/WFH";
 }
 
 export async function getAntrianApproval(
@@ -267,6 +279,22 @@ export async function getRingkasanPengajuan(
 			karyawanNama: r.karyawan.namaLengkap,
 			nomorKaryawan: r.karyawan.nomorKaryawan,
 			ringkasan: `${labelJenisMutasi(r.jenis)} • ${dari} → ${ke} • efektif ${r.tanggalEfektif.toISOString().slice(0, 10)}`,
+			diajukanPada: r.diajukanPada?.toISOString() ?? null,
+		};
+	}
+	if (type === REFERENSI_RESIGN) {
+		const r = await prisma.offboarding.findUnique({
+			where: { id },
+			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+		});
+		if (!r) return null;
+		return {
+			id: r.id,
+			nomor: `RSG-${r.id.slice(-6).toUpperCase()}`,
+			karyawanId: r.karyawanId,
+			karyawanNama: r.karyawan.namaLengkap,
+			nomorKaryawan: r.karyawan.nomorKaryawan,
+			ringkasan: `Resign • rencana ${r.tanggalRencana.toISOString().slice(0, 10)} • ${r.alasan}`,
 			diajukanPada: r.diajukanPada?.toISOString() ?? null,
 		};
 	}

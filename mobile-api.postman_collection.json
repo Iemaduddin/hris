@@ -562,6 +562,45 @@
           }
         }
       ]
+    },
+    {
+      "name": "Onboarding",
+      "item": [
+        {
+          "name": "Checklist Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/onboarding",
+            "header": []
+          }
+        },
+        {
+          "name": "Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/onboarding?id=ID_ONBOARDING",
+            "header": []
+          }
+        },
+        {
+          "name": "Centang / Batal",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/onboarding",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"ID_ITEM\",\n  \"aksi\": \"selesai\"\n}"
+            },
+            "description": "aksi: \"selesai\" | \"batal\"."
+          }
+        }
+      ]
     }
   ]
 }

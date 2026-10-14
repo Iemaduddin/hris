@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/lib/auth";
+import prisma from "@/src/lib/prisma";
 import { fail, readJson, str } from "@/src/lib/api-v1";
 
 export async function POST(request: NextRequest) {
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
 			// abaikan, pakai pesan default
 		}
 		return fail(message, res.status === 429 ? 429 : 401);
+	}
+
+	// Akun dinonaktifkan (mis. sudah resign) → tolak + cabut sesi barusan.
+	const akun = await prisma.user.findUnique({ where: { email }, select: { id: true, isActive: true } });
+	if (akun && akun.isActive === false) {
+		await prisma.session.deleteMany({ where: { userId: akun.id } });
+		return fail("Akun sudah dinonaktifkan. Hubungi HR.", 403);
 	}
 
 	let payload: Record<string, unknown> = {};

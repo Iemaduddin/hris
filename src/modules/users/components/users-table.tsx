@@ -63,6 +63,13 @@ function getColumns(): DataTableColumn<UserSummary>[] {
 		sortValue: (row) => (row.emailVerified ? 1 : 0),
 	},
 	{
+		id: "isActive",
+		header: "Akun",
+		render: (row) => (row.isActive ? "Aktif" : "Nonaktif"),
+		sortable: true,
+		sortValue: (row) => (row.isActive ? 1 : 0),
+	},
+	{
 		id: "createdAt",
 		header: "Dibuat",
 		render: (row) => dateFormatter.format(new Date(row.createdAt)),

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { potongSaldo } from "@/src/modules/leave/lib/balance";
+import { bukaClearance } from "@/src/modules/employee/actions/offboarding.actions";
 import { notifikasiKeputusanPengajuan } from "../lib/approval-notify";
 import {
 	getAntrianApproval,
@@ -87,10 +88,17 @@ export async function prosesPengajuanAction(
 	revalidatePath("/overtime");
 	revalidatePath("/duty");
 	revalidatePath("/employees/mutasi");
+	revalidatePath("/employees/offboarding");
 
 	// PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
 	if (result.success && result.selesai) {
 		await notifikasiKeputusanPengajuan(type, id, result.selesai);
+	}
+
+	// Offboarding disetujui final → buka fase clearance.
+	if (result.success && result.selesai === "DISETUJUI" && type === "RESIGN") {
+		await bukaClearance(id);
+		revalidatePath("/employees/offboarding");
 	}
 
 	return result;

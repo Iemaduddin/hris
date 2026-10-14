@@ -41,9 +41,9 @@ export async function requireApiSession(request: NextRequest): Promise<ApiContex
 
 	const user = await prisma.user.findUnique({
 		where: { id: session.user.id },
-		select: { id: true, role: true },
+		select: { id: true, role: true, isActive: true },
 	});
-	if (!user) return null;
+	if (!user || user.isActive === false) return null;
 
 	const karyawan = await prisma.karyawan.findFirst({
 		where: { userId: user.id },

@@ -16,6 +16,8 @@ model User {
   name          String
   email         String   @unique
   role          UserRole @default(EMPLOYEE)
+  // Nonaktif = tak bisa login (offboarding selesai / dinonaktifkan HR).
+  isActive      Boolean  @default(true)
   emailVerified Boolean  @default(false)
   image         String?
   createdAt     DateTime @default(now())
@@ -292,6 +294,8 @@ model Karyawan {
   kasbon            Kasbon[]
   mutasi            Mutasi[]
   mutasiBaruAtasan  Mutasi[]           @relation("MutasiAtasanBaru")
+  onboarding        Onboarding[]
+  offboarding       Offboarding[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -1244,6 +1248,169 @@ enum StatusMutasi {
   DITOLAK
   DITERAPKAN
   DIBATALKAN
+}
+
+// ============================================================
+// Onboarding karyawan baru / pindah (P1-2).
+// Template per jenis kontrak → disalin jadi checklist per karyawan.
+// Alur item: BELUM → SELESAI (dicentang karyawan) → TERVERIFIKASI
+// (atasan/HR). Onboarding SELESAI bila semua item wajib terverifikasi.
+// ============================================================
+
+model OnboardingTemplate {
+  id           String         @id @default(cuid())
+  nama         String
+  jenisKontrak JenisKontrak?
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  items OnboardingTemplateItem[]
+
+  @@map("onboarding_template")
+}
+
+model OnboardingTemplateItem {
+  id         String               @id @default(cuid())
+  templateId String
+  template   OnboardingTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  judul      String
+  deskripsi  String?
+  kategori   KategoriOnboarding   @default(LAINNYA)
+  wajib      Boolean              @default(true)
+  urutan     Int                  @default(0)
+
+  @@index([templateId, urutan])
+  @@map("onboarding_template_item")
+}
+
+model Onboarding {
+  id            String            @id @default(cuid())
+  karyawanId    String
+  karyawan      Karyawan          @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  templateId    String?
+  templateNama  String?
+  status        StatusOnboarding  @default(BERJALAN)
+  tanggalMulai  DateTime          @db.Date
+  targetSelesai DateTime?         @db.Date
+  selesaiPada   DateTime?
+  createdById   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  items OnboardingItem[]
+
+  @@index([karyawanId, status])
+  @@map("onboarding")
+}
+
+model OnboardingItem {
+  id               String              @id @default(cuid())
+  onboardingId     String
+  onboarding       Onboarding          @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  judul            String
+  kategori         KategoriOnboarding  @default(LAINNYA)
+  wajib            Boolean             @default(true)
+  status           StatusOnboardingItem @default(BELUM)
+  catatan          String?
+  diselesaikanPada DateTime?
+  diverifikasiOlehId String?
+  diverifikasiPada DateTime?
+  urutan           Int                 @default(0)
+
+  @@index([onboardingId, urutan])
+  @@map("onboarding_item")
+}
+
+enum KategoriOnboarding {
+  DOKUMEN
+  AKUN
+  ASET
+  ORIENTASI
+  LAINNYA
+}
+
+enum StatusOnboarding {
+  BERJALAN
+  SELESAI
+  DIBATALKAN
+}
+
+enum StatusOnboardingItem {
+  BELUM
+  SELESAI
+  TERVERIFIKASI
+}
+
+// ============================================================
+// Offboarding / resign (P1-3). Alur: DIAJUKAN → MENUNGGU_APPROVAL
+// (atasan → HR) → DISETUJUI → CLEARANCE → SELESAI.
+// Selesai: status RESIGN + paklaring + akun dinonaktifkan.
+// ============================================================
+
+model Offboarding {
+  id              String            @id @default(cuid())
+  karyawanId      String
+  karyawan        Karyawan          @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  alasan          String
+  tanggalRencana  DateTime          @db.Date
+  tanggalEfektif  DateTime?         @db.Date
+  status          StatusOffboarding @default(DIAJUKAN)
+  diajukanPada    DateTime?
+  approvedById    String?
+  approvedAt      DateTime?
+  approvedNote    String?
+  nomorPaklaring  String?           @unique
+  selesaiPada     DateTime?
+  selesaiOlehId   String?
+  createdById     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  clearance OffboardingClearance[]
+
+  @@index([karyawanId, status])
+  @@map("offboarding")
+}
+
+model OffboardingClearance {
+  id               String                 @id @default(cuid())
+  offboardingId    String
+  offboarding      Offboarding            @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
+  kategori         KategoriClearance      @default(LAINNYA)
+  judul            String
+  picRole          String                 @default("HR")
+  wajib            Boolean                @default(true)
+  status           StatusClearance        @default(BELUM)
+  catatan          String?
+  diselesaikanOlehId String?
+  diselesaikanPada DateTime?
+
+  @@index([offboardingId])
+  @@map("offboarding_clearance")
+}
+
+enum KategoriClearance {
+  DOKUMEN
+  AKUN
+  ASET
+  KEUANGAN
+  LAINNYA
+}
+
+enum StatusOffboarding {
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  CLEARANCE
+  SELESAI
+  DIBATALKAN
+}
+
+enum StatusClearance {
+  BELUM
+  SELESAI
 }
 
 // ============================================================
