@@ -1,11 +1,8 @@
 import prisma from "@/src/lib/prisma";
 
 /**
- * Pengirim push notification via Expo Push Service (PRD mobile Bag. 5.8 / B8).
- * Endpoint resmi: POST https://exp.host/--/api/v2/push/send
- *
- * Sifatnya pelengkap: kegagalan push TIDAK boleh menjatuhkan alur bisnis —
- * semua error ditangkap dan dicatat, tidak pernah dilempar ke pemanggil.
+ * Push via Expo Push Service. Best-effort: gagal kirim tak menggagalkan
+ * alur bisnis — error ditangkap dan dicatat, tak dilempar ke pemanggil.
  */
 
 export type PesanPush = {
@@ -54,8 +51,7 @@ export async function kirimPush(messages: PesanPush[]): Promise<void> {
 		const payload = (await response.json()) as PushResponse;
 		const tickets = Array.isArray(payload.data) ? payload.data : payload.data ? [payload.data] : [];
 
-		// Token yang sudah tidak terdaftar (app di-uninstall / izin dicabut) →
-		// berhenti mengirim ke sana (saran resmi Expo: stop sending).
+		// Token kedaluwarsa (DeviceNotRegistered) → berhenti mengirim ke sana.
 		const kedaluwarsa = tickets
 			.map((ticket, index) =>
 				ticket?.details?.error === "DeviceNotRegistered" ? messages[index]?.to : null,

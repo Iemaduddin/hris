@@ -3,13 +3,8 @@ import prisma from "@/src/lib/prisma";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
 
 /**
- * Registrasi perangkat mobile (PRD mobile Bag. 7-B5).
- * - POST: daftarkan/segarkan perangkat milik karyawan login (termasuk pushToken, M4).
- * - GET  : daftar perangkat milik karyawan login.
- * - DELETE: unregister perangkat (cabut pushToken, tandai nonaktif — PRD Bag. 6 no.17).
- *
- * Perangkat juga otomatis terdaftar saat clock-in (catatPresensi),
- * endpoint ini dipakai saat aplikasi pertama kali dibuka / ganti device.
+ * Registrasi perangkat mobile milik karyawan login.
+ * POST: daftar/segarkan (termasuk pushToken). GET: daftar. DELETE: unregister.
  */
 export async function POST(request: NextRequest) {
 	const ctx = await requireApiSession(request);
@@ -20,8 +15,8 @@ export async function POST(request: NextRequest) {
 	const deviceId = str(body?.["deviceId"]);
 	if (!deviceId) return fail("deviceId wajib diisi.", 422);
 
-	// pushToken hanya ditimpa bila ikut dikirim — POST tanpa token
-	// (mis. registrasi ulang saat buka app) tidak boleh menghapus token lama.
+	// pushToken hanya ditimpa bila ikut dikirim (registrasi tanpa token
+	// tak boleh menghapus token lama).
 	const pushToken = str(body?.["pushToken"]);
 	const data = {
 		namaPerangkat: str(body?.["deviceName"]) || null,
@@ -63,7 +58,7 @@ export async function GET(request: NextRequest) {
 	return ok({ items });
 }
 
-/** Unregister perangkat (dipanggil mobile saat logout): cabut pushToken + nonaktifkan. */
+/** Unregister perangkat (mobile saat logout): cabut pushToken + nonaktifkan. */
 export async function DELETE(request: NextRequest) {
 	const ctx = await requireApiSession(request);
 	if (!ctx) return fail("Unauthorized.", 401);

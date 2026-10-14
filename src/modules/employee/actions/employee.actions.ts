@@ -3,6 +3,7 @@
 import {
 	JenisKelamin,
 	StatusKaryawan,
+	StatusPtkp,
 	JenisKontrak,
 	HubunganKeluarga,
 	GelarPendidikan,
@@ -31,11 +32,33 @@ import {
 } from "../types/employee.type";
 import { parseEmployeeStepPayload } from "../schemas/employee.schema";
 
+export const BANK_OPTIONS = [
+	"BCA",
+	"BRI",
+	"MANDIRI",
+	"BNI",
+	"BTN",
+	"BSI",
+	"CIMB",
+	"DANAMON",
+	"PERMATA",
+	"MEGA",
+	"BJB",
+	"LAINNYA",
+] as const;
+
 function toOptionLabel(value: string) {
 	return value
 		.split("_")
 		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
 		.join(" ");
+}
+
+/** Kategori TER PP 58/2023 untuk label dropdown PTKP. */
+function ptkpKeTer(value: string): string {
+	if (value === "K_3") return "C";
+	if (value === "TK_2" || value === "TK_3" || value === "K_1" || value === "K_2") return "B";
+	return "A";
 }
 
 function enumOptions(values: string[]): EmployeeWizardOption[] {
@@ -102,6 +125,10 @@ function defaultDetail(employeeId = ""): EmployeeWizardDetail {
 			birthDate: "",
 			nationalId: "",
 			taxId: "",
+			ptkpStatus: StatusPtkp.TK_0,
+			bankNama: "",
+			bankNorek: "",
+			bankAtasNama: "",
 			workEmail: "",
 			phone: "",
 			address: "",
@@ -177,6 +204,11 @@ export async function getEmployeeWizardBootstrapData(): Promise<{
 			workLocations: locations.map((item) => ({ value: item.id, label: item.kode ? `${item.nama} (${item.kode})` : item.nama })),
 			jenisKelamin: enumOptions(Object.values(JenisKelamin)),
 			statusKaryawan: enumOptions(Object.values(StatusKaryawan)),
+			statusPtkp: (Object.values(StatusPtkp) as string[]).map((value) => ({
+				value,
+				label: `${value.replace("_", "/")} (TER ${ptkpKeTer(value)})`,
+			})),
+			bankOptions: BANK_OPTIONS.map((b) => ({ value: b, label: b })),
 			jenisKontrak: enumOptions(Object.values(JenisKontrak)),
 			hubunganKeluarga: enumOptions(Object.values(HubunganKeluarga)),
 			gelarPendidikan: [
@@ -230,6 +262,10 @@ export async function getEmployeeWizardDetail(employeeId: string): Promise<Emplo
 			birthDate: toDateInputValue(employee.tanggalLahir),
 			nationalId: employee.nik ?? "",
 			taxId: employee.npwp ?? "",
+			ptkpStatus: employee.statusPtkp,
+			bankNama: employee.bankNama ?? "",
+			bankNorek: employee.bankNorek ?? "",
+			bankAtasNama: employee.bankAtasNama ?? "",
 			workEmail: employee.email ?? "",
 			phone: employee.telepon ?? "",
 			address: employee.alamat ?? "",
@@ -380,15 +416,19 @@ export async function saveEmployeeWizardStepAction(formData: FormData): Promise<
 					}
 				}
 
-				const payloadToSave = {
-					userId: linkedUserId,
-					atasanLangsungId: supervisorId,
-					nomorKaryawan: data.employeeNumber,
-					namaLengkap: data.fullName,
-					gender: data.gender as JenisKelamin,
-					tanggalLahir: parseDate(data.birthDate),
-					nik: toNullableText(data.nationalId),
-					npwp: toNullableText(data.taxId),
+			const payloadToSave = {
+				userId: linkedUserId,
+				atasanLangsungId: supervisorId,
+				nomorKaryawan: data.employeeNumber,
+				namaLengkap: data.fullName,
+				gender: data.gender as JenisKelamin,
+				tanggalLahir: parseDate(data.birthDate),
+				nik: toNullableText(data.nationalId),
+				npwp: toNullableText(data.taxId),
+				statusPtkp: (data.ptkpStatus || StatusPtkp.TK_0) as StatusPtkp,
+				bankNama: toNullableText(data.bankNama),
+				bankNorek: toNullableText(data.bankNorek)?.replace(/\s+/g, ""),
+				bankAtasNama: toNullableText(data.bankAtasNama),
 					email: toNullableText(data.workEmail),
 					telepon: toNullableText(data.phone),
 					alamat: toNullableText(data.address),

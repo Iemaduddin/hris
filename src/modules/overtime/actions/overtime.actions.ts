@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { toTimeValue } from "@/src/lib/time";
 import { mulaiAlurApproval } from "@/src/modules/approval/lib/approval-engine";
+import { getPengaturanPayroll } from "@/src/modules/payroll/lib/calculate";
+import {
+  KUNCI_LEMBUR_MAX_JAM,
+  cekCapLembur,
+  parseMaxJam,
+} from "@/src/modules/payroll/lib/lembur";
 
 export type LemburActionResult = { success: boolean; message: string; id?: string };
 
@@ -68,6 +74,31 @@ export async function buatLembur(input: {
 	const jumlah = hitungJam(input.jamMulai, input.jamSelesai);
 	if (jumlah === null) return { success: false, message: "Rentang jam tidak valid (maks 12 jam)." };
 	if (!input.alasan.trim()) return { success: false, message: "Alasan wajib diisi." };
+
+	// Cap jam lembur per bulan (pengajuan + berjalan + disetujui).
+	const tgl = new Date(`${input.tanggal}T00:00:00`);
+	if (Number.isNaN(tgl.getTime())) return { success: false, message: "Tanggal tidak valid." };
+	const awalBulan = new Date(tgl.getFullYear(), tgl.getMonth(), 1);
+	const akhirBulan = new Date(tgl.getFullYear(), tgl.getMonth() + 1, 0, 23, 59, 59, 999);
+	const pengaturan = await getPengaturanPayroll();
+	const maxJam = parseMaxJam(pengaturan[KUNCI_LEMBUR_MAX_JAM]);
+	if (maxJam !== null) {
+		const agg = await prisma.lembur.aggregate({
+			where: {
+				karyawanId: input.karyawanId,
+				tanggal: { gte: awalBulan, lte: akhirBulan },
+				status: { in: ["DRAFT", "DIAJUKAN", "DISETUJUI"] as never },
+			},
+			_sum: { jumlahJam: true },
+		});
+		const berjalan = Number(agg._sum.jumlahJam ?? 0);
+		if (!cekCapLembur(berjalan, jumlah, maxJam)) {
+			return {
+				success: false,
+				message: `Melebihi batas ${maxJam} jam/bulan (berjalan ${berjalan} jam + ${jumlah} jam).`,
+			};
+		}
+	}
 
 	const created = await prisma.lembur.create({
 		data: {

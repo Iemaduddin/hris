@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { getSlipSaya } from "@/src/modules/payroll/actions/payroll.actions";
+import { getThrSaya } from "@/src/modules/payroll/actions/thr.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
@@ -25,6 +26,7 @@ export default async function SlipSayaPage() {
 	}
 
 	const slips = await getSlipSaya(karyawan.id);
+	const thrSlips = await getThrSaya(karyawan.id);
 
 	return (
 		<>
@@ -68,7 +70,45 @@ export default async function SlipSayaPage() {
 						</tbody>
 					</table>
 				</div>
+		</div>
+
+		<div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+			<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Slip THR Saya</h2>
+			<div className="mt-3 overflow-x-auto">
+				<table className="min-w-full text-sm">
+					<thead>
+						<tr className="border-b border-blue-100 dark:border-blue-900/60">
+							<th className="px-4 py-3 text-left font-semibold">THR</th>
+							<th className="px-4 py-3 text-left font-semibold">Nomor</th>
+							<th className="px-4 py-3 text-right font-semibold">Bersih</th>
+							<th className="px-4 py-3 text-right font-semibold">Aksi</th>
+						</tr>
+					</thead>
+					<tbody>
+						{thrSlips.length === 0 ? (
+							<tr>
+								<td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+									Belum ada slip THR yang diterbitkan.
+								</td>
+							</tr>
+						) : (
+							thrSlips.map((s) => (
+								<tr key={s.nomor} className="border-b border-blue-100 dark:border-blue-900/60">
+									<td className="px-4 py-3 font-medium">{s.namaHariRaya} {s.tahun}</td>
+									<td className="px-4 py-3">{s.nomor}</td>
+									<td className="px-4 py-3 text-right font-semibold">{rupiah.format(Number(s.bersih))}</td>
+									<td className="px-4 py-3 text-right">
+										<Link href={`/akun/thr/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+											Lihat
+										</Link>
+									</td>
+								</tr>
+							))
+						)}
+					</tbody>
+				</table>
 			</div>
-		</>
+		</div>
+	</>
 	);
 }

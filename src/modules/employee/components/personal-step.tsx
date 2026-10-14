@@ -72,12 +72,43 @@ export default function PersonalStep({ value, onChange, errorMap, referenceOptio
 				value={value.nationalId}
 				onChange={(e) => update("nationalId", e.target.value)}
 			/>
-			<FloatingInput
-				name="taxId"
-				label="NPWP"
-				value={value.taxId}
-				onChange={(e) => update("taxId", e.target.value)}
-			/>
+		<FloatingInput
+			name="taxId"
+			label="NPWP"
+			value={value.taxId}
+			onChange={(e) => update("taxId", e.target.value)}
+		/>
+		<FloatingSelect
+			name="ptkpStatus"
+			label="Status PTKP (PPh 21 TER)"
+			value={value.ptkpStatus}
+			onValueChange={(val) => update("ptkpStatus", val)}
+			options={referenceOptions.statusPtkp}
+			errorText={getError("ptkpStatus")}
+		/>
+		<FloatingSelect
+			name="bankNama"
+			label="Bank (disbursement gaji)"
+			value={value.bankNama}
+			onValueChange={(val) => update("bankNama", val)}
+			options={referenceOptions.bankOptions}
+			placeholder="Pilih bank"
+			errorText={getError("bankNama")}
+		/>
+		<FloatingInput
+			name="bankNorek"
+			label="No. Rekening"
+			value={value.bankNorek}
+			onChange={(e) => update("bankNorek", e.target.value)}
+			errorText={getError("bankNorek")}
+		/>
+		<FloatingInput
+			name="bankAtasNama"
+			label="Rekening Atas Nama"
+			value={value.bankAtasNama}
+			onChange={(e) => update("bankAtasNama", e.target.value)}
+			errorText={getError("bankAtasNama")}
+		/>
 
 			<FloatingInput
 				name="workEmail"

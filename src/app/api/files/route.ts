@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/src/lib/auth";
-import prisma from "@/src/lib/prisma";
 import { STORAGE_OWNER_TYPES, hapusFile, simpanFile, type StorageOwnerType } from "@/src/lib/storage-local";
+import { requireApiSession } from "@/src/lib/api-v1";
 
 function isOwnerType(value: string): value is StorageOwnerType {
 	return (STORAGE_OWNER_TYPES as readonly string[]).includes(value);
-}
-
-async function getRequestUser() {
-	const requestHeaders = await headers();
-	const session = await auth.api.getSession({ headers: requestHeaders });
-	if (!session) return null;
-	const user = await prisma.user.findUnique({
-		where: { id: session.user.id },
-		select: { id: true, role: true },
-	});
-	return user;
 }
 
 function isHrRole(role: string): boolean {
@@ -24,8 +11,8 @@ function isHrRole(role: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-	const user = await getRequestUser();
-	if (!user) {
+	const ctx = await requireApiSession(request);
+	if (!ctx) {
 		return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 	}
 
@@ -44,7 +31,7 @@ export async function POST(request: NextRequest) {
 
 		const ownerType = isOwnerType(ownerTypeRaw) ? ownerTypeRaw : "general";
 
-		if ((ownerType === "karyawan" || ownerType === "perusahaan" || ownerType === "payroll") && !isHrRole(user.role)) {
+		if ((ownerType === "karyawan" || ownerType === "perusahaan" || ownerType === "payroll") && !isHrRole(ctx.role)) {
 			return NextResponse.json({ error: "Anda tidak memiliki izin upload untuk kategori ini." }, { status: 403 });
 		}
 
@@ -62,7 +49,7 @@ export async function POST(request: NextRequest) {
 			subfolder: subfolder || undefined,
 			customName: customName || undefined,
 			jenis: jenis || undefined,
-			uploadedById: user.id,
+			uploadedById: ctx.userId,
 		});
 
 		return NextResponse.json({ success: true, ...result });
@@ -74,12 +61,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-	const user = await getRequestUser();
-	if (!user) {
+	const ctx = await requireApiSession(request);
+	if (!ctx) {
 		return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 	}
 
-	if (!isHrRole(user.role)) {
+	if (!isHrRole(ctx.role)) {
 		return NextResponse.json({ error: "Anda tidak memiliki izin menghapus file." }, { status: 403 });
 	}
 

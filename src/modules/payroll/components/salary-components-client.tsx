@@ -18,7 +18,8 @@ const KELOMPOK_OPTIONS = [
 	{ value: "PENDAPATAN", label: "Pendapatan" },
 	{ value: "TUNJANGAN", label: "Tunjangan" },
 	{ value: "POTONGAN", label: "Potongan" },
-	{ value: "IURAN", label: "Iuran" },
+	{ value: "IURAN", label: "Iuran (karyawan)" },
+	{ value: "BIAYA_PERUSAHAAN", label: "Biaya perusahaan (tak potong gaji)" },
 ];
 
 const TIPE_OPTIONS = [

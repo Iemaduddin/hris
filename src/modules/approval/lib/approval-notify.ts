@@ -2,11 +2,7 @@ import prisma from "@/src/lib/prisma";
 import { kirimPush, type PesanPush } from "@/src/lib/push";
 import { getRingkasanPengajuan, type ReferensiType } from "./approval-engine";
 
-/**
- * Notifikasi push ke pemohon saat pengajuan disetujui/ditolak
- * (PRD mobile Bag. 5.8). Best-effort: kegagalan push tidak boleh
- * menggagalkan hasil approval — semua galat ditangkap di sini.
- */
+/** Push ke pemohon saat pengajuan disetujui/ditolak (best-effort). */
 
 const SLUG_JENIS: Record<ReferensiType, string> = {
 	CUTI: "cuti",

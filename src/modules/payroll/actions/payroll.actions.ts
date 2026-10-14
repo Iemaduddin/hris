@@ -3,7 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
-import { hitungGajiKaryawan } from "../lib/calculate";
+import { buatKodeVerifikasi } from "../lib/verifikasi";
+import { bagiDisburse, buildDisburseCsv } from "../lib/disburse";
+import { getPengaturanPayroll, hitungGajiKaryawan, resetCachePengaturan, type AkumulasiTahunanPPh } from "../lib/calculate";
+import {
+	KUNCI_PEMBAGI_ALPA,
+	KUNCI_TELAT_MAX,
+	KUNCI_TELAT_PER_MENIT,
+	PAYROLL_SETTING_DEFAULT,
+	PAYROLL_SETTING_DESKRIPSI,
+	parseRupiahSetting,
+} from "../lib/potongan";
+import {
+	KUNCI_LEMBUR_DIVISOR,
+	KUNCI_LEMBUR_MAX_JAM,
+	KUNCI_LEMBUR_TIERED,
+	LEMBUR_SETTING_DEFAULT,
+	LEMBUR_SETTING_DESKRIPSI,
+	parseMaxJam,
+} from "../lib/lembur";
+import {
+	KASBON_SETTING_DEFAULT,
+	KASBON_SETTING_DESKRIPSI,
+	KUNCI_KASBON_MAX_NOMINAL,
+	KUNCI_KASBON_MAX_TENOR,
+	parseMaxNominalKasbon,
+} from "../lib/kasbon";
 
 export type PayrollActionResult = { success: boolean; message: string; id?: string };
 
@@ -34,7 +59,7 @@ export async function getKomponenList(): Promise<KomponenItem[]> {
 	}));
 }
 
-const KELOMPOK = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN"];
+const KELOMPOK = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN", "BIAYA_PERUSAHAAN"];
 const TIPE = ["NOMINAL", "PERSEN", "PER_HARI", "PER_JAM_LEMBUR", "PER_SHIFT_MALAM"];
 
 export async function saveKomponen(formData: FormData): Promise<PayrollActionResult> {
@@ -112,6 +137,14 @@ export async function seedKomponenDefault(): Promise<PayrollActionResult> {
 		{ kode: "BPJS_JHT", nama: "BPJS JHT (2% karyawan)", kelompok: "IURAN", tipe: "PERSEN", nilai: 2, batasAtas: null, urutan: 8 },
 		{ kode: "BPJS_JP", nama: "BPJS JP (1% karyawan)", kelompok: "IURAN", tipe: "PERSEN", nilai: 1, batasAtas: 10500000, urutan: 9 },
 		{ kode: "POTONGAN_ALPA", nama: "Potongan Alpa (GP/26 per hari)", kelompok: "POTONGAN", tipe: "PER_HARI", nilai: 0, batasAtas: null, urutan: 10 },
+		// Porsi perusahaan — info slip, tak mengurangi gaji bersih.
+		{ kode: "BPJS_KES_CPY", nama: "BPJS Kesehatan (4% perusahaan)", kelompok: "BIAYA_PERUSAHAAN", tipe: "PERSEN", nilai: 4, batasAtas: 12000000, urutan: 11 },
+		{ kode: "BPJS_JHT_CPY", nama: "BPJS JHT (3,70% perusahaan)", kelompok: "BIAYA_PERUSAHAAN", tipe: "PERSEN", nilai: 3.7, batasAtas: null, urutan: 12 },
+		{ kode: "BPJS_JP_CPY", nama: "BPJS JP (2% perusahaan)", kelompok: "BIAYA_PERUSAHAAN", tipe: "PERSEN", nilai: 2, batasAtas: 10500000, urutan: 13 },
+		{ kode: "BPJS_JKK", nama: "BPJS JKK (perusahaan, atur tarif 0,24–1,74% sesuai kelompok risiko)", kelompok: "BIAYA_PERUSAHAAN", tipe: "PERSEN", nilai: 0.54, batasAtas: null, urutan: 14 },
+		{ kode: "BPJS_JKM", nama: "BPJS JKM (0,30% perusahaan)", kelompok: "BIAYA_PERUSAHAAN", tipe: "PERSEN", nilai: 0.3, batasAtas: null, urutan: 15 },
+		// Denda telat per menit (tarif dari Aturan Payroll; 0 = nonaktif).
+		{ kode: "POTONGAN_TELAT", nama: "Potongan Keterlambatan (per menit TERLAMBAT)", kelompok: "POTONGAN", tipe: "NOMINAL", nilai: 0, batasAtas: null, urutan: 16 },
 	];
 
 	let dibuat = 0;
@@ -125,6 +158,139 @@ export async function seedKomponenDefault(): Promise<PayrollActionResult> {
 	}
 	revalidatePath("/payroll/salary-components");
 	return { success: true, message: dibuat > 0 ? `${dibuat} komponen default dibuat.` : "Komponen default sudah lengkap." };
+}
+
+export type PayrollSettingItem = {
+	kunci: string;
+	nilai: string;
+	defaultNilai: string;
+	deskripsi: string;
+};
+
+const URUTAN_SETTING = [
+	KUNCI_PEMBAGI_ALPA,
+	KUNCI_TELAT_PER_MENIT,
+	KUNCI_TELAT_MAX,
+	KUNCI_LEMBUR_TIERED,
+	KUNCI_LEMBUR_DIVISOR,
+	KUNCI_LEMBUR_MAX_JAM,
+	KUNCI_KASBON_MAX_NOMINAL,
+	KUNCI_KASBON_MAX_TENOR,
+];
+
+const DESKRIPSI_SETTING: Record<string, string> = {
+	...PAYROLL_SETTING_DESKRIPSI,
+	...LEMBUR_SETTING_DESKRIPSI,
+	...KASBON_SETTING_DESKRIPSI,
+};
+
+const DEFAULT_SETTING: Record<string, string> = {
+	...PAYROLL_SETTING_DEFAULT,
+	...LEMBUR_SETTING_DEFAULT,
+	...KASBON_SETTING_DEFAULT,
+};
+
+export async function getPayrollSettings(): Promise<PayrollSettingItem[]> {
+	const map = await getPengaturanPayroll();
+	return URUTAN_SETTING.map((kunci) => ({
+		kunci,
+		nilai: map[kunci] ?? DEFAULT_SETTING[kunci] ?? "",
+		defaultNilai: DEFAULT_SETTING[kunci] ?? "",
+		deskripsi: DESKRIPSI_SETTING[kunci] ?? "",
+	}));
+}
+
+export async function savePayrollSettings(input: {
+	pembagiAlpa: string;
+	tarifTelatPerMenit: string;
+	maxTelatPerBulan: string;
+	lemburTiered: string;
+	lemburDivisor: string;
+	lemburMaxJam: string;
+	kasbonMaxNominal: string;
+	kasbonMaxTenor: string;
+}): Promise<PayrollActionResult> {
+	const pembagi = String(input.pembagiAlpa ?? "").trim().toUpperCase();
+	if (!["25", "26", "AKTUAL"].includes(pembagi)) {
+		return { success: false, message: "Pembagi alpa harus 25, 26, atau AKTUAL." };
+	}
+	const tarifRaw = String(input.tarifTelatPerMenit ?? "").trim();
+	const maxRaw = String(input.maxTelatPerBulan ?? "").trim();
+	const tarif = Math.floor(Number(tarifRaw));
+	if (!Number.isFinite(tarif) || tarif < 0) {
+		return { success: false, message: "Tarif telat per menit tidak valid." };
+	}
+	if (maxRaw !== "" && parseRupiahSetting(maxRaw) === null) {
+		return { success: false, message: "Batas denda telat tidak valid." };
+	}
+	const tiered = String(input.lemburTiered ?? "1").trim();
+	if (!["0", "1"].includes(tiered)) {
+		return { success: false, message: "Mode lembur harus tiered (1) atau flat (0)." };
+	}
+	const divisorRaw = String(input.lemburDivisor ?? "173").trim();
+	const divisor = Math.floor(Number(divisorRaw));
+	if (!Number.isFinite(divisor) || divisor <= 0) {
+		return { success: false, message: "Pembagi upah sejam tidak valid." };
+	}
+	const maxJamRaw = String(input.lemburMaxJam ?? "").trim();
+	if (maxJamRaw !== "" && parseMaxJam(maxJamRaw) === null) {
+		return { success: false, message: "Batas jam lembur tidak valid." };
+	}
+	const kasbonPlafonRaw = String(input.kasbonMaxNominal ?? "").trim();
+	if (kasbonPlafonRaw !== "" && parseMaxNominalKasbon(kasbonPlafonRaw) === null) {
+		return { success: false, message: "Plafon kasbon tidak valid." };
+	}
+	const kasbonTenor = Math.floor(Number(String(input.kasbonMaxTenor ?? "24").trim()));
+	if (!Number.isFinite(kasbonTenor) || kasbonTenor < 1 || kasbonTenor > 120) {
+		return { success: false, message: "Tenor maksimum kasbon 1–120 bulan." };
+	}
+
+	await prisma.$transaction([
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_PEMBAGI_ALPA },
+			create: { kunci: KUNCI_PEMBAGI_ALPA, nilai: pembagi, deskripsi: PAYROLL_SETTING_DESKRIPSI[KUNCI_PEMBAGI_ALPA] },
+			update: { nilai: pembagi },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_TELAT_PER_MENIT },
+			create: { kunci: KUNCI_TELAT_PER_MENIT, nilai: String(tarif), deskripsi: PAYROLL_SETTING_DESKRIPSI[KUNCI_TELAT_PER_MENIT] },
+			update: { nilai: String(tarif) },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_TELAT_MAX },
+			create: { kunci: KUNCI_TELAT_MAX, nilai: maxRaw, deskripsi: PAYROLL_SETTING_DESKRIPSI[KUNCI_TELAT_MAX] },
+			update: { nilai: maxRaw },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_LEMBUR_TIERED },
+			create: { kunci: KUNCI_LEMBUR_TIERED, nilai: tiered, deskripsi: LEMBUR_SETTING_DESKRIPSI[KUNCI_LEMBUR_TIERED] },
+			update: { nilai: tiered },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_LEMBUR_DIVISOR },
+			create: { kunci: KUNCI_LEMBUR_DIVISOR, nilai: String(divisor), deskripsi: LEMBUR_SETTING_DESKRIPSI[KUNCI_LEMBUR_DIVISOR] },
+			update: { nilai: String(divisor) },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_LEMBUR_MAX_JAM },
+			create: { kunci: KUNCI_LEMBUR_MAX_JAM, nilai: maxJamRaw, deskripsi: LEMBUR_SETTING_DESKRIPSI[KUNCI_LEMBUR_MAX_JAM] },
+			update: { nilai: maxJamRaw },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_KASBON_MAX_NOMINAL },
+			create: { kunci: KUNCI_KASBON_MAX_NOMINAL, nilai: kasbonPlafonRaw, deskripsi: KASBON_SETTING_DESKRIPSI[KUNCI_KASBON_MAX_NOMINAL] },
+			update: { nilai: kasbonPlafonRaw },
+		}),
+		prisma.payrollSetting.upsert({
+			where: { kunci: KUNCI_KASBON_MAX_TENOR },
+			create: { kunci: KUNCI_KASBON_MAX_TENOR, nilai: String(kasbonTenor), deskripsi: KASBON_SETTING_DESKRIPSI[KUNCI_KASBON_MAX_TENOR] },
+			update: { nilai: String(kasbonTenor) },
+		}),
+	]);
+	resetCachePengaturan();
+	revalidatePath("/payroll/settings");
+	revalidatePath("/payroll");
+	return { success: true, message: "Aturan potongan tersimpan (berlaku untuk hitung berikutnya)." };
 }
 
 export type GajiKaryawanItem = {
@@ -224,13 +390,74 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 
 	const karyawan = await prisma.karyawan.findMany({
 		where: { status: { in: ["AKTIF", "PROBASI"] } },
-		select: { id: true },
+		select: { id: true, tanggalMasuk: true },
 	});
+
+	// Pulihkan angsuran kasbon milik run ini agar hitung-ulang idempoten.
+	// Tx terpisah (commit dulu) supaya hitung berikutnya membaca sisa bersih.
+	const angsuranLama = await prisma.kasbonAngsuran.findMany({
+		where: { runId },
+		select: { kasbonId: true, jumlah: true },
+	});
+	if (angsuranLama.length > 0) {
+		await prisma.$transaction(async (tx) => {
+			await tx.kasbonAngsuran.deleteMany({ where: { runId } });
+			for (const a of angsuranLama) {
+				const kb = await tx.kasbon.findUnique({ where: { id: a.kasbonId }, select: { status: true } });
+				await tx.kasbon.update({
+					where: { id: a.kasbonId },
+					data: {
+						sisaHutang: { increment: a.jumlah },
+						...(kb?.status === "LUNAS" ? { status: "DISETUJUI" as never } : {}),
+					},
+				});
+			}
+		});
+	}
+
+	// Akumulasi Jan–Nov untuk koreksi Desember (PMK 168/2023).
+	const bulanRun = run.tanggalSelesai.getUTCMonth() + 1;
+	const tahunRun = run.tanggalSelesai.getUTCFullYear();
+	const akumulasiMap = new Map<string, AkumulasiTahunanPPh>();
+	if (bulanRun === 12) {
+		const prior = await prisma.salaryRunDetail.findMany({
+			where: {
+				karyawanId: { in: karyawan.map((k) => k.id) },
+				run: { periode: { gte: `${tahunRun}-01`, lt: `${tahunRun}-12` } },
+			},
+			select: { karyawanId: true, totalPendapatan: true, rincian: true },
+		});
+		const agg = new Map<string, { bruto: number; pph: number; iuran: number }>();
+		for (const d of prior) {
+			const cur = agg.get(d.karyawanId) ?? { bruto: 0, pph: 0, iuran: 0 };
+			cur.bruto += Number(d.totalPendapatan);
+			const rincian = d.rincian as Array<{ kode: string; jumlah: number }>;
+			if (Array.isArray(rincian)) {
+				for (const r of rincian) {
+					if (r.kode === "POT_PPH21" || r.kode === "POTONGAN_PPH21") cur.pph += Number(r.jumlah ?? 0);
+					if (r.kode === "BPJS_JHT" || r.kode === "BPJS_JP") cur.iuran += Number(r.jumlah ?? 0);
+				}
+			}
+			agg.set(d.karyawanId, cur);
+		}
+		for (const k of karyawan) {
+			const masuk = k.tanggalMasuk;
+			const bulanMasuk =
+				masuk.getUTCFullYear() < tahunRun ? 1 : Math.min(12, Math.max(1, masuk.getUTCMonth() + 1));
+			const a = agg.get(k.id) ?? { bruto: 0, pph: 0, iuran: 0 };
+			akumulasiMap.set(k.id, {
+				brutoJanNov: Math.round(a.bruto),
+				pphJanNov: Math.round(a.pph),
+				iuranJanNov: Math.round(a.iuran),
+				bulanKerja: Math.min(12, Math.max(1, 13 - bulanMasuk)),
+			});
+		}
+	}
 
 	await prisma.$transaction(async (tx) => {
 		await tx.salaryRunDetail.deleteMany({ where: { runId } });
 		for (const k of karyawan) {
-			const hasil = await hitungGajiKaryawan(k.id, run.tanggalMulai, run.tanggalSelesai);
+			const hasil = await hitungGajiKaryawan(k.id, run.tanggalMulai, run.tanggalSelesai, akumulasiMap.get(k.id));
 			await tx.salaryRunDetail.create({
 				data: {
 					runId,
@@ -239,12 +466,26 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 					totalPendapatan: hasil.totalPendapatan,
 					totalPotongan: hasil.totalPotongan,
 					gajiBersih: hasil.gajiBersih,
+					totalBiayaPerusahaan: hasil.totalBiayaPerusahaan,
 					hariHadir: hasil.hariHadir,
 					hariAlpa: hasil.hariAlpa,
 					jamLembur: hasil.jamLembur,
 					rincian: hasil.rincian as never,
 				},
 			});
+			// Bukukan angsuran kasbon periode ini.
+			for (const pot of hasil.kasbonPotongan) {
+				await tx.kasbonAngsuran.create({
+					data: { kasbonId: pot.kasbonId, runId, periode: run.periode, jumlah: pot.jumlah },
+				});
+				await tx.kasbon.update({
+					where: { id: pot.kasbonId },
+					data: {
+						sisaHutang: { decrement: pot.jumlah },
+						...(pot.sisaSesudah === 0 ? { status: "LUNAS" as never } : {}),
+					},
+				});
+			}
 		}
 		await tx.salaryRun.update({ where: { id: runId }, data: { status: "DIHITUNG" } });
 	});
@@ -280,6 +521,7 @@ export async function terbitkanRun(runId: string): Promise<PayrollActionResult> 
 					nomor: `SLIP-${run.periode}-${d.karyawanId.slice(-6).toUpperCase()}`,
 					runId,
 					karyawanId: d.karyawanId,
+					kodeVerifikasi: buatKodeVerifikasi(),
 				},
 			});
 		}
@@ -296,6 +538,25 @@ export async function hapusRun(runId: string): Promise<PayrollActionResult> {
 	if (run.status === "FINAL" || run.status === "DITERBITKAN") {
 		return { success: false, message: "Run final tidak bisa dihapus." };
 	}
+	// Kembalikan sisa kasbon yang sempat dibukukan run ini.
+	const angsuran = await prisma.kasbonAngsuran.findMany({
+		where: { runId },
+		select: { kasbonId: true, jumlah: true },
+	});
+	if (angsuran.length > 0) {
+		await prisma.$transaction(async (tx) => {
+			for (const a of angsuran) {
+				const kb = await tx.kasbon.findUnique({ where: { id: a.kasbonId }, select: { status: true } });
+				await tx.kasbon.update({
+					where: { id: a.kasbonId },
+					data: {
+						sisaHutang: { increment: a.jumlah },
+						...(kb?.status === "LUNAS" ? { status: "DISETUJUI" as never } : {}),
+					},
+				});
+			}
+		});
+	}
 	await prisma.salaryRun.delete({ where: { id: runId } });
 	revalidatePath("/payroll");
 	return { success: true, message: "Run dihapus." };
@@ -310,6 +571,7 @@ export type RunDetailItem = {
 	totalPendapatan: string;
 	totalPotongan: string;
 	gajiBersih: string;
+	totalBiayaPerusahaan: string;
 	hariHadir: number;
 	hariAlpa: number;
 	rincian: Array<{ kode: string; nama: string; kelompok: string; jumlah: number; keterangan: string }>;
@@ -345,6 +607,7 @@ export async function getRunDetail(runId: string): Promise<{ run: SalaryRunItem 
 			totalPendapatan: d.totalPendapatan.toString(),
 			totalPotongan: d.totalPotongan.toString(),
 			gajiBersih: d.gajiBersih.toString(),
+			totalBiayaPerusahaan: d.totalBiayaPerusahaan.toString(),
 			hariHadir: d.hariHadir,
 			hariAlpa: d.hariAlpa,
 			rincian: d.rincian as RunDetailItem["rincian"],
@@ -361,6 +624,7 @@ export type PayslipView = {
 	totalPendapatan: string;
 	totalPotongan: string;
 	gajiBersih: string;
+	totalBiayaPerusahaan: string;
 	hariHadir: number;
 	hariAlpa: number;
 	rincian: RunDetailItem["rincian"];
@@ -389,6 +653,7 @@ export async function getPayslip(nomor: string, onlyKaryawanId?: string): Promis
 		totalPendapatan: detail.totalPendapatan.toString(),
 		totalPotongan: detail.totalPotongan.toString(),
 		gajiBersih: detail.gajiBersih.toString(),
+		totalBiayaPerusahaan: detail.totalBiayaPerusahaan.toString(),
 		hariHadir: detail.hariHadir,
 		hariAlpa: detail.hariAlpa,
 		rincian: detail.rincian as RunDetailItem["rincian"],
@@ -397,6 +662,44 @@ export async function getPayslip(nomor: string, onlyKaryawanId?: string): Promis
 
 export type SlipSayaItem = { nomor: string; periode: string; gajiBersih: string };
 
+export type DisburseInfo = {
+	filename: string;
+	berita: string;
+	total: string;
+	siap: number;
+	belum: string[];
+	csv: string;
+};
+
+/** Info + CSV disbursement gaji run. */
+export async function getDisburseSalaryRun(runId: string): Promise<DisburseInfo | null> {
+	const { run, detail } = await getRunDetail(runId);
+	if (!run) return null;
+	const kary = await prisma.karyawan.findMany({
+		where: { id: { in: detail.map((d) => d.karyawanId) } },
+		select: { id: true, bankNama: true, bankNorek: true, bankAtasNama: true },
+	});
+	const bank = new Map(kary.map((k) => [k.id, k]));
+	const berita = `GAJI ${run.periode}`;
+	const { baris, belumLengkap, total } = bagiDisburse(
+		detail.map((d) => ({
+			nama: `${d.karyawanNama} (${d.nomorKaryawan})`,
+			bank: bank.get(d.karyawanId)?.bankNama ?? null,
+			norek: bank.get(d.karyawanId)?.bankNorek ?? null,
+			atasNama: bank.get(d.karyawanId)?.bankAtasNama ?? null,
+			nominal: Number(d.gajiBersih),
+		})),
+		berita,
+	);
+	return {
+		filename: `disburse-gaji-${run.periode}.csv`,
+		berita,
+		total: String(total),
+		siap: baris.length,
+		belum: belumLengkap,
+		csv: buildDisburseCsv(baris),
+	};
+}
 export async function getSlipSaya(karyawanId: string): Promise<SlipSayaItem[]> {
 	const slips = await prisma.payslip.findMany({
 		where: { karyawanId, run: { status: "DITERBITKAN" } },

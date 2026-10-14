@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireUserRole } from "@/src/lib/auth-guard";
 import { getSalaryRuns } from "@/src/modules/payroll/actions/payroll.actions";
 import RunListClient from "@/src/modules/payroll/components/run-list-client";
@@ -15,6 +16,9 @@ export default async function PayrollPage() {
 				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
 					Salary run per periode: hitung → finalisasi (kunci) → terbitkan payslip.
 				</p>
+				<Link href="/payroll/thr" className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline">
+					Kelola THR Keagamaan →
+				</Link>
 			</div>
 
 			<div className="mt-5">

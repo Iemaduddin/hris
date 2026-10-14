@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { createReadStream } from "node:fs";
-import { auth } from "@/src/lib/auth";
-import prisma from "@/src/lib/prisma";
 import { bacaFile } from "@/src/lib/storage-local";
+import { requireApiSession } from "@/src/lib/api-v1";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-	const requestHeaders = await headers();
-	const session = await auth.api.getSession({ headers: requestHeaders });
-	if (!session) {
+	const ctx = await requireApiSession(_request);
+	if (!ctx) {
 		return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 	}
 
@@ -20,12 +17,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ pa
 
 	const [ownerType] = relativePath.split("/");
 	if (ownerType !== "perusahaan") {
-		const user = await prisma.user.findUnique({
-			where: { id: session.user.id },
-			select: { role: true },
-		});
-		const role = user?.role ?? "EMPLOYEE";
-		if (role !== "SUPER_ADMIN" && role !== "ADMIN_HR") {
+		if (ctx.role !== "SUPER_ADMIN" && ctx.role !== "ADMIN_HR") {
 			return NextResponse.json({ error: "Akses ditolak." }, { status: 403 });
 		}
 	}

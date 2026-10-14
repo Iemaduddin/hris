@@ -46,6 +46,8 @@ export type EmployeeWizardReferenceOptions = {
 	workLocations: EmployeeWizardOption[];
 	jenisKelamin: EmployeeWizardOption[];
 	statusKaryawan: EmployeeWizardOption[];
+	statusPtkp: EmployeeWizardOption[];
+	bankOptions: EmployeeWizardOption[];
 	jenisKontrak: EmployeeWizardOption[];
 	hubunganKeluarga: EmployeeWizardOption[];
 	gelarPendidikan: EmployeeWizardOption[];
@@ -62,6 +64,10 @@ export type EmployeePersonalPayload = {
 	birthDate: string;
 	nationalId: string;
 	taxId: string;
+	ptkpStatus: string;
+	bankNama: string;
+	bankNorek: string;
+	bankAtasNama: string;
 	workEmail: string;
 	phone: string;
 	address: string;

@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getRunDetail } from "@/src/modules/payroll/actions/payroll.actions";
+import { getDisburseSalaryRun, getRunDetail } from "@/src/modules/payroll/actions/payroll.actions";
 import RunDetailClient from "@/src/modules/payroll/components/run-detail-client";
 
 export default async function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
 	const { id } = await params;
-	const { run, detail } = await getRunDetail(id);
+	const [{ run, detail }, disburse] = await Promise.all([getRunDetail(id), getDisburseSalaryRun(id)]);
 	if (!run) notFound();
 
 	return (
@@ -17,6 +17,15 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
 					Detail perhitungan per karyawan dari snapshot rekap.
 				</p>
 			</div>
+
+			{disburse && disburse.belum.length > 0 ? (
+				<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
+					<p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+						{disburse.belum.length} karyawan tanpa data bank lengkap — tidak ikut file CSV transfer:
+					</p>
+					<p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{disburse.belum.join("; ")}</p>
+				</div>
+			) : null}
 
 			<div className="mt-5">
 				<RunDetailClient run={run} detail={detail} />

@@ -262,7 +262,14 @@ model Karyawan {
   email        String?
   alamat       String?
 
+  // Rekening untuk disbursement gaji/THR.
+  bankNama     String?
+  bankNorek    String?
+  bankAtasNama String?
+
   status         StatusKaryawan @default(AKTIF)
+  // Status PTKP penentu kategori TER A/B/C (PP 58/2023).
+  statusPtkp     StatusPtkp     @default(TK_0)
   tanggalMasuk   DateTime
   tanggalResign  DateTime?
 
@@ -278,6 +285,8 @@ model Karyawan {
   gajiKaryawan      GajiKaryawan[]
   salaryRunDetail   SalaryRunDetail[]
   payslip           Payslip[]
+  thrDetail         ThrDetail[]
+  kasbon            Kasbon[]
   keluargaKaryawan   KeluargaKaryawan[]
   pendidikanKaryawan PendidikanKaryawan[]
   riwayatPekerjaan   RiwayatPekerjaan[]
@@ -358,6 +367,19 @@ enum StatusKaryawan {
   RESIGN
   DIHENTIKAN
   PENSIUN
+}
+
+// Status PTKP (PP 58/2023). Nama enum tanpa "/" agar valid Prisma.
+// Label tampilan: TK_0 -> "TK/0", dst.
+enum StatusPtkp {
+  TK_0
+  TK_1
+  TK_2
+  TK_3
+  K_0
+  K_1
+  K_2
+  K_3
 }
 
 
@@ -1007,6 +1029,8 @@ enum KelompokKomponen {
   TUNJANGAN
   POTONGAN
   IURAN
+  // Premi ditanggung perusahaan; info slip, tak mengurangi gaji bersih.
+  BIAYA_PERUSAHAAN
 }
 
 enum TipeKomponen {
@@ -1015,6 +1039,40 @@ enum TipeKomponen {
   PER_HARI
   PER_JAM_LEMBUR
   PER_SHIFT_MALAM
+}
+
+// ============================================================
+// Tarif efektif bulanan PPh 21 (PP 58/2023 + PMK 168/2023)
+// Satu baris = satu lapis: bruto <= batasAtas dikenai tarif.
+// batasAtas null = lapis terakhir (tak hingga).
+// Di-seed dari prisma/seed-pph21-ter.ts; dapat diubah Finance bila regulasi berubah.
+// ============================================================
+
+model Pph21TerTarif {
+  id        Int      @id @default(autoincrement())
+  kategori  String
+  batasAtas Decimal? @db.Decimal(15, 2)
+  tarif     Decimal  @db.Decimal(6, 4)
+  urutan    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kategori, urutan])
+  @@index([kategori, urutan])
+  @@map("pph21_ter_tarif")
+}
+
+// ============================================================
+// Pengaturan payroll key-value. Default di lib; DB hanya override.
+// ============================================================
+
+model PayrollSetting {
+  kunci     String   @id
+  nilai     String
+  deskripsi String?
+  updatedAt DateTime @updatedAt
+
+  @@map("payroll_setting")
 }
 
 model GajiKaryawan {
@@ -1044,6 +1102,7 @@ model SalaryRun {
 
   detail  SalaryRunDetail[]
   payslip Payslip[]
+  angsuranKasbon KasbonAngsuran[]
 
   @@map("salary_run")
 }
@@ -1065,6 +1124,8 @@ model SalaryRunDetail {
   totalPendapatan  Decimal   @db.Decimal(15, 2)
   totalPotongan    Decimal   @db.Decimal(15, 2)
   gajiBersih       Decimal   @db.Decimal(15, 2)
+  // Total premi ditanggung perusahaan (info, tak memengaruhi bersih).
+  totalBiayaPerusahaan Decimal @db.Decimal(15, 2) @default(0)
   hariHadir        Int       @default(0)
   hariAlpa         Int       @default(0)
   jamLembur        Decimal   @db.Decimal(6, 2) @default(0)
@@ -1075,6 +1136,107 @@ model SalaryRunDetail {
   @@map("salary_run_detail")
 }
 
+// ============================================================
+// THR Keagamaan (Permenaker 6/2016). Run dan slip terpisah dari gaji.
+// ≥12 bulan → 1x upah (gapok + tunjangan tetap); <12 bulan → prorata.
+// ============================================================
+
+model ThrRun {
+  id              String          @id @default(cuid())
+  tahun           Int
+  namaHariRaya    String
+  tanggalHariRaya DateTime        @db.Date
+  tanggalBayar    DateTime        @db.Date
+  status          StatusSalaryRun @default(DRAF)
+  catatan         String?
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  detail ThrDetail[]
+
+  @@unique([tahun, namaHariRaya])
+  @@index([tahun])
+  @@map("thr_run")
+}
+
+model ThrDetail {
+  id             String   @id @default(cuid())
+  nomor          String   @unique
+  runId          String
+  run            ThrRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  karyawanId     String
+  karyawan       Karyawan @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  masaKerjaBulan Int      @default(0)
+  upahSebulan    Decimal  @db.Decimal(15, 2)
+  bruto          Decimal  @db.Decimal(15, 2)
+  pph21          Decimal  @db.Decimal(15, 2) @default(0)
+  bersih         Decimal  @db.Decimal(15, 2)
+  rincian        Json
+  // Kode verifikasi slip PDF (diisi saat terbit/unduh pertama).
+  kodeVerifikasi String?  @unique
+  createdAt      DateTime @default(now())
+
+  @@unique([runId, karyawanId])
+  @@index([karyawanId])
+  @@map("thr_detail")
+}
+
+// ============================================================
+// Kasbon / pinjaman karyawan (angsuran via salary run).
+// DRAFT → DIAJUKAN → DISETUJUI/DITOLAK; LUNAS otomatis saat sisa 0.
+// Potongan dibukukan di KasbonAngsuran agar hitung-ulang idempoten.
+// ============================================================
+
+model Kasbon {
+  id               String       @id @default(cuid())
+  nomor            String       @unique
+  karyawanId       String
+  karyawan         Karyawan     @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  nominal          Decimal      @db.Decimal(15, 2)
+  tenorBulan       Int
+  angsuranPerBulan Decimal      @db.Decimal(15, 2)
+  sisaHutang       Decimal      @db.Decimal(15, 2)
+  mulaiPotong      DateTime     @db.Date
+  alasan           String
+  status           StatusKasbon @default(DRAFT)
+  approvedById     String?
+  approvedAt       DateTime?
+  catatan          String?
+  createdById      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  angsuran KasbonAngsuran[]
+
+  @@index([karyawanId, status])
+  @@map("kasbon")
+}
+
+enum StatusKasbon {
+  DRAFT
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
+  LUNAS
+}
+
+model KasbonAngsuran {
+  id        String    @id @default(cuid())
+  kasbonId  String
+  kasbon    Kasbon    @relation(fields: [kasbonId], references: [id], onDelete: Cascade)
+  runId     String
+  run       SalaryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  periode   String
+  jumlah    Decimal   @db.Decimal(15, 2)
+  createdAt DateTime  @default(now())
+
+  @@unique([kasbonId, runId])
+  @@index([runId])
+  @@map("kasbon_angsuran")
+}
+
 model Payslip {
   id         String    @id @default(cuid())
   nomor      String    @unique
@@ -1082,6 +1244,8 @@ model Payslip {
   run        SalaryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   karyawanId String
   karyawan   Karyawan  @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  // Kode verifikasi slip PDF (diisi saat terbit/unduh pertama).
+  kodeVerifikasi String? @unique
   createdAt  DateTime  @default(now())
 
   @@unique([runId, karyawanId])

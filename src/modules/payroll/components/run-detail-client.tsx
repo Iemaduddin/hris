@@ -45,8 +45,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 							<button type="button" onClick={() => runAction(hitungSalaryRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
 								Hitung
 							</button>
-						) : null}
-						{run.status === "DIHITUNG" ? (
+						) : null}						{run.status === "DIHITUNG" ? (
 							<button type="button" onClick={() => runAction(finalisasiRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-amber-600 px-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-70">
 								Finalisasi (Kunci)
 							</button>
@@ -55,6 +54,11 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 							<button type="button" onClick={() => runAction(terbitkanRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70">
 								Terbitkan Payslip
 							</button>
+						) : null}
+						{["DIHITUNG", "FINAL", "DITERBITKAN"].includes(run.status) ? (
+							<a href={`/api/payroll/disburse?runId=${run.id}`} className="inline-flex h-9 items-center rounded-lg border border-blue-200 px-3 text-sm hover:bg-blue-50">
+								Unduh CSV Bank
+							</a>
 						) : null}
 					</div>
 				</div>
@@ -70,6 +74,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 								<th className="px-4 py-3 text-right font-semibold">Pendapatan</th>
 								<th className="px-4 py-3 text-right font-semibold">Potongan</th>
 								<th className="px-4 py-3 text-right font-semibold">Bersih</th>
+								<th className="px-4 py-3 text-right font-semibold">Biaya PT</th>
 								<th className="px-4 py-3 text-right font-semibold">Detail</th>
 							</tr>
 						</thead>
@@ -86,7 +91,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 														<span>
 															{r.nama} {r.keterangan ? `(${r.keterangan})` : ""}
 														</span>
-														<span className={r.kelompok === "POTONGAN" || r.kelompok === "IURAN" ? "text-red-600" : "text-emerald-700"}>
+														<span className={r.kelompok === "POTONGAN" || r.kelompok === "IURAN" ? "text-red-600" : r.kelompok === "BIAYA_PERUSAHAAN" ? "text-sky-700" : "text-emerald-700"}>
 															{rupiah.format(r.jumlah)}
 														</span>
 													</li>
@@ -98,6 +103,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 									<td className="px-4 py-3 text-right">{rupiah.format(Number(d.totalPendapatan))}</td>
 									<td className="px-4 py-3 text-right">{rupiah.format(Number(d.totalPotongan))}</td>
 									<td className="px-4 py-3 text-right font-semibold">{rupiah.format(Number(d.gajiBersih))}</td>
+									<td className="px-4 py-3 text-right text-slate-500">{rupiah.format(Number(d.totalBiayaPerusahaan))}</td>
 									<td className="px-4 py-3 text-right">
 										{run.status === "DITERBITKAN" ? (
 											<Link href={`/payroll/payslip/SLIP-${run.periode}-${d.karyawanId.slice(-6).toUpperCase()}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">

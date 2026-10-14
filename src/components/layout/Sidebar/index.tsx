@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHouse, LuLayers, LuList, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -51,6 +51,7 @@ const sidebarSections: SidebarSection[] = [
 			{ id: "presensi-saya", label: "Presensi Saya", href: "/akun/attendance", icon: LuCalendarCheck },
 			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/akun/requests", icon: LuSend },
 			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/akun/payslip", icon: LuWallet },
+			{ id: "kasbon-saya", label: "Kasbon Saya", href: "/akun/kasbon", icon: LuHandCoins },
 		],
 	},
 	{
@@ -145,7 +146,10 @@ const sidebarSections: SidebarSection[] = [
 				allowedRoles: FINANCE_ROLES,
 				children: [
 					{ id: "salary-run", label: "Salary Run", href: "/payroll", icon: LuCircleDollarSign },
+					{ id: "thr", label: "THR Keagamaan", href: "/payroll/thr", icon: LuWallet },
+					{ id: "kasbon", label: "Kasbon", href: "/payroll/kasbon", icon: LuHandCoins },
 					{ id: "komponen", label: "Komponen Gaji", href: "/payroll/salary-components", icon: LuReceipt },
+					{ id: "aturan", label: "Aturan Payroll", href: "/payroll/settings", icon: LuSettings },
 				],
 			},
 		],

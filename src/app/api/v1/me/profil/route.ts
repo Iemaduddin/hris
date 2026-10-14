@@ -3,12 +3,7 @@ import prisma from "@/src/lib/prisma";
 import { decimalKeNumber } from "@/src/lib/decimal";
 import { fail, ok, requireApiSession } from "@/src/lib/api-v1";
 
-/**
- * Profil lengkap milik sendiri (PRD mobile Bag. 5.6 / B6).
- * Read-only: kontak, alamat, penempatan aktif, kontrak aktif.
- * NIK & NPWP ditampilkan ter-mask (mis. 3273••••••1234) sesuai Bag. 8.
- */
-/** NIK/NPWP ditampilkan ter-mask (mis. 3273••••••1234) sesuai Bag. 8. */
+/** Profil lengkap milik sendiri (read-only). NIK/NPWP selalu ter-mask. */
 function maskNilai(value: string | null | undefined): string | null {
 	const raw = (value ?? "").trim();
 	if (!raw) return null;

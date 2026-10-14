@@ -12,17 +12,23 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 
 	const pendapatan = slip.rincian.filter((r) => r.kelompok === "PENDAPATAN" || r.kelompok === "TUNJANGAN");
 	const potongan = slip.rincian.filter((r) => r.kelompok === "POTONGAN" || r.kelompok === "IURAN");
+	const biayaPerusahaan = slip.rincian.filter((r) => r.kelompok === "BIAYA_PERUSAHAAN");
 
 	return (
 		<>
-			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<div>
+		<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div>
 						<h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Slip Gaji {slip.periode}</h1>
 						<p className="mt-2 text-sm text-slate-500">
 							{slip.karyawanNama} ({slip.nomorKaryawan}) • {slip.nomor}
 						</p>
 					</div>
-			</div>
+					<a href={`/api/payroll/slip/${encodeURIComponent(slip.nomor)}`} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700">
+						Unduh PDF
+					</a>
+				</div>
+		</div>
 
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
 				<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -59,17 +65,35 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 				</div>
 			</div>
 
-			<div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-				<div className="flex items-center justify-between">
-					<span className="text-lg font-semibold">Gaji Bersih</span>
-					<span className="text-2xl font-bold text-emerald-700 dark:text-emerald-200">
-						{rupiah.format(Number(slip.gajiBersih))}
-					</span>
-				</div>
-				<p className="mt-1 text-xs text-slate-500">
-					Hadir {slip.hariHadir} hari • Alpa {slip.hariAlpa} hari
-				</p>
+		<div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+			<div className="flex items-center justify-between">
+				<span className="text-lg font-semibold">Gaji Bersih</span>
+				<span className="text-2xl font-bold text-emerald-700 dark:text-emerald-200">
+					{rupiah.format(Number(slip.gajiBersih))}
+				</span>
 			</div>
-		</>
+			<p className="mt-1 text-xs text-slate-500">
+				Hadir {slip.hariHadir} hari • Alpa {slip.hariAlpa} hari
+			</p>
+		</div>
+
+		{biayaPerusahaan.length > 0 ? (
+			<div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-5 dark:border-sky-900/60 dark:bg-sky-950/30">
+				<h2 className="text-lg font-semibold">Ditanggung Perusahaan (tidak memotong gaji)</h2>
+				<ul className="mt-3 space-y-2 text-sm">
+					{biayaPerusahaan.map((r) => (
+						<li key={r.kode} className="flex justify-between gap-4">
+							<span>{r.nama}</span>
+							<span className="font-medium">{rupiah.format(r.jumlah)}</span>
+						</li>
+					))}
+					<li className="flex justify-between gap-4 border-t border-sky-200 pt-2 font-semibold dark:border-sky-900/60">
+						<span>Total</span>
+						<span>{rupiah.format(Number(slip.totalBiayaPerusahaan))}</span>
+					</li>
+				</ul>
+			</div>
+		) : null}
+	</>
 	);
 }
