@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { potongSaldo } from "@/src/modules/leave/lib/balance";
 import { bukaClearance } from "@/src/modules/employee/actions/offboarding.actions";
+import { eksekusiTukar } from "@/src/modules/roster/actions/tukar.actions";
 import { notifikasiKeputusanPengajuan } from "../lib/approval-notify";
 import {
 	getAntrianApproval,
@@ -70,7 +71,9 @@ export async function prosesPengajuanAction(
 						`Pemakaian ${pengajuan.nomorPengajuan}`,
 					);
 				}
-			: undefined;
+			: type === "TUKAR_SHIFT"
+				? async () => eksekusiTukar(id)
+				: undefined;
 
 	const result = await prosesApproval({
 		type,
@@ -90,6 +93,8 @@ export async function prosesPengajuanAction(
 	revalidatePath("/employees/mutasi");
 	revalidatePath("/employees/offboarding");
 	revalidatePath("/employees/probation");
+	revalidatePath("/account/tukar");
+	revalidatePath("/roster");
 
 	// PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
 	if (result.success && result.selesai) {

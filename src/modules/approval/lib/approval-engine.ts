@@ -8,6 +8,7 @@ export const REFERENSI_DINAS = "DINAS";
 export const REFERENSI_MUTASI = "MUTASI";
 export const REFERENSI_RESIGN = "RESIGN";
 export const REFERENSI_PROBATION = "PROBATION";
+export const REFERENSI_TUKAR = "TUKAR_SHIFT";
 
 export type ReferensiType =
   | typeof REFERENSI_CUTI
@@ -15,7 +16,8 @@ export type ReferensiType =
   | typeof REFERENSI_DINAS
   | typeof REFERENSI_MUTASI
   | typeof REFERENSI_RESIGN
-  | typeof REFERENSI_PROBATION;
+  | typeof REFERENSI_PROBATION
+  | typeof REFERENSI_TUKAR;
 
 type SetStatus = (
   status: "DIAJUKAN" | "MENUNGGU_APPROVAL" | "DISETUJUI" | "DITOLAK" | "DIBATALKAN",
@@ -33,6 +35,8 @@ async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: 
 		await prisma.offboarding.update({ where: { id }, data: { status: status as never } });
 	} else if (type === REFERENSI_PROBATION) {
 		await prisma.probationReview.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_TUKAR) {
+		await prisma.tukarShift.update({ where: { id }, data: { status: status as never } });
 	} else {
 		await prisma.dinasWFH.update({ where: { id }, data: { status: status as never } });
 	}
@@ -58,6 +62,10 @@ async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<st
 	if (type === REFERENSI_PROBATION) {
 		const r = await prisma.probationReview.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_TUKAR) {
+		const r = await prisma.tukarShift.findUnique({ where: { id }, select: { pemohonKaryawanId: true } });
+		return r?.pemohonKaryawanId ?? null;
 	}
 	const r = await prisma.dinasWFH.findUnique({ where: { id }, select: { karyawanId: true } });
 	return r?.karyawanId ?? null;
@@ -196,8 +204,10 @@ function namaJenis(type: ReferensiType): string {
 				? "Mutasi"
 			: type === REFERENSI_RESIGN
 				? "Resign"
-				: type === REFERENSI_PROBATION
-					? "Probation"
+			: type === REFERENSI_PROBATION
+				? "Probation"
+				: type === REFERENSI_TUKAR
+					? "Tukar Shift"
 					: "Dinas/WFH";
 }
 
@@ -324,6 +334,25 @@ export async function getRingkasanPengajuan(
 			karyawanNama: r.karyawan.namaLengkap,
 			nomorKaryawan: r.karyawan.nomorKaryawan,
 			ringkasan: `Probation s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}${r.hasil ? ` • ${labelHasilProbation(r.hasil)}` : ""}`,
+			diajukanPada: r.diajukanPada?.toISOString() ?? null,
+		};
+	}
+	if (type === REFERENSI_TUKAR) {
+		const r = await prisma.tukarShift.findUnique({
+			where: { id },
+			include: {
+				pemohon: { select: { namaLengkap: true, nomorKaryawan: true } },
+				pasangan: { select: { namaLengkap: true } },
+			},
+		});
+		if (!r) return null;
+		return {
+			id: r.id,
+			nomor: r.tanggal.toISOString().slice(0, 10),
+			karyawanId: r.pemohonKaryawanId,
+			karyawanNama: r.pemohon.namaLengkap,
+			nomorKaryawan: r.pemohon.nomorKaryawan,
+			ringkasan: `Tukar ${r.tanggal.toISOString().slice(0, 10)} ↔ ${r.pasangan.namaLengkap}`,
 			diajukanPada: r.diajukanPada?.toISOString() ?? null,
 		};
 	}

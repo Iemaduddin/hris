@@ -416,5 +416,3 @@ export async function getTerbitOptions(): Promise<{
     templates: templates.map((t) => ({ value: t.id, label: `${t.kode} — ${t.nama}`, kode: t.kode })),
   };
 }
-
-export { JENIS_SURAT, daftarPlaceholder };

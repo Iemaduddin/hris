@@ -11,6 +11,7 @@ const SLUG_JENIS: Record<ReferensiType, string> = {
 	MUTASI: "mutasi",
 	RESIGN: "resign",
 	PROBATION: "probation",
+	TUKAR_SHIFT: "tukar",
 };
 
 export type StatusKeputusan = "DISETUJUI" | "DITOLAK";

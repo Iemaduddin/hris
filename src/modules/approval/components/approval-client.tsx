@@ -14,6 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
 	MUTASI: "Mutasi",
 	RESIGN: "Resign",
 	PROBATION: "Probation",
+	TUKAR_SHIFT: "Tukar Shift",
 };
 
 export default function ApprovalClient({

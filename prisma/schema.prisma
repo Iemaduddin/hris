@@ -307,8 +307,9 @@ model Karyawan {
   perangkat          PerangkatKaryawan[]
   saldoCuti     SaldoCuti[]
   pengajuanCuti PengajuanKetidakhadiran[]
-  penugasanJadwal PenugasanJadwal[]
   lembur         Lembur[]
+  tukarDiminta   TukarShift[] @relation("TukarPemohon")
+  tukarDitawari  TukarShift[] @relation("TukarPasangan")
 
   @@unique([nomorKaryawan])
   @@index([status])
@@ -857,8 +858,6 @@ model JadwalKerja {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  penugasanJadwal PenugasanJadwal[]
 
   @@unique([kalenderKerjaId, hari])
   @@map("jadwal_kerja")
@@ -1708,24 +1707,38 @@ enum StatusApproval {
 }
 
 // ============================================================
-// PENUGASAN JADWAL — Assign jadwal kerja/shift ke karyawan
+// Tukar shift same-date: pemohon ↔ pasangan.
+// Alur: DRAFT → DIAJUKAN → MENUNGGU (pasangan → HR) → DISETUJUI
+// (roster ditukar) / DITOLAK / DIBATALKAN.
 // ============================================================
 
-model PenugasanJadwal {
-  id              Int         @id @default(autoincrement())
-  karyawanId      String
-  karyawan        Karyawan    @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
-  jadwalKerjaId   Int
-  jadwalKerja     JadwalKerja @relation(fields: [jadwalKerjaId], references: [id])
+model TukarShift {
+  id                 String           @id @default(cuid())
+  tanggal            DateTime         @db.Date
+  pemohonKaryawanId  String
+  pemohon            Karyawan         @relation("TukarPemohon", fields: [pemohonKaryawanId], references: [id], onDelete: Cascade)
+  pasanganKaryawanId String
+  pasangan           Karyawan         @relation("TukarPasangan", fields: [pasanganKaryawanId], references: [id], onDelete: Cascade)
+  shiftPemohonId     String?
+  shiftPasanganId    String?
+  alasan             String
+  status             StatusTukarShift @default(DRAFT)
+  diajukanPada       DateTime?
+  createdById        String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
-  tanggalMulai    DateTime
-  tanggalSelesai  DateTime?
+  @@index([pemohonKaryawanId, status])
+  @@index([pasanganKaryawanId, status])
+  @@index([tanggal])
+  @@map("tukar_shift")
+}
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@unique([karyawanId, tanggalMulai])
-  @@index([karyawanId])
-  @@index([jadwalKerjaId])
-  @@map("penugasan_jadwal")
+enum StatusTukarShift {
+  DRAFT
+  DIAJUKAN
+  MENUNGGU_APPROVAL
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
 }

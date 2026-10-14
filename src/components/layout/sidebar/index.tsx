@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarPlus, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -54,6 +54,7 @@ const sidebarSections: SidebarSection[] = [
 			{ id: "kasbon-saya", label: "Kasbon Saya", href: "/account/kasbon", icon: LuHandCoins },
 			{ id: "onboarding-saya", label: "Onboarding Saya", href: "/account/onboarding", icon: LuListChecks },
 			{ id: "disiplin-saya", label: "SP Saya", href: "/account/disiplin", icon: LuTriangleAlert },
+			{ id: "tukar-saya", label: "Tukar Shift", href: "/account/tukar", icon: LuRepeat },
 			{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
 		],
 	},
@@ -93,13 +94,6 @@ const sidebarSections: SidebarSection[] = [
 		label: "Transactions",
 		allowedRoles: HR_ROLES,
 		items: [
-			{
-				id: "schedule",
-				label: "Penugasan Jadwal",
-				href: "/schedule",
-				icon: LuCalendarPlus,
-				allowedRoles: HR_ROLES,
-			},
 			{
 				id: "roster",
 				label: "Roster & Penugasan",

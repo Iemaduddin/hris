@@ -601,6 +601,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "Tukar Shift",
+      "item": [
+        {
+          "name": "Milik + Masuk Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/tukar",
+            "header": []
+          }
+        },
+        {
+          "name": "Buat Draf",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tukar",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pasanganKaryawanId\": \"ID_KARYAWAN\",\n  \"tanggal\": \"2026-11-01\",\n  \"alasan\": \"Acara keluarga\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ajukan / Batal / Setuju / Tolak",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/tukar",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"ID_TUKAR\",\n  \"aksi\": \"setuju\"\n}"
+            },
+            "description": "aksi: \"ajukan\" | \"batal\" | \"setuju\" | \"tolak\"."
+          }
+        }
+      ]
     }
   ]
 }

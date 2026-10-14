@@ -194,5 +194,3 @@ export async function hapusKasbon(id: string): Promise<KasbonActionResult> {
   revalidatePath("/payroll/kasbon");
   return { success: true, message: "Kasbon dihapus." };
 }
-
-export { KASBON_SETTING_DEFAULT, KASBON_SETTING_DESKRIPSI, KUNCI_KASBON_MAX_NOMINAL, KUNCI_KASBON_MAX_TENOR };

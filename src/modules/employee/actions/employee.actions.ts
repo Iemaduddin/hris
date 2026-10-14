@@ -32,7 +32,7 @@ import {
 } from "../types/employee.type";
 import { parseEmployeeStepPayload } from "../schemas/employee.schema";
 
-export const BANK_OPTIONS = [
+const BANK_OPTIONS = [
 	"BCA",
 	"BRI",
 	"MANDIRI",
