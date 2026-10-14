@@ -5,7 +5,6 @@ import { getCurrentSession } from "@/src/lib/auth-guard";
 import ThemeToggle from "@/src/components/ui/theme-toggle";
 import LoginForm from "@/src/modules/auth/components/login-form";
 import { getCompanyData } from "@/src/modules/company-data/actions/company-data.actions";
-import loginIllustration from "@/public/login-page.png";
 export const metadata: Metadata = {
 	title: "Login",
 };
@@ -45,7 +44,7 @@ export default async function LoginPage() {
 					</div>
 					<div className="h-80 w-full">
 					<Image
-						src={loginIllustration}
+						src="/login-page.png"
 						alt="Login illustration"
 						width={400}
 						height={300}
