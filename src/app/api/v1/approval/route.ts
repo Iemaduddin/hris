@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { getAntrianSaya, prosesPengajuanAction } from "@/src/modules/approval/actions/approval.actions";
-import type { ReferensiType } from "@/src/modules/approval/lib/approval-engine";
+import { TIPE_APPROVAL_MOBILE, type ReferensiType } from "@/src/modules/approval/lib/approval-engine";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
 
-const TIPE_VALID = ["CUTI", "LEMBUR", "DINAS"];
-
 /**
- * GET: antrean approval untuk user login (atasan/HR).
- * POST: {type, id, keputusan: "SETUJU"|"TOLAK", catatan?}.
+ * GET: antrean approval untuk user login (atasan/HR) — semua tipe yang
+ * bisa diputusnya (otorisasi per tahap di engine).
+ * POST: {type, id, keputusan: "SETUJU"|"TOLAK", catatan?} — P4-4 mobile.
+ * Master/payroll tetap read-only: mobile tak punya layar kelola master.
  */
 export async function GET(request: NextRequest) {
 	const ctx = await requireApiSession(request);
@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
 	const id = str(body?.["id"]);
 	const keputusan = str(body?.["keputusan"]).toUpperCase();
 
-	if (!TIPE_VALID.includes(type)) return fail("type tidak valid (CUTI/LEMBUR/DINAS).", 422);
+	if (!TIPE_APPROVAL_MOBILE.includes(type as ReferensiType)) {
+		return fail(`type tidak valid (${TIPE_APPROVAL_MOBILE.join("/")}).`, 422);
+	}
 	if (!id) return fail("id wajib diisi.", 422);
 	if (keputusan !== "SETUJU" && keputusan !== "TOLAK") {
 		return fail('keputusan tidak valid (SETUJU/TOLAK).', 422);

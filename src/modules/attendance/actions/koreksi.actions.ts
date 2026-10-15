@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
+import { catatAudit } from "@/src/modules/audit/lib/audit";
 import { toDbDate } from "@/src/lib/time";
 import { mulaiAlurApproval } from "@/src/modules/approval/lib/approval-engine";
 import { validasiKoreksi, waktuKoreksi } from "@/src/modules/attendance/lib/koreksi";
@@ -16,6 +17,15 @@ export type KoreksiItem = {
   alasan: string;
   status: string;
 };
+
+/** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
+function segarkan(path: string): void {
+  try {
+    revalidatePath(path);
+  } catch {
+    // abaikan — hygiene cache, bukan logika inti
+  }
+}
 
 async function karyawanDariUser(userId: string): Promise<string | null> {
   if (!userId) return null;
@@ -67,7 +77,7 @@ export async function buatKoreksi(
     },
     select: { id: true },
   });
-  revalidatePath("/account/koreksi");
+  segarkan("/account/koreksi");
   return { success: true, message: "Draf koreksi tersimpan.", id: created.id };
 }
 
@@ -78,8 +88,8 @@ export async function ajukanKoreksi(id: string, userId: string): Promise<Koreksi
   if (row.karyawanId !== saya) return { success: false, message: "Hanya milik sendiri." };
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa diajukan." };
   await mulaiAlurApproval("KOREKSI", id);
-  revalidatePath("/account/koreksi");
-  revalidatePath("/approval");
+  segarkan("/account/koreksi");
+  segarkan("/approval");
   return { success: true, message: "Dikirim ke atasan → HR." };
 }
 
@@ -95,7 +105,7 @@ export async function batalkanKoreksi(id: string, userId: string): Promise<Korek
     prisma.koreksiPresensi.update({ where: { id }, data: { status: "DIBATALKAN" } }),
     prisma.approvalStep.deleteMany({ where: { referensiType: "KOREKSI", referensiId: id } }),
   ]);
-  revalidatePath("/account/koreksi");
+  segarkan("/account/koreksi");
   return { success: true, message: "Pengajuan dibatalkan." };
 }
 
@@ -118,26 +128,41 @@ export async function terapkanKoreksi(id: string): Promise<{ success: boolean; m
     },
     orderBy: { waktu: "desc" },
   });
-  await prisma.$transaction([
-    ...(lama
-      ? [
-          prisma.absensi.update({
-            where: { id: lama.id },
-            data: { status: "DIBATALKAN", catatan: `Digantikan koreksi ${row.id.slice(-6).toUpperCase()}` },
-          }),
-        ]
-      : []),
-    prisma.absensi.create({
-      data: {
-        karyawanId: row.karyawanId,
-        waktu: row.waktuBaru,
-        tipe: row.tipe,
-        sumber: "MANUAL",
-        status: "DIKOREKSI",
-        catatan: `Koreksi mandiri disetujui (${row.alasan})`,
-      },
-    }),
-    prisma.koreksiPresensi.update({ where: { id }, data: { absensiId: lama?.id ?? null } }),
-  ]);
-  return { success: true, message: "Koreksi diterapkan." };
+	await prisma.$transaction([
+		...(lama
+			? [
+					prisma.absensi.update({
+						where: { id: lama.id },
+						data: { status: "DIBATALKAN", catatan: `Digantikan koreksi ${row.id.slice(-6).toUpperCase()}` },
+					}),
+				]
+			: []),
+		prisma.absensi.create({
+			data: {
+				karyawanId: row.karyawanId,
+				waktu: row.waktuBaru,
+				tipe: row.tipe,
+				sumber: "MANUAL",
+				status: "DIKOREKSI",
+				catatan: `Koreksi mandiri disetujui (${row.alasan})`,
+			},
+		}),
+		prisma.koreksiPresensi.update({ where: { id }, data: { absensiId: lama?.id ?? null } }),
+	]);
+	// P0-9: penerapan koreksi via approval teraudit (sebelum=event lama, sesudah=jam baru).
+	const finalStep = await prisma.approvalStep.findFirst({
+		where: { referensiType: "KOREKSI", referensiId: id, status: "DISETUJUI" },
+		orderBy: { tahap: "desc" },
+		select: { diprosesOlehId: true },
+	});
+	await catatAudit({
+		actorUserId: finalStep?.diprosesOlehId ?? null,
+		aksi: "KOREKSI.DITERAPKAN",
+		entityType: "KoreksiPresensi",
+		entityId: id,
+		sebelum: lama ? { absensiId: lama.id, waktu: lama.waktu, tipe: lama.tipe, status: lama.status } : null,
+		sesudah: { karyawanId: row.karyawanId, waktuBaru: row.waktuBaru, tipe: row.tipe },
+		alasan: row.alasan,
+	});
+	return { success: true, message: "Koreksi diterapkan." };
 }

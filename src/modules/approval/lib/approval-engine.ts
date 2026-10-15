@@ -12,18 +12,38 @@ export const REFERENSI_TUKAR = "TUKAR_SHIFT";
 export const REFERENSI_KOREKSI = "KOREKSI";
 export const REFERENSI_REIMBURSE = "REIMBURSE";
 export const REFERENSI_UANGDINAS = "UANGDINAS";
+export const REFERENSI_UPDATEDATA = "UPDATE_DATA";
 
 export type ReferensiType =
-  | typeof REFERENSI_CUTI
-  | typeof REFERENSI_LEMBUR
-  | typeof REFERENSI_DINAS
-  | typeof REFERENSI_MUTASI
-  | typeof REFERENSI_RESIGN
-  | typeof REFERENSI_PROBATION
-  | typeof REFERENSI_TUKAR
-  | typeof REFERENSI_KOREKSI
-  | typeof REFERENSI_REIMBURSE
-  | typeof REFERENSI_UANGDINAS;
+	| typeof REFERENSI_CUTI
+	| typeof REFERENSI_LEMBUR
+	| typeof REFERENSI_DINAS
+	| typeof REFERENSI_MUTASI
+	| typeof REFERENSI_RESIGN
+	| typeof REFERENSI_PROBATION
+	| typeof REFERENSI_TUKAR
+	| typeof REFERENSI_KOREKSI
+	| typeof REFERENSI_REIMBURSE
+	| typeof REFERENSI_UANGDINAS
+	| typeof REFERENSI_UPDATEDATA;
+
+/**
+ * Tipe yang bisa diputus dari mobile (P4-4). UPDATE_DATA dikecualikan:
+ * tahapnya HR-saja dan menyentuh data master — tetap via web.
+ * Otorisasi tetap di engine (bolehAtasan/bolehHr per tahap).
+ */
+export const TIPE_APPROVAL_MOBILE: readonly ReferensiType[] = [
+	REFERENSI_CUTI,
+	REFERENSI_LEMBUR,
+	REFERENSI_DINAS,
+	REFERENSI_MUTASI,
+	REFERENSI_RESIGN,
+	REFERENSI_PROBATION,
+	REFERENSI_TUKAR,
+	REFERENSI_KOREKSI,
+	REFERENSI_REIMBURSE,
+	REFERENSI_UANGDINAS,
+];
 
 type SetStatus = (
   status: "DIAJUKAN" | "MENUNGGU_APPROVAL" | "DISETUJUI" | "DITOLAK" | "DIBATALKAN",
@@ -49,6 +69,8 @@ async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: 
 		await prisma.expenseClaim.update({ where: { id }, data: { status: status as never } });
 	} else if (type === REFERENSI_UANGDINAS) {
 		await prisma.uangDinas.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_UPDATEDATA) {
+		await prisma.updateDataRequest.update({ where: { id }, data: { status: status as never } });
 	} else {
 		await prisma.dinasWFH.update({ where: { id }, data: { status: status as never } });
 	}
@@ -89,6 +111,10 @@ async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<st
 	}
 	if (type === REFERENSI_UANGDINAS) {
 		const r = await prisma.uangDinas.findUnique({ where: { id }, select: { karyawanId: true } });
+		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_UPDATEDATA) {
+		const r = await prisma.updateDataRequest.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
 	}
 	const r = await prisma.dinasWFH.findUnique({ where: { id }, select: { karyawanId: true } });
@@ -138,6 +164,23 @@ export async function mulaiAlurApproval(type: ReferensiType, id: string): Promis
 		await prisma.expenseClaim.update({ where: { id }, data: { diajukanPada: new Date() } });
 	} else if (type === REFERENSI_UANGDINAS) {
 		await prisma.uangDinas.update({ where: { id }, data: { diajukanPada: new Date() } });
+	}
+
+	// P4-3: beritahu approver tahap berjalan (in-app + push + email per preferensi).
+	try {
+		const { beritahuApproverBaru } = await import("@/src/modules/notifikasi/lib/notify");
+		const detail = await getRingkasanPengajuan(type, id);
+		if (detail) {
+			await beritahuApproverBaru(
+				type,
+				id,
+				`Pengajuan ${namaJenis(type)} Baru`,
+				`${detail.nomor} • ${detail.karyawanNama} (${detail.nomorKaryawan}) — ${detail.ringkasan}`,
+				"/approval",
+			);
+		}
+	} catch {
+		// abaikan — notifikasi pelengkap
 	}
 }
 
@@ -238,8 +281,10 @@ function namaJenis(type: ReferensiType): string {
 				? "Probation"
 			: type === REFERENSI_TUKAR
 				? "Tukar Shift"
-			: type === REFERENSI_KOREKSI
-				? "Koreksi Presensi"
+		: type === REFERENSI_KOREKSI
+			? "Koreksi Presensi"
+			: type === REFERENSI_UPDATEDATA
+				? "Update Data"
 				: type === REFERENSI_REIMBURSE
 					? "Reimbursement"
 					: type === REFERENSI_UANGDINAS
@@ -421,6 +466,23 @@ export async function getRingkasanPengajuan(
 			karyawanNama: r.karyawan.namaLengkap,
 			nomorKaryawan: r.karyawan.nomorKaryawan,
 			ringkasan: `Reimburse ${r.kategori} Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.keterangan}`,
+			diajukanPada: r.diajukanPada?.toISOString() ?? null,
+		};
+	}
+	if (type === REFERENSI_UPDATEDATA) {
+		const r = await prisma.updateDataRequest.findUnique({
+			where: { id },
+			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+		});
+		if (!r) return null;
+		const { ringkasanUpdateData, labelKategori } = await import("@/src/modules/employee/lib/updatedata");
+		return {
+			id: r.id,
+			nomor: r.nomor,
+			karyawanId: r.karyawanId,
+			karyawanNama: r.karyawan.namaLengkap,
+			nomorKaryawan: r.karyawan.nomorKaryawan,
+			ringkasan: `${labelKategori(r.kategori)} • ${ringkasanUpdateData(r.kategori, (r.dataBaru ?? {}) as Record<string, unknown>)}`,
 			diajukanPada: r.diajukanPada?.toISOString() ?? null,
 		};
 	}
