@@ -17,6 +17,7 @@ const TYPE_LABEL: Record<string, string> = {
 	PROBATION: "Probation",
 	TUKAR_SHIFT: "Tukar Shift",
 	KOREKSI: "Koreksi Presensi",
+	UPDATE_DATA: "Update Data",
 	REIMBURSE: "Reimbursement",
 	UANGDINAS: "Uang Dinas",
 };
