@@ -323,7 +323,7 @@
               "mode": "raw",
               "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"keputusan\": \"SETUJU\",\n  \"catatan\": \"OK\"\n}"
             },
-            "description": "type: CUTI | LEMBUR | DINAS. keputusan: SETUJU | TOLAK."
+            "description": "type: CUTI/LEMBUR/DINAS/MUTASI/RESIGN/PROBATION/TUKAR_SHIFT/KOREKSI/REIMBURSE/UANGDINAS (UPDATE_DATA web-only). keputusan: SETUJU | TOLAK."
           }
         },
         {
@@ -695,6 +695,118 @@
             },
             "description": "aksi: \"ajukan\" | \"batal\"."
           }
+        }
+      ]
+    },
+    {
+      "name": "Update Data",
+      "item": [
+        {
+          "name": "Daftar Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/update-data",
+            "header": []
+          }
+        },
+        {
+          "name": "Buat Draf",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/update-data",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kategori\": \"ALAMAT\",\n  \"dataBaru\": { \"alamat\": \"Jl. Baru No. 10\" },\n  \"alasan\": \"Pindah rumah\",\n  \"lampiranUrl\": \"\"\n}"
+            },
+            "description": "kategori: ALAMAT | KONTAK | KELUARGA | PENDIDIKAN | DOKUMEN."
+          }
+        },
+        {
+          "name": "Ajukan / Batal",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/update-data",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"ID_UPDATEDATA\",\n  \"aksi\": \"ajukan\"\n}"
+            },
+            "description": "aksi: \"ajukan\" | \"batal\"."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifikasi",
+      "item": [
+        {
+          "name": "Daftar + Badge",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/notifications",
+            "header": []
+          },
+          "description": "?belumDibaca=1 hanya yang baru (untuk badge)."
+        },
+        {
+          "name": "Tandai Dibaca",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/notifications",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"semua\"\n}"
+            },
+            "description": "id notifikasi atau \"semua\"."
+          }
+        },
+        {
+          "name": "Simpan Preferensi",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/notifications",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pushAktif\": true,\n  \"emailAktif\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pengumuman",
+      "item": [
+        {
+          "name": "Tayang + Peristiwa",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/pengumuman",
+            "header": []
+          },
+          "description": "Pengumuman tayang (global + unit sendiri) + ultah/anniv minggu ini."
         }
       ]
     },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuPencilLine, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
+import { LuBanknote, LuBadgeCheck, LuBell, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuPencilLine, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import type { UserRole } from "@/src/modules/users/types/user.type";
 import Button from "../../ui/button";
@@ -54,6 +54,7 @@ const sidebarSections: SidebarSection[] = [
 		label: "Akun",
 		items: [
 			{ id: "profil-saya", label: "Profil Saya", href: "/account/profile", icon: LuUser },
+			{ id: "notifikasi-saya", label: "Notifikasi", href: "/notifications", icon: LuBell },
 			{ id: "presensi-saya", label: "Presensi Saya", href: "/account/attendance", icon: LuCalendarCheck },
 			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/account/requests", icon: LuSend },
 			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/account/payslip", icon: LuWallet },
@@ -64,6 +65,8 @@ const sidebarSections: SidebarSection[] = [
 			{ id: "disiplin-saya", label: "SP Saya", href: "/account/disiplin", icon: LuTriangleAlert },
 			{ id: "tukar-saya", label: "Tukar Shift", href: "/account/tukar", icon: LuRepeat },
 			{ id: "koreksi-saya", label: "Koreksi Presensi", href: "/account/koreksi", icon: LuPencilLine },
+			{ id: "pengumuman-saya", label: "Pengumuman", href: "/account/pengumuman", icon: LuMail },
+			{ id: "update-data-saya", label: "Update Data", href: "/account/update-data", icon: LuUser },
 			{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
 		],
 	},
@@ -94,6 +97,9 @@ const sidebarSections: SidebarSection[] = [
 					{ id: "onboarding", label: "Onboarding", href: "/employees/onboarding", icon: LuListChecks, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "probation", label: "Probation", href: "/employees/probation", icon: LuBadgeCheck, allowedRoles: [...HR_ROLES, "MANAJER"] },
 					{ id: "offboarding", label: "Offboarding", href: "/employees/offboarding", icon: LuLogOut, allowedRoles: HR_ROLES },
+					{ id: "pengumuman", label: "Pengumuman", href: "/employees/pengumuman", icon: LuMail, allowedRoles: HR_ROLES },
+					{ id: "update-data", label: "Update Data", href: "/employees/update-data", icon: LuUser, allowedRoles: HR_ROLES },
+					{ id: "import", label: "Impor & Kualitas", href: "/employees/import", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
 				],
 			},
 		],
@@ -173,7 +179,10 @@ const sidebarSections: SidebarSection[] = [
 		id: "reports",
 		label: "Reports",
 		allowedRoles: REPORT_ROLES,
-		items: [{ id: "laporan", label: "Laporan", href: "/reports", icon: LuChartColumn, allowedRoles: REPORT_ROLES }],
+		items: [
+			{ id: "laporan", label: "Laporan", href: "/reports", icon: LuChartColumn, allowedRoles: REPORT_ROLES },
+			{ id: "audit", label: "Audit Log", href: "/audit", icon: LuList, allowedRoles: FINANCE_ROLES },
+		],
 	},
 	{
 		id: "settings",
@@ -464,9 +473,7 @@ export default function Sidebar({ company, collapsed = false, userRole }: Sideba
 				{company?.logo ? (
 					<Image src={company.logo} alt="Company Logo" width={32} height={32} className="h-12 w-12 rounded-2xl object-cover" />
 				) : (
-					<div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
-						HR
-					</div>
+					<Image src="/logo.webp" alt="HRIS Logo" width={48} height={48} className="h-12 w-12 rounded-2xl object-cover" />
 				)}
 				{!collapsed && (
 					<div className="flex flex-col">
