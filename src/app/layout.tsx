@@ -9,6 +9,10 @@ export const metadata: Metadata = {
     template: "%s | HRIS",
   },
   description: "A comprehensive Human Resource Information System (HRIS) designed to streamline HR processes, enhance employee management, and improve organizational efficiency. Our HRIS offers a user-friendly interface and powerful features to help businesses manage their workforce effectively.",
+  icons: {
+    icon: "/logo.webp",
+    apple: "/logo.webp",
+  },
 };
 
 export default function RootLayout({

@@ -54,18 +54,14 @@ export default async function LoginPage() {
 
 					<div className="flex items-center gap-4 rounded-2xl border border-white/15 bg-white/5 p-4">
 						<div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/10 p-2">
-							{companyLogo ? (
-								<Image
-									src={companyLogo}
-									alt={`${companyName} logo`}
-									width={96}
-									height={96}
-									className="h-full w-full object-contain"
-									priority
-								/>
-							) : (
-								<span className="text-sm font-bold tracking-wide">HR</span>
-							)}
+							<Image
+								src={companyLogo ?? "/logo.webp"}
+								alt={`${companyName} logo`}
+								width={96}
+								height={96}
+								className="h-full w-full object-contain"
+								priority
+							/>
 						</div>
 						<div>
 							<p className="text-xs uppercase tracking-wider text-slate-400">System</p>
