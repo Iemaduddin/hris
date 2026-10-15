@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { StatusAbsensi, SumberAbsensi, TipeAbsensi } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
+import { getCurrentSession } from "@/src/lib/auth-guard";
+import { catatAudit } from "@/src/modules/audit/lib/audit";
 import { decimalKeNumber } from "@/src/lib/decimal";
 import { hitungJarakMeter, validasiRadius } from "../lib/geo";
 
@@ -179,6 +181,29 @@ export async function catatPresensi(input: {
 		},
 	});
 
+	// P0-9: pencatatan manual HR teraudit (sebelum=null, sesudah=snapshot event).
+	try {
+		const session = await getCurrentSession();
+		await catatAudit({
+			actorUserId: session?.user?.id ?? null,
+			aksi: "PRESENSI.CATAT_MANUAL",
+			entityType: "Absensi",
+			entityId: input.karyawanId,
+			sebelum: null,
+			sesudah: {
+				karyawanId: input.karyawanId,
+				tipe: input.tipe,
+				sumber,
+				waktu: waktu.toISOString(),
+				lokasiKerjaId,
+				catatan: input.catatan || null,
+			},
+			alasan: input.catatan || null,
+		});
+	} catch {
+		// abaikan
+	}
+
 	revalidatePath("/attendance");
 	return {
 		success: true,
@@ -196,14 +221,28 @@ export async function koreksiPresensi(
 	catatan: string,
 ): Promise<PresensiActionResult> {
 	if (!id) return { success: false, message: "ID presensi tidak valid." };
+	// P0-9: koreksi langsung ditutup — wajib lewat pengajuan ESS + ApprovalStep
+	// (P2-4: /account/koreksi → atasan → HR). Upaya langsung dicatat di audit.
 	try {
-		await prisma.absensi.update({
+		const session = await getCurrentSession();
+		const lama = await prisma.absensi.findUnique({
 			where: { id },
-			data: { status, catatan: catatan || null },
+			select: { karyawanId: true, status: true, tipe: true, waktu: true },
 		});
-		revalidatePath("/attendance");
-		return { success: true, message: "Presensi berhasil dikoreksi." };
+		await catatAudit({
+			actorUserId: session?.user?.id ?? null,
+			aksi: "PRESENSI.KOREKSI_LANGSUNG_DITOLAK",
+			entityType: "Absensi",
+			entityId: id,
+			sebelum: lama,
+			sesudah: { diminta: status },
+			alasan: catatan || null,
+		});
 	} catch {
-		return { success: false, message: "Gagal mengoreksi presensi." };
+		// abaikan
 	}
+	return {
+		success: false,
+		message: "Koreksi langsung ditutup. Ajukan via Koreksi Presensi (/account/koreksi) — diproses atasan → HR.",
+	};
 }

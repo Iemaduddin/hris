@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
+import { maskNilai } from "@/src/lib/masking";
 import { getEmployeeWizardDetail } from "@/src/modules/employee/actions/employee.actions";
 
 export default async function ProfilSayaPage() {
@@ -36,8 +37,8 @@ export default async function ProfilSayaPage() {
 			</div>
 
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-				<Section title="Data Pribadi">
-					<Row label="NIK" value={p.nationalId || "-"} />
+			<Section title="Data Pribadi">
+				<Row label="NIK" value={maskNilai(p.nationalId) ?? "-"} />
 					<Row label="Jenis Kelamin" value={p.gender.replaceAll("_", " ")} />
 					<Row label="Tanggal Lahir" value={p.birthDate || "-"} />
 					<Row label="Email" value={p.workEmail || "-"} />

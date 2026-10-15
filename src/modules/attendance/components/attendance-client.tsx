@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { catatPresensi, koreksiPresensi, type PresensiListItem } from "../actions/attendance.actions";
+import { catatPresensi, type PresensiListItem } from "../actions/attendance.actions";
 
 const TIPE_OPTIONS = [
 	{ value: "MASUK", label: "Masuk" },
@@ -51,18 +52,8 @@ export default function PresensiClient({ tanggal, items, karyawanOptions }: Pres
 		});
 	}
 
-	function handleKoreksi(id: string, status: "DIKOREKSI" | "DIBATALKAN") {
-		const note = status === "DIBATALKAN" ? prompt("Alasan pembatalan:") ?? "" : "";
-		if (status === "DIBATALKAN" && !note) return;
-		startTransition(async () => {
-			const result = await koreksiPresensi(id, status, note);
-			if (!result.success) {
-				toast.error(result.message);
-				return;
-			}
-			toast.success(result.message);
-			router.refresh();
-		});
+	function handleKoreksi() {
+		toast.info("Koreksi langsung ditutup. Ajukan via Koreksi Presensi — diproses atasan → HR.");
 	}
 
 	const kolomPresensi: DataTableColumn<PresensiListItem>[] = [
@@ -102,23 +93,15 @@ export default function PresensiClient({ tanggal, items, karyawanOptions }: Pres
 			searchable: false,
 			render: (item) =>
 				item.status === "VALID" ? (
-					<div className="inline-flex gap-2">
-						<button
-							type="button"
-							onClick={() => handleKoreksi(item.id, "DIKOREKSI")}
-							disabled={isPending}
-							className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60"
+					<div className="inline-flex items-center gap-2">
+						<span className="text-xs text-slate-400">Via pengajuan</span>
+						<Link
+							href="/account/koreksi"
+							onClick={handleKoreksi}
+							className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50"
 						>
-							Koreksi
-						</button>
-						<button
-							type="button"
-							onClick={() => handleKoreksi(item.id, "DIBATALKAN")}
-							disabled={isPending}
-							className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
-						>
-							Batal
-						</button>
+							Koreksi via Approval
+						</Link>
 					</div>
 				) : (
 					<span className="text-xs text-slate-400">{item.catatan ?? "-"}</span>

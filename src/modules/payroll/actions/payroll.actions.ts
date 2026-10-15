@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
+import { getCurrentSession } from "@/src/lib/auth-guard";
+import { catatAudit } from "@/src/modules/audit/lib/audit";
 import { buatKodeVerifikasi } from "../lib/verifikasi";
 import { bagiDisburse, buildDisburseCsv } from "../lib/disburse";
 import { getPengaturanPayroll, hitungGajiKaryawan, resetCachePengaturan, type AkumulasiTahunanPPh } from "../lib/calculate";
@@ -258,6 +260,10 @@ export async function savePayrollSettings(input: {
 		return { success: false, message: "Opsi skorsing tidak valid." };
 	}
 
+	// P0-9: snapshot sebelum untuk histori audit perubahan aturan.
+	const sebelumRows = await prisma.payrollSetting.findMany({ select: { kunci: true, nilai: true } });
+	const sebelum = Object.fromEntries(sebelumRows.map((r) => [r.kunci, r.nilai]));
+
 	await prisma.$transaction([
 		prisma.payrollSetting.upsert({
 			where: { kunci: KUNCI_PEMBAGI_ALPA },
@@ -306,6 +312,31 @@ export async function savePayrollSettings(input: {
 		}),
 	]);
 	resetCachePengaturan();
+	// P0-9: histori perubahan aturan payroll (gabungan sisa P0-4).
+	try {
+		const session = await getCurrentSession();
+		await catatAudit({
+			actorUserId: session?.user?.id ?? null,
+			aksi: "PAYROLL.SETTING_UBAH",
+			entityType: "PayrollSetting",
+			entityId: "global",
+			sebelum,
+			sesudah: {
+				[KUNCI_PEMBAGI_ALPA]: pembagi,
+				[KUNCI_TELAT_PER_MENIT]: String(tarif),
+				[KUNCI_TELAT_MAX]: maxRaw,
+				[KUNCI_LEMBUR_TIERED]: tiered,
+				[KUNCI_LEMBUR_DIVISOR]: String(divisor),
+				[KUNCI_LEMBUR_MAX_JAM]: maxJamRaw,
+				[KUNCI_KASBON_MAX_NOMINAL]: kasbonPlafonRaw,
+				[KUNCI_KASBON_MAX_TENOR]: String(kasbonTenor),
+				[KUNCI_SKORSING_TANPA_UPAH]: skorsing,
+			},
+			alasan: null,
+		});
+	} catch {
+		// abaikan
+	}
 	revalidatePath("/payroll/settings");
 	revalidatePath("/payroll");
 	return { success: true, message: "Aturan potongan tersimpan (berlaku untuk hitung berikutnya)." };
@@ -388,6 +419,16 @@ export async function buatSalaryRun(periode: string, createdById?: string): Prom
 	try {
 		const created = await prisma.salaryRun.create({
 			data: { periode: `${tahun}-${String(bulan).padStart(2, "0")}`, tanggalMulai: mulai, tanggalSelesai: selesai, createdById },
+		});
+		const session = await getCurrentSession();
+		await catatAudit({
+			actorUserId: session?.user?.id ?? createdById ?? null,
+			aksi: "PAYROLL.RUN_BUAT",
+			entityType: "SalaryRun",
+			entityId: created.id,
+			sebelum: null,
+			sesudah: { periode: created.periode },
+			alasan: null,
 		});
 		revalidatePath("/payroll");
 		return { success: true, message: "Salary run dibuat.", id: created.id };
@@ -536,6 +577,17 @@ export async function hitungSalaryRun(runId: string): Promise<PayrollActionResul
 		await tx.salaryRun.update({ where: { id: runId }, data: { status: "DIHITUNG" } });
 	});
 
+	const sessionHitung = await getCurrentSession();
+	await catatAudit({
+		actorUserId: sessionHitung?.user?.id ?? null,
+		aksi: "PAYROLL.RUN_HITUNG",
+		entityType: "SalaryRun",
+		entityId: runId,
+		sebelum: { periode: run.periode, status: run.status },
+		sesudah: { periode: run.periode, status: "DIHITUNG", jumlahKaryawan: karyawan.length },
+		alasan: null,
+	});
+
 	revalidatePath("/payroll");
 	return { success: true, message: `Dihitung untuk ${karyawan.length} karyawan.` };
 }
@@ -546,6 +598,16 @@ export async function finalisasiRun(runId: string): Promise<PayrollActionResult>
 	if (run.status !== "DIHITUNG") return { success: false, message: "Hitung dulu sebelum finalisasi." };
 	if (run._count.detail === 0) return { success: false, message: "Belum ada detail." };
 	await prisma.salaryRun.update({ where: { id: runId }, data: { status: "FINAL" } });
+	const sessionFinal = await getCurrentSession();
+	await catatAudit({
+		actorUserId: sessionFinal?.user?.id ?? null,
+		aksi: "PAYROLL.RUN_FINAL",
+		entityType: "SalaryRun",
+		entityId: runId,
+		sebelum: { periode: run.periode, status: run.status },
+		sesudah: { periode: run.periode, status: "FINAL" },
+		alasan: null,
+	});
 	revalidatePath("/payroll");
 	return { success: true, message: "Run dikunci (FINAL)." };
 }
@@ -572,6 +634,17 @@ export async function terbitkanRun(runId: string): Promise<PayrollActionResult> 
 			});
 		}
 		await tx.salaryRun.update({ where: { id: runId }, data: { status: "DITERBITKAN" } });
+	});
+
+	const sessionTerbit = await getCurrentSession();
+	await catatAudit({
+		actorUserId: sessionTerbit?.user?.id ?? null,
+		aksi: "PAYROLL.RUN_TERBIT",
+		entityType: "SalaryRun",
+		entityId: runId,
+		sebelum: { periode: run.periode, status: run.status },
+		sesudah: { periode: run.periode, status: "DITERBITKAN", jumlahSlip: run.detail.length },
+		alasan: null,
 	});
 
 	revalidatePath("/payroll");
@@ -619,6 +692,16 @@ export async function hapusRun(runId: string): Promise<PayrollActionResult> {
 		});
 	}
 	await prisma.salaryRun.delete({ where: { id: runId } });
+	const sessionHapus = await getCurrentSession();
+	await catatAudit({
+		actorUserId: sessionHapus?.user?.id ?? null,
+		aksi: "PAYROLL.RUN_HAPUS",
+		entityType: "SalaryRun",
+		entityId: runId,
+		sebelum: { status: run.status },
+		sesudah: null,
+		alasan: null,
+	});
 	revalidatePath("/payroll");
 	return { success: true, message: "Run dihapus." };
 }

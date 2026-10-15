@@ -26,6 +26,8 @@ model User {
   sessions Session[]
   accounts Account[]
   karyawan Karyawan[]
+  notifikasi Notifikasi[]
+  preferensiNotifikasi PreferensiNotifikasi?
 
   @@map("users")
 }
@@ -172,6 +174,7 @@ model UnitOrganisasi {
   posisi         Posisi[]
   posisiKaryawan PosisiKaryawan[]
   mutasiKeUnit   Mutasi[]
+  pengumuman     Pengumuman[]
 
   @@index([parentId])
   @@map("unit_organisasi")
@@ -311,6 +314,7 @@ model Karyawan {
   tukarDiminta   TukarShift[] @relation("TukarPemohon")
   tukarDitawari  TukarShift[] @relation("TukarPasangan")
   koreksiPresensi KoreksiPresensi[]
+  updateDataRequest UpdateDataRequest[]
   reimburse       ExpenseClaim[]
   uangDinas       UangDinas[]
 
@@ -1882,4 +1886,145 @@ model KoreksiPresensi {
   @@index([karyawanId, tanggal])
   @@index([status])
   @@map("koreksi_presensi")
+}
+
+// ============================================================
+// Audit log terpusat (P0-9). Semua aksi sensitif wajib catat:
+// actor + aksi + entity + sebelum/sesudah + alasan.
+// Best-effort: kegagalan tulis audit tidak boleh menggagalkan aksi.
+// ============================================================
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  waktu        DateTime @default(now())
+  actorUserId  String?
+  actorNama    String?
+  actorRole    String?
+  aksi         String
+  entityType   String
+  entityId     String?
+  sebelum      Json?
+  sesudah      Json?
+  alasan       String?
+
+  @@index([waktu])
+  @@index([aksi])
+  @@index([entityType, entityId])
+  @@map("audit_log")
+}
+
+// ============================================================
+// Self-service update data (P4-2). Karyawan mengusulkan perubahan
+// alamat/kontak/keluarga/pendidikan/dokumen; HR verifikasi via
+// ApprovalStep tunggal (tanpa atasan). Saat disetujui final,
+// dataBaru diterapkan ke tabel master (append/update, bukan hapus).
+// ============================================================
+
+model UpdateDataRequest {
+  id               String                          @id @default(cuid())
+  nomor            String                          @unique
+  karyawanId       String
+  karyawan         Karyawan                        @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  kategori         KategoriUpdateData
+  // ID baris master yang dituju (opsional; mis. ubah anggota keluarga).
+  targetId         String?
+  // Snapshot nilai lama (null bila penambahan baru) + nilai usulan.
+  dataLama         Json?
+  dataBaru         Json
+  alasan           String
+  lampiranUrl      String?
+  status           StatusPengajuanKetidakhadiran   @default(DRAFT)
+  diajukanPada     DateTime?
+  diputuskanOlehId String?
+  diputuskanPada   DateTime?
+  catatanPutusan   String?
+  createdById      String?
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
+
+  @@index([karyawanId, status])
+  @@index([status])
+  @@map("update_data_request")
+}
+
+enum KategoriUpdateData {
+  ALAMAT
+  KONTAK
+  KELUARGA
+  PENDIDIKAN
+  DOKUMEN
+}
+
+// ============================================================
+// Pengumuman + kalender perusahaan (P6-1). DRAFT → TERBIT
+// (broadcast in-app + push + email ke target) → DIARSIPKAN.
+// Target null = seluruh karyawan aktif; bila unit diisi, hanya
+// anggota unit itu. Ulang tahun/anniversary dihitung on-the-fly
+// (tanpa model) di halaman ESS + mobile.
+// ============================================================
+
+model Pengumuman {
+  id               String            @id @default(cuid())
+  judul            String
+  isi              String
+  unitOrganisasiId String?
+  unitOrganisasi   UnitOrganisasi?   @relation(fields: [unitOrganisasiId], references: [id], onDelete: SetNull)
+  status           StatusPengumuman  @default(DRAFT)
+  tayangMulai      DateTime          @default(now())
+  tayangSelesai    DateTime?
+  diterbitkanOlehId String?
+  diterbitkanPada  DateTime?
+  createdById      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([status])
+  @@map("pengumuman")
+}
+
+enum StatusPengumuman {
+  DRAFT
+  TERBIT
+  DIARSIPKAN
+}
+
+// ============================================================
+// Notifikasi terpadu (P4-3). In-app selalu tersimpan (sumber badge);
+// push (Expo) + email mengikuti preferensi per-user, best-effort.
+// url = deep-link web (mis. /approval); mobile memakai
+// referensiType/Id + slug yang sama dengan approval-notify.
+// ============================================================
+
+model Notifikasi {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  judul         String
+  isi           String
+  jenis         JenisNotifikasi @default(INFO)
+  referensiType String?
+  referensiId   String?
+  url           String?
+  dibacaPada    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, dibacaPada])
+  @@index([userId, createdAt])
+  @@map("notifikasi")
+}
+
+enum JenisNotifikasi {
+  PENGAJUAN_MASUK
+  KEPUTUSAN
+  INFO
+}
+
+model PreferensiNotifikasi {
+  userId     String  @id
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushAktif  Boolean @default(true)
+  emailAktif Boolean @default(true)
+  updatedAt  DateTime @updatedAt
+
+  @@map("preferensi_notifikasi")
 }
