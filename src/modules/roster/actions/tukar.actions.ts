@@ -7,6 +7,15 @@ import { validasiPasanganRoster, validasiTanggalTukar } from "@/src/modules/rost
 
 export type TukarActionResult = { success: boolean; message: string; id?: string };
 
+/** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
+function segarkan(path: string): void {
+	try {
+		revalidatePath(path);
+	} catch {
+		// abaikan — hygiene cache, bukan logika inti
+	}
+}
+
 export type TukarItem = {
   id: string;
   tanggal: string;
@@ -126,7 +135,7 @@ export async function buatTukar(
     },
     select: { id: true },
   });
-  revalidatePath("/account/tukar");
+  segarkan("/account/tukar");
   return { success: true, message: "Draf tukar tersimpan.", id: created.id };
 }
 
@@ -163,8 +172,8 @@ export async function ajukanTukar(id: string, userId: string): Promise<TukarActi
       },
     }),
   ]);
-  revalidatePath("/account/tukar");
-  revalidatePath("/approval");
+  segarkan("/account/tukar");
+  segarkan("/approval");
   return { success: true, message: "Dikirim ke pasangan → HR." };
 }
 
@@ -180,7 +189,7 @@ export async function batalkanTukar(id: string, userId: string): Promise<TukarAc
     prisma.tukarShift.update({ where: { id }, data: { status: "DIBATALKAN" } }),
     prisma.approvalStep.deleteMany({ where: { referensiType: "TUKAR_SHIFT", referensiId: id } }),
   ]);
-  revalidatePath("/account/tukar");
+  segarkan("/account/tukar");
   return { success: true, message: "Pengajuan dibatalkan." };
 }
 

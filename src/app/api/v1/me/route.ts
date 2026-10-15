@@ -15,11 +15,17 @@ export async function GET(request: NextRequest) {
 		ctx.karyawanId
 			? prisma.karyawan.findUnique({
 					where: { id: ctx.karyawanId },
-					select: {
-						id: true,
-						nomorKaryawan: true,
-						namaLengkap: true,
-						status: true,
+						select: {
+							id: true,
+							nomorKaryawan: true,
+							namaLengkap: true,
+							status: true,
+						dokumenKaryawan: {
+							where: { jenisDokumen: "FOTO" },
+							orderBy: { tanggalUnggah: "desc" },
+							take: 1,
+							select: { urlFile: true },
+						},
 						posisiKaryawan: {
 							where: { isCurrent: true },
 							take: 1,
@@ -48,7 +54,11 @@ export async function GET(request: NextRequest) {
 		user,
 		karyawan: karyawan
 			? {
-					...karyawan,
+					id: karyawan.id,
+					nomorKaryawan: karyawan.nomorKaryawan,
+					namaLengkap: karyawan.namaLengkap,
+					status: karyawan.status,
+					fotoUrl: karyawan.dokumenKaryawan[0]?.urlFile ?? null,
 					posisiKaryawan: karyawan.posisiKaryawan.map((p) => ({
 						...p,
 						lokasiKerja: p.lokasiKerja

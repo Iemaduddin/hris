@@ -1,17 +1,10 @@
 import { NextRequest } from "next/server";
 import prisma from "@/src/lib/prisma";
 import { decimalKeNumber } from "@/src/lib/decimal";
+import { maskNilai } from "@/src/lib/masking";
 import { fail, ok, requireApiSession } from "@/src/lib/api-v1";
 
 /** Profil lengkap milik sendiri (read-only). NIK/NPWP selalu ter-mask. */
-function maskNilai(value: string | null | undefined): string | null {
-	const raw = (value ?? "").trim();
-	if (!raw) return null;
-	if (raw.length <= 4) return "••••";
-	const ekor = raw.slice(-4);
-	const kepala = raw.slice(0, 4);
-	return `${kepala}••••••${ekor}`;
-}
 
 export async function GET(request: NextRequest) {
 	const ctx = await requireApiSession(request);
@@ -52,6 +45,12 @@ export async function GET(request: NextRequest) {
 						tanggalSelesai: true,
 						status: true,
 					},
+				},
+				dokumenKaryawan: {
+					where: { jenisDokumen: "FOTO" },
+					orderBy: { tanggalUnggah: "desc" },
+					take: 1,
+					select: { urlFile: true },
 				},
 				posisiKaryawan: {
 					where: { isCurrent: true },
@@ -94,6 +93,7 @@ export async function GET(request: NextRequest) {
 			// NIK/NPWP ditampilkan ter-mask ke seluruh peran, termasuk HR.
 			nik: maskNilai(karyawan.nik),
 			npwp: maskNilai(karyawan.npwp),
+			fotoUrl: karyawan.dokumenKaryawan[0]?.urlFile ?? null,
 			telepon: karyawan.telepon,
 			email: karyawan.email ?? user?.email ?? null,
 			alamat: karyawan.alamat,

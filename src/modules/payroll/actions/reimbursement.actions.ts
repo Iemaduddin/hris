@@ -9,6 +9,15 @@ import { KATEGORI_REIMBURSE, cekPlafon, kunciPlafon, parsePlafon } from "@/src/m
 
 export type ReimburseActionResult = { success: boolean; message: string; id?: string };
 
+/** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
+function segarkan(path: string): void {
+	try {
+		revalidatePath(path);
+	} catch {
+		// abaikan — hygiene cache, bukan logika inti
+	}
+}
+
 export type ReimburseItem = {
   id: string;
   nomor: string;
@@ -58,7 +67,7 @@ export async function savePlafon(input: Record<string, string>, userId: string):
       }),
     ),
   );
-  revalidatePath("/payroll/reimbursement");
+  segarkan("/payroll/reimbursement");
   return { success: true, message: "Plafon tersimpan." };
 }
 
@@ -150,8 +159,8 @@ export async function buatReimburse(
     },
     select: { id: true },
   });
-  revalidatePath("/payroll/reimbursement");
-  revalidatePath("/account/reimbursement");
+  segarkan("/payroll/reimbursement");
+  segarkan("/account/reimbursement");
   return { success: true, message: "Draf klaim tersimpan.", id: created.id };
 }
 
@@ -164,8 +173,8 @@ export async function ajukanReimburse(id: string, userId: string): Promise<Reimb
   }
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa diajukan." };
   await mulaiAlurApproval("REIMBURSE", id);
-  revalidatePath("/payroll/reimbursement");
-  revalidatePath("/approval");
+  segarkan("/payroll/reimbursement");
+  segarkan("/approval");
   return { success: true, message: "Dikirim ke atasan → HR." };
 }
 
@@ -183,7 +192,7 @@ export async function batalkanReimburse(id: string, userId: string): Promise<Rei
     prisma.expenseClaim.update({ where: { id }, data: { status: "DIBATALKAN" } }),
     prisma.approvalStep.deleteMany({ where: { referensiType: "REIMBURSE", referensiId: id } }),
   ]);
-  revalidatePath("/payroll/reimbursement");
+  segarkan("/payroll/reimbursement");
   return { success: true, message: "Klaim dibatalkan." };
 }
 
@@ -203,7 +212,7 @@ export async function hapusReimburse(id: string, userId: string): Promise<Reimbu
     prisma.expenseClaim.delete({ where: { id } }),
     prisma.approvalStep.deleteMany({ where: { referensiType: "REIMBURSE", referensiId: id } }),
   ]);
-  revalidatePath("/payroll/reimbursement");
+  segarkan("/payroll/reimbursement");
   return { success: true, message: "Klaim dihapus." };
 }
 
@@ -227,6 +236,6 @@ export async function bayarTunai(
       data: { status: "DIBAYAR", dibayarPada: new Date(), dibayarVia: "TUNAI" },
     }),
   ]);
-  revalidatePath("/payroll/reimbursement");
+  segarkan("/payroll/reimbursement");
   return { success: true, message: "Dibayar tunai." };
 }

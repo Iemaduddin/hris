@@ -1,19 +1,23 @@
 import { NextRequest } from "next/server";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
 import { prosesPengajuanAction } from "@/src/modules/approval/actions/approval.actions";
-import { ajukanTukar, batalkanTukar, buatTukar, getTukarSaya } from "@/src/modules/roster/actions/tukar.actions";
+import { ajukanTukar, batalkanTukar, buatTukar, getPasanganOptions, getTukarSaya } from "@/src/modules/roster/actions/tukar.actions";
 
 /**
- * GET: tukar milik + masuk untuk saya. POST: draf {pasanganKaryawanId, tanggal, alasan}.
+ * GET: tukar milik + masuk untuk saya. `?pasangan=1` → opsi pasangan.
+ * POST: draf {pasanganKaryawanId, tanggal, alasan}.
  * PUT: {id, aksi: "ajukan" | "batal" | "setuju" | "tolak"}.
  */
 export async function GET(request: NextRequest) {
-  const ctx = await requireApiSession(request);
-  if (!ctx) return fail("Unauthorized.", 401);
-  if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
+	const ctx = await requireApiSession(request);
+	if (!ctx) return fail("Unauthorized.", 401);
+	if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
-  const data = await getTukarSaya(ctx.userId);
-  return ok(data);
+	if (request.nextUrl.searchParams.get("pasangan") === "1") {
+		return ok({ items: await getPasanganOptions(ctx.karyawanId) });
+	}
+	const data = await getTukarSaya(ctx.userId);
+	return ok(data);
 }
 
 export async function POST(request: NextRequest) {

@@ -16,6 +16,15 @@ import {
 
 export type KasbonActionResult = { success: boolean; message: string; id?: string };
 
+/** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
+function segarkan(path: string): void {
+	try {
+		revalidatePath(path);
+	} catch {
+		// abaikan — hygiene cache, bukan logika inti
+	}
+}
+
 export type KasbonItem = {
   id: string;
   nomor: string;
@@ -134,7 +143,7 @@ export async function buatKasbon(
       createdById,
     },
   });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: `Draf kasbon ${created.nomor} tersimpan.`, id: created.id };
 }
 
@@ -144,7 +153,7 @@ export async function ajukanKasbon(id: string, karyawanId?: string): Promise<Kas
   if (karyawanId && row.karyawanId !== karyawanId) return { success: false, message: "Bukan milik Anda." };
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa diajukan." };
   await prisma.kasbon.update({ where: { id }, data: { status: "DIAJUKAN" } });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: "Kasbon diajukan ke Finance." };
 }
 
@@ -156,7 +165,7 @@ export async function setujuiKasbon(id: string, approverId?: string): Promise<Ka
     where: { id },
     data: { status: "DISETUJUI", approvedById: approverId ?? null, approvedAt: new Date() },
   });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: `Kasbon ${row.nomor} disetujui, dicicil otomatis tiap salary run.` };
 }
 
@@ -168,7 +177,7 @@ export async function tolakKasbon(id: string, catatan: string, approverId?: stri
     where: { id },
     data: { status: "DITOLAK", catatan: catatan.trim() || null, approvedById: approverId ?? null, approvedAt: new Date() },
   });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: "Kasbon ditolak." };
 }
 
@@ -180,7 +189,7 @@ export async function batalkanKasbon(id: string, karyawanId?: string): Promise<K
     return { success: false, message: "Kasbon yang sudah disetujui tidak bisa dibatalkan." };
   }
   await prisma.kasbon.update({ where: { id }, data: { status: "DIBATALKAN" } });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: "Kasbon dibatalkan." };
 }
 
@@ -191,6 +200,6 @@ export async function hapusKasbon(id: string): Promise<KasbonActionResult> {
     return { success: false, message: "Kasbon yang sudah berjalan tidak bisa dihapus." };
   }
   await prisma.kasbon.delete({ where: { id } });
-  revalidatePath("/payroll/kasbon");
+  segarkan("/payroll/kasbon");
   return { success: true, message: "Kasbon dihapus." };
 }
