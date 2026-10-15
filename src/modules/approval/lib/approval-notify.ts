@@ -1,8 +1,8 @@
 import prisma from "@/src/lib/prisma";
-import { kirimPush, type PesanPush } from "@/src/lib/push";
 import { getRingkasanPengajuan, type ReferensiType } from "./approval-engine";
+import { kirimNotifikasi } from "@/src/modules/notifikasi/lib/notify";
 
-/** Push ke pemohon saat pengajuan disetujui/ditolak (best-effort). */
+/** Beritahu pemohon saat pengajuan disetujui/ditolak (best-effort). */
 
 const SLUG_JENIS: Record<ReferensiType, string> = {
 	CUTI: "cuti",
@@ -13,6 +13,7 @@ const SLUG_JENIS: Record<ReferensiType, string> = {
 	PROBATION: "probation",
 	TUKAR_SHIFT: "tukar",
 	KOREKSI: "koreksi",
+	UPDATE_DATA: "updatedata",
 	REIMBURSE: "reimburse",
 	UANGDINAS: "uangdinas",
 };
@@ -28,29 +29,29 @@ export async function notifikasiKeputusanPengajuan(
 		const detail = await getRingkasanPengajuan(type, id);
 		if (!detail) return;
 
-		const devices = await prisma.perangkatKaryawan.findMany({
-			where: { karyawanId: detail.karyawanId, isActive: true, pushToken: { not: null } },
-			select: { pushToken: true },
+		const karyawan = await prisma.karyawan.findUnique({
+			where: { id: detail.karyawanId },
+			select: { userId: true },
 		});
-		const tokens = [
-			...new Set(devices.map((d) => d.pushToken).filter((t): t is string => Boolean(t))),
-		];
-		if (tokens.length === 0) return;
+		if (!karyawan?.userId) return;
 
 		const disetujui = status === "DISETUJUI";
 		const slug = SLUG_JENIS[type];
-		const url = `/requests/detail?id=${encodeURIComponent(detail.id)}&jenis=${slug}`;
-
-		const messages: PesanPush[] = tokens.map((to) => ({
-			to,
-			title: disetujui ? "Pengajuan Disetujui" : "Pengajuan Ditolak",
-			body: `${detail.nomor} • ${detail.ringkasan} — ${disetujui ? "disetujui" : "ditolak"}.`,
-			sound: "default",
-			priority: "high",
-			data: { url, jenis: slug, id: detail.id, status },
-		}));
-
-		await kirimPush(messages);
+		await kirimNotifikasi({
+			userId: karyawan.userId,
+			judul: disetujui ? "Pengajuan Disetujui" : "Pengajuan Ditolak",
+			isi: `${detail.nomor} • ${detail.ringkasan} — ${disetujui ? "disetujui" : "ditolak"}.`,
+			jenis: "KEPUTUSAN",
+			referensiType: type,
+			referensiId: id,
+			url: "/account/requests",
+			pushData: {
+				url: `/requests/detail?id=${encodeURIComponent(detail.id)}&jenis=${slug}`,
+				jenis: slug,
+				id: detail.id,
+				status,
+			},
+		});
 	} catch (error) {
 		console.warn(
 			"[approval-notify] Gagal mengirim notifikasi:",

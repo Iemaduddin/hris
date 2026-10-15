@@ -12,9 +12,15 @@ import {
   LuUser,
 } from "react-icons/lu";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/src/lib/auth-client";
 import { toast } from "react-toastify";
 import { useMounted } from "@/src/hooks/use-mounted";
+import {
+  getRingkasanNotifikasi,
+  tandaiNotifikasi,
+  type NotifikasiItem,
+} from "@/src/modules/notifikasi/actions/notifikasi.actions";
 
 type OpenMenu = "notification" | "avatar" | null;
 
@@ -73,6 +79,50 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
   const toggleMenu = (menu: Exclude<OpenMenu, null>) => {
     setOpenMenu((prev) => (prev === menu ? null : menu));
   };
+
+  const [belumDibaca, setBelumDibaca] = useState(0);
+  const [terbaru, setTerbaru] = useState<NotifikasiItem[]>([]);
+
+  async function muatNotifikasi() {
+    try {
+      const ringkas = await getRingkasanNotifikasi();
+      setBelumDibaca(ringkas.belumDibaca);
+      setTerbaru(ringkas.terbaru);
+    } catch {
+      // abaikan — badge pelengkap
+    }
+  }
+
+  useEffect(() => {
+    let aktif = true;
+    const segarkan = () => {
+      getRingkasanNotifikasi()
+        .then((ringkas) => {
+          if (!aktif) return;
+          setBelumDibaca(ringkas.belumDibaca);
+          setTerbaru(ringkas.terbaru);
+        })
+        .catch(() => {
+          // abaikan — badge pelengkap
+        });
+    };
+    segarkan();
+    const timer = setInterval(segarkan, 60_000);
+    return () => {
+      aktif = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  async function handleBukaNotifikasi() {
+    toggleMenu("notification");
+    await muatNotifikasi();
+  }
+
+  async function handleTandaiSemua() {
+    await tandaiNotifikasi("semua");
+    await muatNotifikasi();
+  }
   const iconTriggerClass =
     "inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition hover:bg-blue-100  dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60";
 
@@ -129,14 +179,51 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
           <button
             type="button"
             className={iconTriggerClass}
-            onClick={() => toggleMenu("notification")}
+            onClick={handleBukaNotifikasi}
             aria-label="Open notifications"
           >
             <LuBell className="h-4 w-4" />
+            {belumDibaca > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {belumDibaca > 99 ? "99+" : belumDibaca}
+              </span>
+            )}
           </button>
           {openMenu === "notification" && (
-            <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl bg-blue-50 p-3 shadow-sm  dark:bg-blue-900/30">
-              <p className="text-sm text-slate-600 dark:text-slate-300">No new notifications</p>
+            <div className="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-blue-100 bg-white p-3 shadow-lg dark:border-blue-900/60 dark:bg-slate-900">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Notifikasi</p>
+                {belumDibaca > 0 && (
+                  <button type="button" onClick={handleTandaiSemua} className="text-xs text-blue-600 hover:underline">
+                    Tandai semua dibaca
+                  </button>
+                )}
+              </div>
+              {terbaru.length === 0 ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300">No new notifications</p>
+              ) : (
+                <ul className="space-y-2">
+                  {terbaru.map((n) => (
+                    <li key={n.id} className={`rounded-xl p-2 text-sm ${n.dibaca ? "text-slate-500" : "bg-blue-50 font-medium text-slate-900 dark:bg-blue-900/30 dark:text-slate-100"}`}>
+                      {n.url ? (
+                        <Link href={n.url} onClick={() => setOpenMenu(null)}>
+                          {n.judul}
+                        </Link>
+                      ) : (
+                        <span>{n.judul}</span>
+                      )}
+                      <p className="truncate text-xs font-normal text-slate-500">{n.isi}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href="/notifications"
+                onClick={() => setOpenMenu(null)}
+                className="mt-2 block text-center text-xs text-blue-600 hover:underline"
+              >
+                Lihat semua
+              </Link>
             </div>
           )}
         </div>
