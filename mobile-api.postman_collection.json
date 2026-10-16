@@ -64,9 +64,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipe\": \"MASUK\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8,\n  \"lokasiKerjaId\": \"\",\n  \"catatan\": \"\"\n}"
+              "raw": "{\n  \"eventType\": \"MASUK\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8,\n  \"workLocationId\": \"\",\n  \"note\": \"\"\n}"
             },
-            "description": "tipe: MASUK, KELUAR, MULAI_ISTIRAHAT, SELESAI_ISTIRAHAT, KELUAR_KANTOR, KEMBALI_KANTOR. latitude/longitude opsional."
+            "description": "eventType: MASUK, KELUAR, MULAI_ISTIRAHAT, SELESAI_ISTIRAHAT, KELUAR_KANTOR, KEMBALI_KANTOR. latitude/longitude opsional."
           }
         },
         {
@@ -82,7 +82,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipe\": \"KELUAR\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8\n}"
+              "raw": "{\n  \"eventType\": \"KELUAR\",\n  \"deviceId\": \"android-abc123\",\n  \"latitude\": -6.2,\n  \"longitude\": 106.8\n}"
             }
           }
         },
@@ -98,7 +98,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/v1/attendance/history?tahun=2026&bulan=10",
+              "raw": "{{baseUrl}}/api/v1/attendance/history?year=2026&month=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -110,11 +110,11 @@
               ],
               "query": [
                 {
-                  "key": "tahun",
+                  "key": "year",
                   "value": "2026"
                 },
                 {
-                  "key": "bulan",
+                  "key": "month",
                   "value": "10"
                 }
               ]
@@ -138,7 +138,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/v1/leave/balance?tahun=2026",
+              "raw": "{{baseUrl}}/api/v1/leave/balance?year=2026",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -150,7 +150,7 @@
               ],
               "query": [
                 {
-                  "key": "tahun",
+                  "key": "year",
                   "value": "2026"
                 }
               ]
@@ -177,9 +177,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jenisId\": 1,\n  \"mulai\": \"2026-11-02\",\n  \"selesai\": \"2026-11-03\",\n  \"alasan\": \"Keperluan keluarga\",\n  \"alamat\": \"Rumah\",\n  \"telpDarurat\": \"0812000000\",\n  \"lampiran\": \"\"\n}"
+              "raw": "{\n  \"leaveTypeId\": 1,\n  \"startDate\": \"2026-11-02\",\n  \"endDate\": \"2026-11-03\",\n  \"reason\": \"Keperluan keluarga\",\n  \"address\": \"Rumah\",\n  \"emergencyPhone\": \"0812000000\",\n  \"attachment\": \"\"\n}"
             },
-            "description": "Ambil jenisId dari endpoint Jenis Aktif. lampiran = path dari hasil upload file (cth. pengajuan/.../file.pdf)."
+            "description": "Ambil leaveTypeId dari endpoint Jenis Aktif. attachment = path dari hasil upload file (cth. pengajuan/.../file.pdf)."
           }
         },
         {
@@ -195,9 +195,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: ajukan | batal."
+            "description": "action: submit | cancel."
           }
         }
       ]
@@ -225,7 +225,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tanggal\": \"2026-10-20\",\n  \"jamMulai\": \"18:00\",\n  \"jamSelesai\": \"20:30\",\n  \"alasan\": \"Closing bulanan\"\n}"
+              "raw": "{\n  \"date\": \"2026-10-20\",\n  \"startTime\": \"18:00\",\n  \"endTime\": \"20:30\",\n  \"reason\": \"Closing bulanan\"\n}"
             }
           }
         },
@@ -242,9 +242,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: ajukan | batal."
+            "description": "action: submit | cancel."
           }
         }
       ]
@@ -272,9 +272,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jenis\": \"DINAS_LUAR\",\n  \"mulai\": \"2026-11-05\",\n  \"selesai\": \"2026-11-06\",\n  \"lokasi\": \"Jakarta\",\n  \"keperluan\": \"Kunjungan klien\"\n}"
+              "raw": "{\n  \"dutyType\": \"DINAS_LUAR\",\n  \"startDate\": \"2026-11-05\",\n  \"endDate\": \"2026-11-06\",\n  \"location\": \"Jakarta\",\n  \"purpose\": \"Kunjungan klien\"\n}"
             },
-            "description": "jenis: DINAS_LUAR | WFH."
+            "description": "dutyType: DINAS_LUAR | WFH."
           }
         },
         {
@@ -290,9 +290,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"PASTE_ID_DRAF\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: ajukan | batal."
+            "description": "action: submit | cancel."
           }
         }
       ]
@@ -321,9 +321,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"keputusan\": \"SETUJU\",\n  \"catatan\": \"OK\"\n}"
+              "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"decision\": \"SETUJU\",\n  \"note\": \"OK\"\n}"
             },
-            "description": "type: CUTI/LEMBUR/DINAS/MUTASI/RESIGN/PROBATION/TUKAR_SHIFT/KOREKSI/REIMBURSE/UANGDINAS (UPDATE_DATA web-only). keputusan: SETUJU | TOLAK."
+            "description": "type: CUTI/LEMBUR/DINAS/MUTASI/RESIGN/PROBATION/TUKAR_SHIFT/KOREKSI/REIMBURSE/UANGDINAS (UPDATE_DATA web-only). decision: SETUJU | TOLAK."
           }
         },
         {
@@ -339,7 +339,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"keputusan\": \"TOLAK\",\n  \"catatan\": \"Stok tim menipis\"\n}"
+              "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"decision\": \"TOLAK\",\n  \"note\": \"Stok tim menipis\"\n}"
             }
           }
         }
@@ -361,7 +361,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/v1/payslip?nomor=SLIP-2026-10-XXXXXX",
+              "raw": "{{baseUrl}}/api/v1/payslip?number=SLIP-2026-10-XXXXXX",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -372,7 +372,7 @@
               ],
               "query": [
                 {
-                  "key": "nomor",
+                  "key": "number",
                   "value": "SLIP-2026-10-XXXXXX"
                 }
               ]
@@ -384,7 +384,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/v1/schedule?mulai=2026-10-01&selesai=2026-10-31",
+              "raw": "{{baseUrl}}/api/v1/schedule?start=2026-10-01&end=2026-10-31",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -395,11 +395,11 @@
               ],
               "query": [
                 {
-                  "key": "mulai",
+                  "key": "start",
                   "value": "2026-10-01"
                 },
                 {
-                  "key": "selesai",
+                  "key": "end",
                   "value": "2026-10-31"
                 }
               ]
@@ -539,7 +539,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nominal\": 5000000,\n  \"tenorBulan\": 10,\n  \"mulaiPotong\": \"2026-11-01\",\n  \"alasan\": \"Kebutuhan mendesak\"\n}"
+              "raw": "{\n  \"amount\": 5000000,\n  \"tenorMonths\": 10,\n  \"deductionStart\": \"2026-11-01\",\n  \"reason\": \"Kebutuhan mendesak\"\n}"
             }
           }
         },
@@ -556,9 +556,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"ID_KASBON\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"ID_KASBON\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: \"ajukan\" | \"batal\"."
+            "description": "action: \"submit\" | \"cancel\"."
           }
         }
       ]
@@ -595,9 +595,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"itemId\": \"ID_ITEM\",\n  \"aksi\": \"selesai\"\n}"
+              "raw": "{\n  \"itemId\": \"ID_ITEM\",\n  \"action\": \"done\"\n}"
             },
-            "description": "aksi: \"selesai\" | \"batal\"."
+            "description": "action: \"done\" | \"undo\"."
           }
         }
       ]
@@ -626,7 +626,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pasanganKaryawanId\": \"ID_KARYAWAN\",\n  \"tanggal\": \"2026-11-01\",\n  \"alasan\": \"Acara keluarga\"\n}"
+              "raw": "{\n  \"partnerEmployeeId\": \"ID_KARYAWAN\",\n  \"date\": \"2026-11-01\",\n  \"reason\": \"Acara keluarga\"\n}"
             }
           }
         },
@@ -643,9 +643,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"ID_TUKAR\",\n  \"aksi\": \"setuju\"\n}"
+              "raw": "{\n  \"id\": \"ID_TUKAR\",\n  \"action\": \"approve\"\n}"
             },
-            "description": "aksi: \"ajukan\" | \"batal\" | \"setuju\" | \"tolak\"."
+            "description": "action: \"submit\" | \"cancel\" | \"approve\" | \"reject\"."
           }
         }
       ]
@@ -674,7 +674,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tanggal\": \"2026-11-01\",\n  \"tipe\": \"MASUK\",\n  \"jam\": \"07:55\",\n  \"alasan\": \"Lupa clock-in\",\n  \"lampiranUrl\": \"\"\n}"
+              "raw": "{\n  \"date\": \"2026-11-01\",\n  \"eventType\": \"MASUK\",\n  \"time\": \"07:55\",\n  \"reason\": \"Lupa clock-in\",\n  \"attachmentUrl\": \"\"\n}"
             }
           }
         },
@@ -691,9 +691,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"ID_KOREKSI\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"ID_KOREKSI\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: \"ajukan\" | \"batal\"."
+            "description": "action: \"submit\" | \"cancel\"."
           }
         }
       ]
@@ -722,9 +722,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kategori\": \"ALAMAT\",\n  \"dataBaru\": { \"alamat\": \"Jl. Baru No. 10\" },\n  \"alasan\": \"Pindah rumah\",\n  \"lampiranUrl\": \"\"\n}"
+              "raw": "{\n  \"category\": \"ALAMAT\",\n  \"newData\": { \"alamat\": \"Jl. Baru No. 10\" },\n  \"reason\": \"Pindah rumah\",\n  \"attachmentUrl\": \"\"\n}"
             },
-            "description": "kategori: ALAMAT | KONTAK | KELUARGA | PENDIDIKAN | DOKUMEN."
+            "description": "category: ALAMAT | KONTAK | KELUARGA | PENDIDIKAN | DOKUMEN."
           }
         },
         {
@@ -740,9 +740,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"ID_UPDATEDATA\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"ID_UPDATEDATA\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: \"ajukan\" | \"batal\"."
+            "description": "action: \"submit\" | \"cancel\"."
           }
         }
       ]
@@ -757,7 +757,7 @@
             "url": "{{baseUrl}}/api/v1/notifications",
             "header": []
           },
-          "description": "?belumDibaca=1 hanya yang baru (untuk badge)."
+          "description": "?unread=1 hanya yang baru (untuk badge)."
         },
         {
           "name": "Tandai Dibaca",
@@ -772,9 +772,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"semua\"\n}"
+              "raw": "{\n  \"id\": \"all\"\n}"
             },
-            "description": "id notifikasi atau \"semua\"."
+            "description": "id notifikasi atau \"all\"."
           }
         },
         {
@@ -790,7 +790,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pushAktif\": true,\n  \"emailAktif\": true\n}"
+              "raw": "{\n  \"pushEnabled\": true,\n  \"emailEnabled\": true\n}"
             }
           }
         }
@@ -834,7 +834,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kategori\": \"TRANSPORT\",\n  \"tanggalKwitansi\": \"2026-11-01\",\n  \"nominal\": 150000,\n  \"keterangan\": \"Bensin dinas\",\n  \"lampiranUrl\": \"pengajuan/xxx/struk.jpg\"\n}"
+              "raw": "{\n  \"category\": \"TRANSPORT\",\n  \"receiptDate\": \"2026-11-01\",\n  \"amount\": 150000,\n  \"description\": \"Bensin dinas\",\n  \"attachmentUrl\": \"pengajuan/xxx/struk.jpg\"\n}"
             }
           }
         },
@@ -851,9 +851,66 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"ID_KLAIM\",\n  \"aksi\": \"ajukan\"\n}"
+              "raw": "{\n  \"id\": \"ID_KLAIM\",\n  \"action\": \"submit\"\n}"
             },
-            "description": "aksi: \"ajukan\" | \"batal\". Lampiran diunggah via POST /api/files."
+            "description": "action: \"submit\" | \"cancel\". Lampiran diunggah via POST /api/files."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uang Dinas",
+      "item": [
+        {
+          "name": "Daftar Saya",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "header": []
+          }
+        },
+        {
+          "name": "Opsi Dinas Disetujui",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/uang-dinas?duty=1",
+            "header": []
+          },
+          "description": "Dinas DISETUJUI milik sendiri yang belum punya uang muka."
+        },
+        {
+          "name": "Buat Draf",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dutyId\": \"ID_DINAS_DISETUJUI\",\n  \"advanceAmount\": 2000000,\n  \"purpose\": \"Tiket + penginapan\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ajukan / Batal / LPJ",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"ID_UANG_DINAS\",\n  \"action\": \"report\",\n  \"actualTotal\": 1850000,\n  \"attachmentUrl\": \"pengajuan/xxx/nota.jpg\"\n}"
+            },
+            "description": "action: \"submit\" | \"cancel\" | \"report\" (report butuh actualTotal + attachmentUrl, hanya status DISETUJUI). Lampiran diunggah via POST /api/files."
           }
         }
       ]
