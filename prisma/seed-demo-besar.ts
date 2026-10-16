@@ -416,35 +416,35 @@ async function main() {
   console.log("kasbon + reimbursement: OK");
 
   // ---------- 9. Salary run Sep + Okt DITERBITKAN ----------
-  const { buatSalaryRun, hitungSalaryRun, finalisasiRun, terbitkanRun } = await import("../src/modules/payroll/actions/payroll.actions");
+  const { createSalaryRun, calculateSalaryRun, finalizeRun, publishRun } = await import("../src/modules/payroll/actions/payroll.actions");
   for (const per of ["2026-09", "2026-10"]) {
     let run = await prisma.salaryRun.findUnique({ where: { periode: per }, select: { id: true, status: true } });
     if (!run) {
-      try { await buatSalaryRun(per); } catch { /* revalidate di luar Next */ }
+      try { await createSalaryRun(per); } catch { /* revalidate di luar Next */ }
       run = await prisma.salaryRun.findUnique({ where: { periode: per }, select: { id: true, status: true } });
     }
     if (run && run.status !== "DITERBITKAN") {
-      try { await hitungSalaryRun(run.id); } catch { /* revalidate */ }
-      try { await finalisasiRun(run.id); } catch { /* revalidate */ }
-      try { await terbitkanRun(run.id); } catch { /* revalidate */ }
+      try { await calculateSalaryRun(run.id); } catch { /* revalidate */ }
+      try { await finalizeRun(run.id); } catch { /* revalidate */ }
+      try { await publishRun(run.id); } catch { /* revalidate */ }
     }
     const st = await prisma.salaryRun.findUnique({ where: { periode: per }, select: { status: true } });
     console.log(`run ${per}: ${st?.status}`);
   }
 
   // ---------- 10. THR Idul Adha 1447H DITERBITKAN ----------
-  const { buatThrRun, hitungThrRun, finalisasiThrRun, terbitkanThrRun } = await import("../src/modules/payroll/actions/thr.actions");
+  const { createThrRun, calculateThrRun, finalizeThrRun, publishThrRun } = await import("../src/modules/payroll/actions/thr.actions");
   let thr = await prisma.thrRun.findFirst({ where: { tahun: 2026, namaHariRaya: "Idul Adha" }, select: { id: true, status: true } });
   if (!thr) {
     try {
-      await buatThrRun({ tahun: 2026, namaHariRaya: "Idul Adha", tanggalHariRaya: "2026-05-27", tanggalBayar: "2026-05-20" });
+      await createThrRun({ year: 2026, holidayName: "Idul Adha", holidayDate: "2026-05-27", payDate: "2026-05-20" });
     } catch { /* revalidate */ }
     thr = await prisma.thrRun.findFirst({ where: { tahun: 2026, namaHariRaya: "Idul Adha" }, select: { id: true, status: true } });
   }
   if (thr && thr.status !== "DITERBITKAN") {
-    try { await hitungThrRun(thr.id); } catch { /* revalidate */ }
-    try { await finalisasiThrRun(thr.id); } catch { /* revalidate */ }
-    try { await terbitkanThrRun(thr.id); } catch { /* revalidate */ }
+    try { await calculateThrRun(thr.id); } catch { /* revalidate */ }
+    try { await finalizeThrRun(thr.id); } catch { /* revalidate */ }
+    try { await publishThrRun(thr.id); } catch { /* revalidate */ }
   }
   console.log(`thr Idul Adha: ${(await prisma.thrRun.findFirst({ where: { tahun: 2026, namaHariRaya: "Idul Adha" }, select: { status: true } }))?.status}`);
 

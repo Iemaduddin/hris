@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { TER_FALLBACK, type KategoriTer } from "../src/modules/payroll/lib/pph21-ter";
+import { TER_FALLBACK, type TerCategory } from "../src/modules/payroll/lib/pph21-ter";
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" }) });
 
@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: proc
  */
 async function main() {
   let total = 0;
-  for (const kategori of Object.keys(TER_FALLBACK) as KategoriTer[]) {
+  for (const kategori of Object.keys(TER_FALLBACK) as TerCategory[]) {
     const lapis = TER_FALLBACK[kategori];
     lapis.forEach((l, i) => {
       void l;
