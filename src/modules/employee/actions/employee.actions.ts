@@ -877,23 +877,23 @@ export async function getEmployeesList(): Promise<EmployeeListItem[]> {
 	}));
 }
 
-export type KontrakMasaBerakhirItem = {
-	id: string;
-	nomorKontrak: string;
-	karyawanId: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	jenisKontrak: string;
-	tanggalMulai: string;
-	tanggalSelesai: string;
-	sisaHari: number;
-	status: string;
+export type ExpiringContractItem = {
+  id: string;
+  contractNumber: string;
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  contractType: string;
+  startDate: string;
+  endDate: string;
+  remainingDays: number;
+  status: string;
 };
 
-export async function getKontrakMasaBerakhir(hariKeDepan = 30): Promise<KontrakMasaBerakhirItem[]> {
-	const now = new Date();
-	const batas = new Date();
-	batas.setDate(batas.getDate() + hariKeDepan);
+export async function getExpiringContracts(daysAhead = 30): Promise<ExpiringContractItem[]> {
+  const now = new Date();
+  const batas = new Date();
+  batas.setDate(batas.getDate() + daysAhead);
 
 	const rows = await prisma.kontrakKerja.findMany({
 		where: {
@@ -908,53 +908,53 @@ export async function getKontrakMasaBerakhir(hariKeDepan = 30): Promise<KontrakM
 
 	return rows.map((item) => ({
 		id: item.id,
-		nomorKontrak: item.nomorKontrak,
-		karyawanId: item.karyawan.id,
-		karyawanNama: item.karyawan.namaLengkap,
-		nomorKaryawan: item.karyawan.nomorKaryawan,
-		jenisKontrak: item.jenisKontrak,
-		tanggalMulai: item.tanggalMulai.toISOString(),
-		tanggalSelesai: item.tanggalSelesai!.toISOString(),
-		sisaHari: Math.max(0, Math.ceil((item.tanggalSelesai!.getTime() - now.getTime()) / 86400000)),
+		contractNumber: item.nomorKontrak,
+		employeeId: item.karyawan.id,
+		employeeName: item.karyawan.namaLengkap,
+		employeeNumber: item.karyawan.nomorKaryawan,
+		contractType: item.jenisKontrak,
+		startDate: item.tanggalMulai.toISOString(),
+    endDate: item.tanggalSelesai!.toISOString(),
+    remainingDays: Math.max(0, Math.ceil((item.tanggalSelesai!.getTime() - now.getTime()) / 86400000)),
 		status: item.status,
 	}));
 }
 
-export async function sinkronStatusKontrak(hariPeringatan = 30): Promise<{ success: boolean; message: string; berakhir: number; akanBerakhir: number }> {
-	const now = new Date();
-	const batas = new Date();
-	batas.setDate(batas.getDate() + hariPeringatan);
+export async function syncContractStatus(warningDays = 30): Promise<{ success: boolean; message: string; expired: number; expiring: number }> {
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() + warningDays);
 
-	const [berakhir, akanBerakhir, kembaliAktif] = await Promise.all([
-		prisma.kontrakKerja.updateMany({
-			where: {
-				tanggalSelesai: { lt: now },
-				status: { in: [StatusKontrak.AKTIF, StatusKontrak.AKAN_BERAKHIR] },
-			},
-			data: { status: StatusKontrak.BERAKHIR },
-		}),
-		prisma.kontrakKerja.updateMany({
-			where: {
-				tanggalSelesai: { gte: now, lte: batas },
-				status: StatusKontrak.AKTIF,
-			},
-			data: { status: StatusKontrak.AKAN_BERAKHIR },
-		}),
-		prisma.kontrakKerja.updateMany({
-			where: {
-				OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gt: batas } }],
+  const [expired, expiring, reactivated] = await Promise.all([
+    prisma.kontrakKerja.updateMany({
+      where: {
+        tanggalSelesai: { lt: now },
+        status: { in: [StatusKontrak.AKTIF, StatusKontrak.AKAN_BERAKHIR] },
+      },
+      data: { status: StatusKontrak.BERAKHIR },
+    }),
+    prisma.kontrakKerja.updateMany({
+      where: {
+        tanggalSelesai: { gte: now, lte: cutoff },
+        status: StatusKontrak.AKTIF,
+      },
+      data: { status: StatusKontrak.AKAN_BERAKHIR },
+    }),
+    prisma.kontrakKerja.updateMany({
+      where: {
+        OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gt: cutoff } }],
 				status: StatusKontrak.AKAN_BERAKHIR,
 			},
 			data: { status: StatusKontrak.AKTIF },
 		}),
 	]);
 
-	revalidatePath("/employees");
+  revalidatePath("/employees");
 
-	return {
-		success: true,
-		message: `Sinkronisasi selesai: ${berakhir.count} berakhir, ${akanBerakhir.count} akan berakhir, ${kembaliAktif.count} kembali aktif.`,
-		berakhir: berakhir.count,
-		akanBerakhir: akanBerakhir.count,
-	};
+  return {
+    success: true,
+    message: `Sinkronisasi selesai: ${expired.count} berakhir, ${expiring.count} akan berakhir, ${reactivated.count} kembali aktif.`,
+    expired: expired.count,
+    expiring: expiring.count,
+  };
 }

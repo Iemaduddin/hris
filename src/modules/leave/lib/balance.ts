@@ -3,137 +3,137 @@ import type { HariDalamMinggu } from "@/generated/prisma/client";
 import { toDbDate } from "@/src/lib/time";
 
 /**
- * Hitung jumlah hari pengajuan: inklusif, dikurangi hari non-kerja
- * + hari libur (termasuk cuti bersama — otomatis tak memotong saldo).
- * kalenderId opsional: kalender penugasan karyawan; tanpa itu dipakai
- * kalender default, tanpa kalender default fallback ke hari kalender.
+ * Count request days: inclusive, minus non-working days
+ * + holidays (including joint leave — auto-excluded from balance).
+ * calendarId optional: the employee's assignment calendar; without it the
+ * default calendar is used, with no default calendar falls back to calendar days.
  */
-export async function hitungHariPengajuan(mulai: Date, selesai: Date, kalenderId?: number | null): Promise<number> {
-	const start = toDbDate(mulai);
-	const end = toDbDate(selesai);
-	if (end < start) return 0;
+export async function countRequestDays(start: Date, end: Date, calendarId?: number | null): Promise<number> {
+  const rangeStart = toDbDate(start);
+  const rangeEnd = toDbDate(end);
+  if (rangeEnd < rangeStart) return 0;
 
-	const kalender = kalenderId
-		? await prisma.kalenderKerja.findUnique({
-				where: { id: kalenderId },
-				include: {
-					jadwalKerja: { select: { hari: true, isHariKerja: true } },
-					hariLibur: { select: { tanggal: true } },
-				},
-			})
-		: await prisma.kalenderKerja.findFirst({
-				where: { isDefault: true, isActive: true },
-				include: {
-					jadwalKerja: { select: { hari: true, isHariKerja: true } },
-					hariLibur: { select: { tanggal: true } },
-				},
-			});
+  const calendar = calendarId
+    ? await prisma.kalenderKerja.findUnique({
+        where: { id: calendarId },
+        include: {
+          jadwalKerja: { select: { hari: true, isHariKerja: true } },
+          hariLibur: { select: { tanggal: true } },
+        },
+      })
+    : await prisma.kalenderKerja.findFirst({
+        where: { isDefault: true, isActive: true },
+        include: {
+          jadwalKerja: { select: { hari: true, isHariKerja: true } },
+          hariLibur: { select: { tanggal: true } },
+        },
+      });
 
-	const HARI = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"] as HariDalamMinggu[];
-	const liburSet = new Set((kalender?.hariLibur ?? []).map((h) => toDbDate(h.tanggal).getTime()));
-	const kerjaMap = new Map((kalender?.jadwalKerja ?? []).map((j) => [j.hari, j.isHariKerja]));
+  const WEEKDAYS = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"] as HariDalamMinggu[];
+  const holidaySet = new Set((calendar?.hariLibur ?? []).map((h) => toDbDate(h.tanggal).getTime()));
+  const workMap = new Map((calendar?.jadwalKerja ?? []).map((j) => [j.hari, j.isHariKerja]));
 
-	let count = 0;
-	const cursor = new Date(start);
-	while (cursor <= end) {
-		const key = toDbDate(cursor).getTime();
-		if (!liburSet.has(key)) {
-			if (!kalender) {
-				count++;
-			} else {
-				const hari = HARI[cursor.getUTCDay()];
-				if (kerjaMap.get(hari) !== false) count++;
-			}
-		}
-		cursor.setUTCDate(cursor.getUTCDate() + 1);
-	}
-	return count;
+  let count = 0;
+  const cursor = new Date(rangeStart);
+  while (cursor <= rangeEnd) {
+    const key = toDbDate(cursor).getTime();
+    if (!holidaySet.has(key)) {
+      if (!calendar) {
+        count++;
+      } else {
+        const weekday = WEEKDAYS[cursor.getUTCDay()];
+        if (workMap.get(weekday) !== false) count++;
+      }
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return count;
 }
 
-export async function getSaldo(karyawanId: string, jenisId: number, tahun: number) {
-	return prisma.saldoCuti.findUnique({
-		where: { karyawanId_jenisKetidakhadiranId_tahun: { karyawanId, jenisKetidakhadiranId: jenisId, tahun } },
-	});
+export async function getBalance(employeeId: string, leaveTypeId: number, year: number) {
+  return prisma.saldoCuti.findUnique({
+    where: { karyawanId_jenisKetidakhadiranId_tahun: { karyawanId: employeeId, jenisKetidakhadiranId: leaveTypeId, tahun: year } },
+  });
 }
 
-export async function generateSaldoTahunan(tahun: number): Promise<{ dibuat: number; dilewati: number }> {
-	const [karyawan, jenisList] = await Promise.all([
-		prisma.karyawan.findMany({
-			where: { status: { in: ["AKTIF", "PROBASI"] } },
-			select: { id: true },
-		}),
-		prisma.jenisKetidakhadiran.findMany({
-			where: { menggunakanSaldo: true, isActive: true },
-			select: { id: true, jatahTahunan: true },
-		}),
-	]);
+export async function generateAnnualBalances(year: number): Promise<{ created: number; skipped: number }> {
+  const [employees, leaveTypes] = await Promise.all([
+    prisma.karyawan.findMany({
+      where: { status: { in: ["AKTIF", "PROBASI"] } },
+      select: { id: true },
+    }),
+    prisma.jenisKetidakhadiran.findMany({
+      where: { menggunakanSaldo: true, isActive: true },
+      select: { id: true, jatahTahunan: true },
+    }),
+  ]);
 
-	let dibuat = 0;
-	let dilewati = 0;
-	for (const k of karyawan) {
-		for (const j of jenisList) {
-			const existing = await prisma.saldoCuti.findUnique({
-				where: { karyawanId_jenisKetidakhadiranId_tahun: { karyawanId: k.id, jenisKetidakhadiranId: j.id, tahun } },
-			});
-			if (existing) {
-				dilewati++;
-				continue;
-			}
-			const jatah = j.jatahTahunan ?? 0;
-			const saldo = await prisma.saldoCuti.create({
-				data: { karyawanId: k.id, jenisKetidakhadiranId: j.id, tahun, saldoAwal: jatah, saldoAkhir: jatah },
-			});
-			await prisma.mutasiSaldoCuti.create({
-				data: { saldoCutiId: saldo.id, tipe: "PENAMBAHAN", jumlah: jatah, keterangan: `Jatah tahunan ${tahun}` },
-			});
-			dibuat++;
-		}
-	}
-	return { dibuat, dilewati };
+  let created = 0;
+  let skipped = 0;
+  for (const e of employees) {
+    for (const t of leaveTypes) {
+      const existing = await prisma.saldoCuti.findUnique({
+        where: { karyawanId_jenisKetidakhadiranId_tahun: { karyawanId: e.id, jenisKetidakhadiranId: t.id, tahun: year } },
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      const quota = t.jatahTahunan ?? 0;
+      const balance = await prisma.saldoCuti.create({
+        data: { karyawanId: e.id, jenisKetidakhadiranId: t.id, tahun: year, saldoAwal: quota, saldoAkhir: quota },
+      });
+      await prisma.mutasiSaldoCuti.create({
+        data: { saldoCutiId: balance.id, tipe: "PENAMBAHAN", jumlah: quota, keterangan: `Jatah tahunan ${year}` },
+      });
+      created++;
+    }
+  }
+  return { created, skipped };
 }
 
-export async function potongSaldo(
-	karyawanId: string,
-	jenisId: number,
-	tahun: number,
-	jumlah: number,
-	referensiId: string,
-	keterangan: string,
+export async function deductBalance(
+  employeeId: string,
+  leaveTypeId: number,
+  year: number,
+  amount: number,
+  referenceId: string,
+  note: string,
 ): Promise<{ success: boolean; message: string }> {
-	const saldo = await getSaldo(karyawanId, jenisId, tahun);
-	if (!saldo) return { success: false, message: "Saldo cuti tahun berjalan belum dibuat. Minta HR generate saldo." };
-	if (Number(saldo.saldoAkhir) < jumlah) {
-		return { success: false, message: `Saldo tidak cukup (sisa ${saldo.saldoAkhir}, butuh ${jumlah}).` };
-	}
-	await prisma.$transaction(async (tx) => {
-		await tx.mutasiSaldoCuti.create({
-			data: { saldoCutiId: saldo.id, tipe: "PENGURANGAN", jumlah, referensiId, keterangan },
-		});
-		await tx.saldoCuti.update({
-			where: { id: saldo.id },
-			data: { saldoAkhir: Number(saldo.saldoAkhir) - jumlah },
-		});
-	});
-	return { success: true, message: "Saldo terpotong." };
+  const balance = await getBalance(employeeId, leaveTypeId, year);
+  if (!balance) return { success: false, message: "Saldo cuti tahun berjalan belum dibuat. Minta HR generate saldo." };
+  if (Number(balance.saldoAkhir) < amount) {
+    return { success: false, message: `Saldo tidak cukup (sisa ${balance.saldoAkhir}, butuh ${amount}).` };
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.mutasiSaldoCuti.create({
+      data: { saldoCutiId: balance.id, tipe: "PENGURANGAN", jumlah: amount, referensiId: referenceId, keterangan: note },
+    });
+    await tx.saldoCuti.update({
+      where: { id: balance.id },
+      data: { saldoAkhir: Number(balance.saldoAkhir) - amount },
+    });
+  });
+  return { success: true, message: "Saldo terpotong." };
 }
 
-export async function kembalikanSaldo(
-	karyawanId: string,
-	jenisId: number,
-	tahun: number,
-	jumlah: number,
-	referensiId: string,
-	keterangan: string,
+export async function refundBalance(
+  employeeId: string,
+  leaveTypeId: number,
+  year: number,
+  amount: number,
+  referenceId: string,
+  note: string,
 ): Promise<void> {
-	const saldo = await getSaldo(karyawanId, jenisId, tahun);
-	if (!saldo) return;
-	await prisma.$transaction(async (tx) => {
-		await tx.mutasiSaldoCuti.create({
-			data: { saldoCutiId: saldo.id, tipe: "PENAMBAHAN", jumlah, referensiId, keterangan },
-		});
-		await tx.saldoCuti.update({
-			where: { id: saldo.id },
-			data: { saldoAkhir: Number(saldo.saldoAkhir) + jumlah },
-		});
-	});
+  const balance = await getBalance(employeeId, leaveTypeId, year);
+  if (!balance) return;
+  await prisma.$transaction(async (tx) => {
+    await tx.mutasiSaldoCuti.create({
+      data: { saldoCutiId: balance.id, tipe: "PENAMBAHAN", jumlah: amount, referensiId: referenceId, keterangan: note },
+    });
+    await tx.saldoCuti.update({
+      where: { id: balance.id },
+      data: { saldoAkhir: Number(balance.saldoAkhir) + amount },
+    });
+  });
 }

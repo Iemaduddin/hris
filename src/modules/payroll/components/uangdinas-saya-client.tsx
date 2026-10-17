@@ -7,11 +7,11 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanLpj,
-  ajukanUangDinas,
-  batalkanUangDinas,
-  buatUangDinas,
-  type UangDinasItem,
+  submitLpj,
+  submitUangDinas,
+  cancelUangDinas,
+  createUangDinas,
+  type TravelAdvanceItem,
 } from "@/src/modules/payroll/actions/uangdinas.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
@@ -19,20 +19,20 @@ const rupiah = new Intl.NumberFormat("id-ID");
 
 export default function UangDinasSayaClient({
   userId,
-  karyawanId,
+  employeeId,
   items,
   dinasOptions,
 }: {
   userId: string;
-  karyawanId: string;
-  items: UangDinasItem[];
+  employeeId: string;
+  items: TravelAdvanceItem[];
   dinasOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [dinasId, setDinasId] = useState("");
+  const [dutyId, setDinasId] = useState("");
   const [nominal, setNominal] = useState("");
-  const [keperluan, setKeperluan] = useState("");
+  const [purpose, setKeperluan] = useState("");
   const [realisasi, setRealisasi] = useState<Record<string, string>>({});
   const [bukti, setBukti] = useState<Record<string, string>>({});
 
@@ -46,11 +46,11 @@ export default function UangDinasSayaClient({
   }
 
   function handleBuat() {
-    if (!dinasId || !nominal) {
+    if (!dutyId || !nominal) {
       toast.error("Dinas dan nominal wajib diisi.");
       return;
     }
-    runAction(buatUangDinas({ dinasId, karyawanId, nominalMuka: Number(nominal), keperluan }, userId));
+    runAction(createUangDinas({ dutyId, employeeId, advanceAmount: Number(nominal), purpose }, userId));
   }
 
   function handleLpj(id: string) {
@@ -58,30 +58,30 @@ export default function UangDinasSayaClient({
       toast.error("Realisasi dan bukti wajib diisi.");
       return;
     }
-    runAction(ajukanLpj(id, { totalRealisasi: Number(realisasi[id]), lampiranUrl: bukti[id] }, userId));
+    runAction(submitLpj(id, { actualTotal: Number(realisasi[id]), attachmentUrl: bukti[id] }, userId));
   }
 
-  const kolomSaya: DataTableColumn<UangDinasItem>[] = [
+  const kolomSaya: DataTableColumn<TravelAdvanceItem>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (u) => <span><span className="font-medium">{u.nomor}</span><br /><span className="text-xs text-slate-500">{u.dinasNomor}</span></span>,
-      sortValue: (u) => u.nomor,
-      searchValue: (u) => `${u.nomor} ${u.dinasNomor}`,
+      render: (u) => <span><span className="font-medium">{u.number}</span><br /><span className="text-xs text-slate-500">{u.dutyNumber}</span></span>,
+      sortValue: (u) => u.number,
+      searchValue: (u) => `${u.number} ${u.dutyNumber}`,
     },
     {
       id: "muka",
       header: "Muka",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span>{rupiah.format(Number(u.nominalMuka))}</span>,
-      sortValue: (u) => Number(u.nominalMuka),
+      render: (u) => <span>{rupiah.format(Number(u.advanceAmount))}</span>,
+      sortValue: (u) => Number(u.advanceAmount),
       searchable: false,
     },
     {
       id: "status",
       header: "Status",
-      render: (u) => <span>{u.status.replaceAll("_", " ")}{u.selisih !== null ? ` (selisih ${rupiah.format(Number(u.selisih))})` : ""}</span>,
+      render: (u) => <span>{u.status.replaceAll("_", " ")}{u.difference !== null ? ` (difference ${rupiah.format(Number(u.difference))})` : ""}</span>,
       sortValue: (u) => u.status,
       searchValue: (u) => u.status.replaceAll("_", " "),
     },
@@ -98,7 +98,7 @@ export default function UangDinasSayaClient({
             Buka
           </Link>
           {u.status === "DIAJUKAN" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanUangDinas(u.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitUangDinas(u.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
@@ -128,7 +128,7 @@ export default function UangDinasSayaClient({
             </div>
           ) : null}
           {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(u.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanUangDinas(u.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelUangDinas(u.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batalkan
             </button>
           ) : null}
@@ -143,9 +143,9 @@ export default function UangDinasSayaClient({
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Minta Uang Muka Dinas</h2>
         <p className="mt-1 text-xs text-slate-500">Hanya dari dinas yang sudah disetujui.</p>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <FloatingSelect name="dinas" label="Dinas" value={dinasId} onValueChange={setDinasId} options={dinasOptions} placeholder="Pilih dinas" searchable />
+          <FloatingSelect name="dinas" label="Dinas" value={dutyId} onValueChange={setDinasId} options={dinasOptions} placeholder="Pilih dinas" searchable />
           <FloatingInput name="nominal" label="Nominal (Rp)" type="number" value={nominal} onChange={(e) => setNominal(e.currentTarget.value)} />
-          <FloatingInput name="keperluan" label="Keperluan" value={keperluan} onChange={(e) => setKeperluan(e.currentTarget.value)} />
+          <FloatingInput name="purpose" label="Keperluan" value={purpose} onChange={(e) => setKeperluan(e.currentTarget.value)} />
           <div className="flex items-end">
             <button
               type="button"

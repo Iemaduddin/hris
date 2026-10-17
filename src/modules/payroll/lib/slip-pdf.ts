@@ -3,7 +3,7 @@
 import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 
-export type BarisSlipPdf = { nama: string; jumlah: number; keterangan?: string };
+export type BarisSlipPdf = { name: string; amount: number; description?: string };
 
 export type DataSlipPdf = {
   perusahaanNama: string;
@@ -14,12 +14,12 @@ export type DataSlipPdf = {
   pendapatan: BarisSlipPdf[];
   potongan: BarisSlipPdf[];
   infoPerusahaan: BarisSlipPdf[];
-  totalBersihLabel: string;
-  totalBersih: number;
+  totalNetLabel: string;
+  totalNet: number;
   ringkasanKaki: string;
   kodeVerifikasi: string;
   verifyUrl: string;
-  tanggalTerbit: string;
+  publishedAt: string;
 };
 
 const SANITASI: Record<string, string> = {
@@ -104,8 +104,8 @@ function seksi(ctx: Ctx, judul: string, baris: BarisSlipPdf[], total?: number): 
   teks(ctx, MARGIN, judul, 11, true, WARNA.aksen);
   ctx.y -= 16;
   for (const b of baris) {
-    const label = b.keterangan ? `${b.nama} (${b.keterangan})` : b.nama;
-    barisKanan(ctx, label.length > 62 ? `${label.slice(0, 61)}…` : label, formatRp(b.jumlah), 9.5);
+    const label = b.description ? `${b.name} (${b.description})` : b.name;
+    barisKanan(ctx, label.length > 62 ? `${label.slice(0, 61)}…` : label, formatRp(b.amount), 9.5);
   }
   if (baris.length === 0) {
     teks(ctx, MARGIN, "Tidak ada.", 9.5, false, WARNA.redup);
@@ -146,10 +146,10 @@ export async function buildSlipPdf(data: DataSlipPdf): Promise<Uint8Array> {
   ctx.y -= 4;
   garis(ctx);
 
-  seksi(ctx, "Pendapatan", data.pendapatan, data.pendapatan.reduce((a, b) => a + b.jumlah, 0));
-  seksi(ctx, "Potongan", data.potongan, data.potongan.reduce((a, b) => a + b.jumlah, 0));
+  seksi(ctx, "Pendapatan", data.pendapatan, data.pendapatan.reduce((a, b) => a + b.amount, 0));
+  seksi(ctx, "Potongan", data.potongan, data.potongan.reduce((a, b) => a + b.amount, 0));
   if (data.infoPerusahaan.length > 0) {
-    seksi(ctx, "Ditanggung Perusahaan (tidak memotong)", data.infoPerusahaan, data.infoPerusahaan.reduce((a, b) => a + b.jumlah, 0));
+    seksi(ctx, "Ditanggung Perusahaan (tidak memotong)", data.infoPerusahaan, data.infoPerusahaan.reduce((a, b) => a + b.amount, 0));
   }
 
   page.drawRectangle({
@@ -162,7 +162,7 @@ export async function buildSlipPdf(data: DataSlipPdf): Promise<Uint8Array> {
     borderWidth: 1,
   });
   ctx.y -= 8;
-  barisKanan(ctx, data.totalBersihLabel, formatRp(data.totalBersih), 12, { bold: true, warnaNilai: WARNA.hijau });
+  barisKanan(ctx, data.totalNetLabel, formatRp(data.totalNet), 12, { bold: true, warnaNilai: WARNA.hijau });
   ctx.y -= 12;
 
   if (data.ringkasanKaki) {
@@ -176,7 +176,7 @@ export async function buildSlipPdf(data: DataSlipPdf): Promise<Uint8Array> {
   ctx.y -= 15;
   teks(ctx, MARGIN, `Kode: ${data.kodeVerifikasi}`, 9);
   ctx.y -= 14;
-  teks(ctx, MARGIN, `Terbit: ${data.tanggalTerbit}`, 8.5, false, WARNA.redup);
+  teks(ctx, MARGIN, `Terbit: ${data.publishedAt}`, 8.5, false, WARNA.redup);
   ctx.y -= 13;
   teks(ctx, MARGIN, "Pindai QR atau cocokkan kode di halaman verifikasi perusahaan.", 8.5, false, WARNA.redup);
   ctx.y -= 14;

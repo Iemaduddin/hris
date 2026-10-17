@@ -7,22 +7,22 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanReview,
-  batalkanReview,
-  buatManual,
-  generateDariProbasi,
-  hapusReview,
+  submitReview,
+  cancelReview,
+  createManualReview,
+  generateFromProbation,
+  deleteReview,
 } from "../actions/probation.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 type ProbationRow = {
   id: string;
-  karyawanNama: string;
-  tanggalMulai: string;
-  tanggalSelesai: string;
-  sisaHari: number;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
+  remainingDays: number;
   status: string;
-  hasil: string | null;
+  result: string | null;
 };
 
 export default function ProbationListClient({
@@ -54,22 +54,22 @@ export default function ProbationListClient({
       toast.error("Karyawan dan rentang tanggal wajib diisi.");
       return;
     }
-    runAction(buatManual({ karyawanId, tanggalMulai: mulai, tanggalSelesai: selesai }, userId));
+    runAction(createManualReview({ employeeId: karyawanId, startDate: mulai, endDate: selesai }, userId));
   }
 
   function handleHapus(id: string) {
     if (!confirm("Hapus review ini?")) return;
-    runAction(hapusReview(id, userId));
+    runAction(deleteReview(id, userId));
   }
 
   const kolomReview: DataTableColumn<ProbationRow>[] = [
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
       id: "periode",
       header: "Periode",
       sortable: false,
       searchable: false,
-      render: (r) => <span>{r.tanggalMulai} – {r.tanggalSelesai}</span>,
+      render: (r) => <span>{r.startDate} – {r.endDate}</span>,
     },
     {
       id: "sisa",
@@ -77,19 +77,19 @@ export default function ProbationListClient({
       headerClassName: "text-right",
       cellClassName: `text-right font-medium`,
       render: (r) => (
-        <span className={r.sisaHari < 0 ? "text-red-600" : r.sisaHari <= 7 ? "text-amber-600" : ""}>
-          {r.sisaHari < 0 ? `lewat ${-r.sisaHari} hari` : `${r.sisaHari} hari`}
+        <span className={r.remainingDays < 0 ? "text-red-600" : r.remainingDays <= 7 ? "text-amber-600" : ""}>
+          {r.remainingDays < 0 ? `lewat ${-r.remainingDays} hari` : `${r.remainingDays} hari`}
         </span>
       ),
-      sortValue: (r) => r.sisaHari,
+      sortValue: (r) => r.remainingDays,
       searchable: false,
     },
     {
-      id: "hasil",
+      id: "result",
       header: "Hasil",
-      render: (r) => <span>{r.hasil?.replaceAll("_", " ") ?? "-"}</span>,
-      sortValue: (r) => r.hasil ?? "",
-      searchValue: (r) => r.hasil?.replaceAll("_", " ") ?? "",
+      render: (r) => <span>{r.result?.replaceAll("_", " ") ?? "-"}</span>,
+      sortValue: (r) => r.result ?? "",
+      searchValue: (r) => r.result?.replaceAll("_", " ") ?? "",
     },
     {
       id: "status",
@@ -111,12 +111,12 @@ export default function ProbationListClient({
             Buka
           </Link>
           {r.status === "DRAFT" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanReview(r.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitReview(r.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {["DRAFT", "DIAJUKAN"].includes(r.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanReview(r.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelReview(r.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batal
             </button>
           ) : null}
@@ -137,7 +137,7 @@ export default function ProbationListClient({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Review Baru</h2>
           <button
             type="button"
-            onClick={() => runAction(generateDariProbasi(userId))}
+            onClick={() => runAction(generateFromProbation(userId))}
             disabled={isPending}
             className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
           >

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import {
-  bayarTunai,
-  hapusReimburse,
-  savePlafon,
-  type ReimburseItem,
+  payCash,
+  deleteReimbursement,
+  saveLimits,
+  type ReimbursementItem,
 } from "../actions/reimbursement.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
@@ -20,15 +20,15 @@ export default function ReimbursementListClient({
   plafon,
 }: {
   userId: string;
-  items: ReimburseItem[];
-  plafon: Array<{ kategori: string; nilai: string }>;
+  items: ReimbursementItem[];
+  plafon: Array<{ category: string; value: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [nilai, setNilai] = useState<Record<string, string>>(
-    Object.fromEntries(plafon.map((p) => [p.kategori, p.nilai])),
+    Object.fromEntries(plafon.map((p) => [p.category, p.value])),
   );
-  const [bukti, setBukti] = useState("");
+  const [receipt, setBukti] = useState("");
 
   function runAction(action: Promise<{ success: boolean; message: string }>) {
     startTransition(async () => {
@@ -40,28 +40,28 @@ export default function ReimbursementListClient({
   }
 
   function handleBayarTunai(id: string) {
-    const b = prompt("Bukti pembayaran tunai (opsional):", bukti) ?? null;
+    const b = prompt("receipt pembayaran tunai (opsional):", receipt) ?? null;
     if (b === null) return;
     setBukti(b);
-    runAction(bayarTunai(id, { bukti: b }, userId));
+    runAction(payCash(id, { receipt: b }, userId));
   }
 
-  const kolomKlaim: DataTableColumn<ReimburseItem>[] = [
+  const kolomKlaim: DataTableColumn<ReimbursementItem>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (k) => <span><span className="font-medium">{k.nomor}</span><br /><span className="text-xs text-slate-500">{k.kategori} • {k.keterangan}</span></span>,
-      sortValue: (k) => k.nomor,
-      searchValue: (k) => `${k.nomor} ${k.kategori} ${k.keterangan}`,
+      render: (k) => <span><span className="font-medium">{k.number}</span><br /><span className="text-xs text-slate-500">{k.category} • {k.description}</span></span>,
+      sortValue: (k) => k.number,
+      searchValue: (k) => `${k.number} ${k.category} ${k.description}`,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
-      id: "nominal",
+      id: "amount",
       header: "Nominal",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (k) => <span>{rupiah.format(Number(k.nominal))}</span>,
-      sortValue: (k) => Number(k.nominal),
+      render: (k) => <span>{rupiah.format(Number(k.amount))}</span>,
+      sortValue: (k) => Number(k.amount),
       searchable: false,
     },
     {
@@ -92,7 +92,7 @@ export default function ReimbursementListClient({
           <button
             type="button"
             disabled={isPending}
-            onClick={() => { if (!confirm("Hapus klaim ini?")) return; runAction(hapusReimburse(k.id, userId)); }}
+            onClick={() => { if (!confirm("Hapus klaim ini?")) return; runAction(deleteReimbursement(k.id, userId)); }}
             className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
           >
             Hapus
@@ -106,23 +106,23 @@ export default function ReimbursementListClient({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Plafon per Kategori (Rp, kosong = tanpa batas)</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Plafon per kategori (Rp, kosong = tanpa batas)</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           {plafon.map((p) => (
             <FloatingInput
-              key={p.kategori}
-              name={`plafon-${p.kategori}`}
-              label={p.kategori}
+              key={p.category}
+              name={`plafon-${p.category}`}
+              label={p.category}
               type="number"
-              value={nilai[p.kategori] ?? ""}
-              onChange={(e) => setNilai((prev) => ({ ...prev, [p.kategori]: e.currentTarget.value }))}
+              value={nilai[p.category] ?? ""}
+              onChange={(e) => setNilai((prev) => ({ ...prev, [p.category]: e.currentTarget.value }))}
             />
           ))}
         </div>
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={() => runAction(savePlafon(nilai, userId))}
+            onClick={() => runAction(saveLimits(nilai, userId))}
             disabled={isPending}
             className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70"
           >

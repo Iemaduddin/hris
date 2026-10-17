@@ -7,19 +7,19 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanOffboarding,
-  batalkanOffboarding,
-  buatOffboarding,
-  hapusOffboarding,
+  submitOffboarding,
+  cancelOffboarding,
+  createOffboarding,
+  deleteOffboarding,
 } from "../actions/offboarding.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 type OffboardingRow = {
   id: string;
-  karyawanNama: string;
-  tanggalRencana: string;
+  employeeName: string;
+  plannedDate: string;
   status: string;
-  clearanceSelesai: string;
+  clearanceProgress: string;
 };
 
 export default function OffboardingListClient({
@@ -51,23 +51,23 @@ export default function OffboardingListClient({
       toast.error("Karyawan, tanggal rencana, dan alasan wajib diisi.");
       return;
     }
-    runAction(buatOffboarding({ karyawanId, tanggalRencana: rencana, alasan }, userId));
+    runAction(createOffboarding({ employeeId: karyawanId, plannedDate: rencana, reason: alasan }, userId));
   }
 
   function handleHapus(id: string) {
     if (!confirm("Hapus data ini?")) return;
-    runAction(hapusOffboarding(id, userId));
+    runAction(deleteOffboarding(id, userId));
   }
 
   const kolomOffboarding: DataTableColumn<OffboardingRow>[] = [
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
-    { id: "rencana", header: "Rencana", accessor: "tanggalRencana" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "rencana", header: "Rencana", accessor: "plannedDate" },
     {
       id: "clearance",
       header: "Clearance",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      accessor: "clearanceSelesai",
+      accessor: "clearanceProgress",
     },
     {
       id: "status",
@@ -89,12 +89,12 @@ export default function OffboardingListClient({
             Buka
           </Link>
           {o.status === "DIAJUKAN" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batal
             </button>
           ) : null}

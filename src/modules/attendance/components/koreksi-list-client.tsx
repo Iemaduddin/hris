@@ -6,9 +6,9 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { ajukanKoreksi, batalkanKoreksi, buatKoreksi, type KoreksiItem } from "@/src/modules/attendance/actions/koreksi.actions";
+import { submitCorrection, cancelCorrection, createCorrection, type CorrectionItem } from "@/src/modules/attendance/actions/koreksi.actions";
 
-const TIPE_OPTIONS = [
+const EVENT_TYPE_OPTIONS = [
   { value: "MASUK", label: "Masuk" },
   { value: "KELUAR", label: "Keluar" },
   { value: "MULAI_ISTIRAHAT", label: "Mulai Istirahat" },
@@ -22,15 +22,15 @@ export default function KoreksiListClient({
   items,
 }: {
   userId: string;
-  items: KoreksiItem[];
+  items: CorrectionItem[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [tanggal, setTanggal] = useState("");
-  const [tipe, setTipe] = useState("MASUK");
-  const [jam, setJam] = useState("");
-  const [alasan, setAlasan] = useState("");
-  const [lampiran, setLampiran] = useState("");
+  const [date, setDate] = useState("");
+  const [eventType, setEventType] = useState("MASUK");
+  const [time, setTime] = useState("");
+  const [reason, setReason] = useState("");
+  const [attachment, setAttachment] = useState("");
 
   function runAction(action: Promise<{ success: boolean; message: string; id?: string }>) {
     startTransition(async () => {
@@ -41,22 +41,22 @@ export default function KoreksiListClient({
     });
   }
 
-  const kolomKoreksi: DataTableColumn<KoreksiItem>[] = [
+  const correctionColumns: DataTableColumn<CorrectionItem>[] = [
     {
       id: "tanggal",
       header: "Tanggal",
-      render: (k) => <span className="font-medium">{k.tanggal}</span>,
-      sortValue: (k) => k.tanggal,
-      searchValue: (k) => k.tanggal,
+      render: (k) => <span className="font-medium">{k.date}</span>,
+      sortValue: (k) => k.date,
+      searchValue: (k) => k.date,
     },
     {
       id: "tipe",
       header: "Tipe",
-      render: (k) => <span>{k.tipe.replaceAll("_", " ")}</span>,
-      sortValue: (k) => k.tipe,
-      searchValue: (k) => k.tipe.replaceAll("_", " "),
+      render: (k) => <span>{k.eventType.replaceAll("_", " ")}</span>,
+      sortValue: (k) => k.eventType,
+      searchValue: (k) => k.eventType.replaceAll("_", " "),
     },
-    { id: "waktuBaru", header: "Jam Benar", accessor: "waktuBaru" },
+    { id: "correctedTime", header: "Jam Benar", accessor: "correctedTime" },
     {
       id: "status",
       header: "Status",
@@ -73,11 +73,11 @@ export default function KoreksiListClient({
       searchable: false,
       render: (k) =>
         k.status === "DRAFT" ? (
-          <button type="button" disabled={isPending} onClick={() => runAction(ajukanKoreksi(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+          <button type="button" disabled={isPending} onClick={() => runAction(submitCorrection(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
             Ajukan
           </button>
         ) : ["DRAFT", "DIAJUKAN"].includes(k.status) ? (
-          <button type="button" disabled={isPending} onClick={() => runAction(batalkanKoreksi(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+          <button type="button" disabled={isPending} onClick={() => runAction(cancelCorrection(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
             Batalkan
           </button>
         ) : (
@@ -94,21 +94,21 @@ export default function KoreksiListClient({
           Lupa/telat clock-in? Usulkan jam yang benar + bukti — diproses atasan lalu HR.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingInput name="tanggal" label="Tanggal" type="date" value={tanggal} onChange={(e) => setTanggal(e.currentTarget.value)} />
-          <FloatingSelect name="tipe" label="Tipe" value={tipe} onValueChange={setTipe} options={TIPE_OPTIONS} searchable={false} />
-          <FloatingInput name="jam" label="Jam Seharusnya (HH:MM)" type="time" value={jam} onChange={(e) => setJam(e.currentTarget.value)} />
-          <FloatingInput name="alasan" label="Alasan" value={alasan} onChange={(e) => setAlasan(e.currentTarget.value)} />
-          <FloatingInput name="lampiran" label="URL Bukti (opsional)" value={lampiran} onChange={(e) => setLampiran(e.currentTarget.value)} />
+          <FloatingInput name="date" label="Tanggal" type="date" value={date} onChange={(e) => setDate(e.currentTarget.value)} />
+          <FloatingSelect name="eventType" label="Tipe" value={eventType} onValueChange={setEventType} options={EVENT_TYPE_OPTIONS} searchable={false} />
+          <FloatingInput name="time" label="Jam Seharusnya (HH:MM)" type="time" value={time} onChange={(e) => setTime(e.currentTarget.value)} />
+          <FloatingInput name="reason" label="Alasan" value={reason} onChange={(e) => setReason(e.currentTarget.value)} />
+          <FloatingInput name="attachment" label="URL Bukti (opsional)" value={attachment} onChange={(e) => setAttachment(e.currentTarget.value)} />
         </div>
         <div className="mt-4 flex justify-end">
           <button
             type="button"
             onClick={() => {
-              if (!tanggal || !jam || !alasan.trim()) {
+              if (!date || !time || !reason.trim()) {
                 toast.error("Tanggal, jam, dan alasan wajib diisi.");
                 return;
               }
-              runAction(buatKoreksi({ tanggal, tipe, jam, alasan, lampiranUrl: lampiran }, userId));
+              runAction(createCorrection({ date, eventType, time, reason, attachmentUrl: attachment }, userId));
             }}
             disabled={isPending}
             className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70"
@@ -122,7 +122,7 @@ export default function KoreksiListClient({
         <div className="mt-2">
           <DataTable
             data={items}
-            columns={kolomKoreksi}
+            columns={correctionColumns}
             getRowId={(k) => k.id}
             emptyMessage="Belum ada pengajuan."
           />

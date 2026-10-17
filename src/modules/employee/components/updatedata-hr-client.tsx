@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { prosesPengajuanAction } from "@/src/modules/approval/actions/approval.actions";
-import type { UpdateDataItem } from "@/src/modules/employee/actions/updatedata.actions";
+import { processSubmissionAction } from "@/src/modules/approval/actions/approval.actions";
+import type { DataUpdateItem } from "@/src/modules/employee/actions/updatedata.actions";
 
-export type UpdateDataHrRow = UpdateDataItem & { karyawanNama: string; nomorKaryawan: string };
+export type UpdateDataHrRow = DataUpdateItem & { employeeName: string; employeeNumber: string };
 
 export default function UpdateDataHrClient({ userId, rows }: { userId: string; rows: UpdateDataHrRow[] }) {
 	const router = useRouter();
@@ -18,7 +18,7 @@ export default function UpdateDataHrClient({ userId, rows }: { userId: string; r
 		const note = keputusan === "TOLAK" ? (prompt("Alasan penolakan:") ?? "") : "";
 		if (keputusan === "TOLAK" && !note) return;
 		startTransition(async () => {
-			const result = await prosesPengajuanAction(userId, "UPDATE_DATA", id, keputusan, note || undefined);
+			const result = await processSubmissionAction(userId, "UPDATE_DATA", id, keputusan, note || undefined);
 			if (!result.success) toast.error(result.message);
 			else toast.success(result.message);
 			router.refresh();
@@ -26,26 +26,26 @@ export default function UpdateDataHrClient({ userId, rows }: { userId: string; r
 	}
 
 	const kolom: DataTableColumn<UpdateDataHrRow>[] = [
-		{ id: "nomor", header: "Nomor", accessor: "nomor" },
+		{ id: "number", header: "Nomor", accessor: "number" },
 		{
 			id: "karyawan",
 			header: "Karyawan",
 			render: (r) => (
 				<span>
-					{r.karyawanNama} <span className="text-xs text-slate-500">({r.nomorKaryawan})</span>
+					{r.employeeName} <span className="text-xs text-slate-500">({r.employeeNumber})</span>
 				</span>
 			),
-			sortValue: (r) => r.karyawanNama,
-			searchValue: (r) => `${r.karyawanNama} ${r.nomorKaryawan}`,
+			sortValue: (r) => r.employeeName,
+			searchValue: (r) => `${r.employeeName} ${r.employeeNumber}`,
 		},
 		{
-			id: "kategori",
+			id: "category",
 			header: "Kategori",
-			render: (r) => <span>{r.kategori}</span>,
-			sortValue: (r) => r.kategori,
-			searchValue: (r) => r.kategori,
+			render: (r) => <span>{r.category}</span>,
+			sortValue: (r) => r.category,
+			searchValue: (r) => r.category,
 		},
-		{ id: "ringkasan", header: "Usulan", accessor: "ringkasan" },
+		{ id: "summary", header: "Usulan", accessor: "summary" },
 		{
 			id: "status",
 			header: "Status",

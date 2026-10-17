@@ -4,16 +4,16 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
-import { ackDisiplin } from "@/src/modules/employee/actions/disiplin.actions";
+import { acknowledgeDisiplin } from "@/src/modules/employee/actions/disiplin.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 type DisiplinSayaRow = {
   id: string;
-  nomor: string;
-  tingkatLabel: string;
-  judul: string;
-  tanggalTerbit: string;
-  aktif: boolean;
+  number: string;
+  levelLabel: string;
+  title: string;
+  publishedAt: string;
+  active: boolean;
   status: string;
 };
 
@@ -30,7 +30,7 @@ export default function DisiplinSayaClient({
   function handleAck(id: string) {
     if (!confirm("Tandai sudah dibaca dan dipahami?")) return;
     startTransition(async () => {
-      const r = await ackDisiplin(id, userId);
+      const r = await acknowledgeDisiplin(id, userId);
       if (!r.success) toast.error(r.message);
       else toast.success(r.message);
       router.refresh();
@@ -41,11 +41,11 @@ export default function DisiplinSayaClient({
     {
       id: "surat",
       header: "Surat",
-      render: (d) => <span className="font-medium">{d.tingkatLabel} • {d.nomor}</span>,
-      sortValue: (d) => `${d.tingkatLabel} ${d.nomor}`,
-      searchValue: (d) => `${d.tingkatLabel} ${d.nomor} ${d.judul}`,
+      render: (d) => <span className="font-medium">{d.levelLabel} • {d.number}</span>,
+      sortValue: (d) => `${d.levelLabel} ${d.number}`,
+      searchValue: (d) => `${d.levelLabel} ${d.number} ${d.title}`,
     },
-    { id: "judul", header: "Judul", accessor: "judul" },
+    { id: "title", header: "Judul", accessor: "title" },
     {
       id: "status",
       header: "Status",

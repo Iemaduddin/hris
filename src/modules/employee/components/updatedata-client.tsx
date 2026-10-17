@@ -7,10 +7,10 @@ import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import {
-	ajukanUpdateData,
-	batalkanUpdateData,
-	buatUpdateData,
-	type UpdateDataItem,
+	submitDataUpdate,
+	cancelDataUpdate,
+	createDataUpdate,
+	type DataUpdateItem,
 } from "@/src/modules/employee/actions/updatedata.actions";
 
 const KATEGORI_OPTIONS = [
@@ -62,13 +62,13 @@ export default function UpdateDataClient({
 	keluarga,
 }: {
 	userId: string;
-	items: UpdateDataItem[];
+	items: DataUpdateItem[];
 	saatIni: { alamat: string; telepon: string; email: string };
 	keluarga: Array<{ id: string; nama: string; hubungan: string }>;
 }) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
-	const [kategori, setKategori] = useState("ALAMAT");
+	const [category, setKategori] = useState("ALAMAT");
 	const [alasan, setAlasan] = useState("");
 	const [lampiran, setLampiran] = useState("");
 	const [form, setForm] = useState<Record<string, string>>({});
@@ -96,35 +96,35 @@ export default function UpdateDataClient({
 			toast.error("Alasan perubahan wajib diisi.");
 			return;
 		}
-		const dataBaru: Record<string, unknown> = {};
+		const newData: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(form)) {
-			if (v !== "") dataBaru[k] = v;
+			if (v !== "") newData[k] = v;
 		}
-		if (kategori === "KELUARGA" && form["targetId"] === "baru") delete dataBaru["targetId"];
+		if (category === "KELUARGA" && form["targetId"] === "baru") delete newData["targetId"];
 		runAction(
-			buatUpdateData(
+			createDataUpdate(
 				{
-					kategori,
-					targetId: kategori === "KELUARGA" && form["targetId"] && form["targetId"] !== "baru" ? form["targetId"] : undefined,
-					dataBaru,
-					alasan,
-					lampiranUrl: lampiran,
+					category,
+					targetId: category === "KELUARGA" && form["targetId"] && form["targetId"] !== "baru" ? form["targetId"] : undefined,
+					newData,
+					reason: alasan,
+					attachmentUrl: lampiran,
 				},
 				userId,
 			),
 		);
 	}
 
-	const kolom: DataTableColumn<UpdateDataItem>[] = [
-		{ id: "nomor", header: "Nomor", accessor: "nomor" },
+	const kolom: DataTableColumn<DataUpdateItem>[] = [
+		{ id: "number", header: "Nomor", accessor: "number" },
 		{
-			id: "kategori",
+			id: "category",
 			header: "Kategori",
-			render: (r) => <span>{r.kategori}</span>,
-			sortValue: (r) => r.kategori,
-			searchValue: (r) => r.kategori,
+			render: (r) => <span>{r.category}</span>,
+			sortValue: (r) => r.category,
+			searchValue: (r) => r.category,
 		},
-		{ id: "ringkasan", header: "Usulan", accessor: "ringkasan" },
+		{ id: "summary", header: "Usulan", accessor: "summary" },
 		{
 			id: "status",
 			header: "Status",
@@ -144,7 +144,7 @@ export default function UpdateDataClient({
 					<button
 						type="button"
 						disabled={isPending}
-						onClick={() => runAction(ajukanUpdateData(r.id, userId))}
+						onClick={() => runAction(submitDataUpdate(r.id, userId))}
 						className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
 					>
 						Ajukan ke HR
@@ -153,7 +153,7 @@ export default function UpdateDataClient({
 					<button
 						type="button"
 						disabled={isPending}
-						onClick={() => runAction(batalkanUpdateData(r.id, userId))}
+						onClick={() => runAction(cancelDataUpdate(r.id, userId))}
 						className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60"
 					>
 						Batalkan
@@ -172,26 +172,26 @@ export default function UpdateDataClient({
 					Usulan diverifikasi HR sebelum diterapkan. Data sensitif (NIK, rekening, status) hanya bisa diubah HR.
 				</p>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-					<FloatingSelect name="kategori" label="Kategori" value={kategori} onValueChange={setKategori} options={KATEGORI_OPTIONS} searchable={false} />
+					<FloatingSelect name="category" label="Kategori" value={category} onValueChange={setKategori} options={KATEGORI_OPTIONS} searchable={false} />
 					<FloatingInput name="alasan" label="Alasan perubahan" value={alasan} onChange={(e) => setAlasan(e.currentTarget.value)} />
 					<FloatingInput name="lampiran" label="URL Bukti (opsional)" value={lampiran} onChange={(e) => setLampiran(e.currentTarget.value)} />
 				</div>
 
-				{kategori === "ALAMAT" && (
+				{category === "ALAMAT" && (
 					<div className="mt-4 grid grid-cols-1 gap-4">
 						<p className="text-xs text-slate-500">Saat ini: {saatIni.alamat || "-"}</p>
 						<FloatingInput name="alamat" label="Alamat Baru" value={form["alamat"] ?? ""} onChange={(e) => set("alamat", e.currentTarget.value)} />
 					</div>
 				)}
 
-				{kategori === "KONTAK" && (
+				{category === "KONTAK" && (
 					<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
 						<FloatingInput name="telepon" label={`Telepon Baru (saat ini: ${saatIni.telepon || "-"})`} value={form["telepon"] ?? ""} onChange={(e) => set("telepon", e.currentTarget.value)} />
 						<FloatingInput name="email" label={`Email Baru (saat ini: ${saatIni.email || "-"})`} value={form["email"] ?? ""} onChange={(e) => set("email", e.currentTarget.value)} />
 					</div>
 				)}
 
-				{kategori === "KELUARGA" && (
+				{category === "KELUARGA" && (
 					<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
 						<FloatingSelect
 							name="targetId"
@@ -209,7 +209,7 @@ export default function UpdateDataClient({
 					</div>
 				)}
 
-				{kategori === "PENDIDIKAN" && (
+				{category === "PENDIDIKAN" && (
 					<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
 						<FloatingSelect name="gelar" label="Gelar" value={form["gelar"] ?? ""} onValueChange={(v) => set("gelar", v)} options={GELAR_OPTIONS} />
 						<FloatingInput name="institusi" label="Institusi" value={form["institusi"] ?? ""} onChange={(e) => set("institusi", e.currentTarget.value)} />
@@ -220,7 +220,7 @@ export default function UpdateDataClient({
 					</div>
 				)}
 
-				{kategori === "DOKUMEN" && (
+				{category === "DOKUMEN" && (
 					<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
 						<FloatingSelect name="jenisDokumen" label="Jenis Dokumen" value={form["jenisDokumen"] ?? ""} onValueChange={(v) => set("jenisDokumen", v)} options={DOKUMEN_OPTIONS} />
 						<FloatingInput name="nama" label="Nama Dokumen" value={form["nama"] ?? ""} onChange={(e) => set("nama", e.currentTarget.value)} />

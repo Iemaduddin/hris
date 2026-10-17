@@ -1,6 +1,6 @@
 import prisma from "@/src/lib/prisma";
-import { labelJenisMutasi } from "@/src/modules/employee/lib/mutasi";
-import { labelHasilProbation } from "@/src/modules/employee/lib/probation";
+import { getTransferTypeLabel } from "@/src/modules/employee/lib/mutasi";
+import { getProbationResultLabel } from "@/src/modules/employee/lib/probation";
 
 export const REFERENSI_CUTI = "CUTI";
 export const REFERENSI_LEMBUR = "LEMBUR";
@@ -49,7 +49,7 @@ type SetStatus = (
   status: "DIAJUKAN" | "MENUNGGU_APPROVAL" | "DISETUJUI" | "DITOLAK" | "DIBATALKAN",
 ) => Promise<void>;
 
-async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: Parameters<SetStatus>[0]): Promise<void> {
+async function applyRequestStatus(type: ReferensiType, id: string, status: Parameters<SetStatus>[0]): Promise<void> {
 	if (type === REFERENSI_CUTI) {
 		await prisma.pengajuanKetidakhadiran.update({ where: { id }, data: { status: status as never } });
 	} else if (type === REFERENSI_LEMBUR) {
@@ -76,7 +76,7 @@ async function terapkanStatusPengajuan(type: ReferensiType, id: string, status: 
 	}
 }
 
-async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<string | null> {
+async function getRequesterEmployeeId(type: ReferensiType, id: string): Promise<string | null> {
 	if (type === REFERENSI_CUTI) {
 		const r = await prisma.pengajuanKetidakhadiran.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
@@ -125,29 +125,29 @@ async function getPemohonKaryawanId(type: ReferensiType, id: string): Promise<st
  * Buka alur approval: tahap 1 atasan langsung (bila ada & bukan diri sendiri),
  * tahap final selalu peran HR. Status objek -> MENUNGGU_APPROVAL.
  */
-export async function mulaiAlurApproval(type: ReferensiType, id: string): Promise<void> {
-	const karyawanId = await getPemohonKaryawanId(type, id);
-	if (!karyawanId) throw new Error("Data pengajuan tidak ditemukan.");
+export async function startApprovalFlow(type: ReferensiType, id: string): Promise<void> {
+  const employeeId = await getRequesterEmployeeId(type, id);
+  if (!employeeId) throw new Error("Data pengajuan tidak ditemukan.");
 
-	const pemohon = await prisma.karyawan.findUnique({
-		where: { id: karyawanId },
-		select: { atasanLangsungId: true },
-	});
+  const requester = await prisma.karyawan.findUnique({
+    where: { id: employeeId },
+    select: { atasanLangsungId: true },
+  });
 
-	await prisma.approvalStep.deleteMany({ where: { referensiType: type, referensiId: id } });
+  await prisma.approvalStep.deleteMany({ where: { referensiType: type, referensiId: id } });
 
-	let tahap = 1;
-	if (pemohon?.atasanLangsungId && pemohon.atasanLangsungId !== karyawanId) {
-		await prisma.approvalStep.create({
-			data: { referensiType: type, referensiId: id, tahap, approverKaryawanId: pemohon.atasanLangsungId },
-		});
-		tahap++;
-	}
-	await prisma.approvalStep.create({
-		data: { referensiType: type, referensiId: id, tahap, approverRole: "ADMIN_HR" },
-	});
+  let stage = 1;
+  if (requester?.atasanLangsungId && requester.atasanLangsungId !== employeeId) {
+    await prisma.approvalStep.create({
+      data: { referensiType: type, referensiId: id, tahap: stage, approverKaryawanId: requester.atasanLangsungId },
+    });
+    stage++;
+  }
+  await prisma.approvalStep.create({
+    data: { referensiType: type, referensiId: id, tahap: stage, approverRole: "ADMIN_HR" },
+  });
 
-	await terapkanStatusPengajuan(type, id, "MENUNGGU_APPROVAL");
+  await applyRequestStatus(type, id, "MENUNGGU_APPROVAL");
 	if (type === REFERENSI_CUTI) {
 		await prisma.pengajuanKetidakhadiran.update({ where: { id }, data: { diajukanPada: new Date() } });
 	} else if (type === REFERENSI_DINAS) {
@@ -167,16 +167,16 @@ export async function mulaiAlurApproval(type: ReferensiType, id: string): Promis
 	}
 
 	// P4-3: beritahu approver tahap berjalan (in-app + push + email per preferensi).
-	try {
-		const { beritahuApproverBaru } = await import("@/src/modules/notifikasi/lib/notify");
-		const detail = await getRingkasanPengajuan(type, id);
-		if (detail) {
-			await beritahuApproverBaru(
-				type,
-				id,
-				`Pengajuan ${namaJenis(type)} Baru`,
-				`${detail.nomor} • ${detail.karyawanNama} (${detail.nomorKaryawan}) — ${detail.ringkasan}`,
-				"/approval",
+  try {
+    const { notifyNewApprover } = await import("@/src/modules/notifikasi/lib/notify");
+    const detail = await getRequestSummary(type, id);
+    if (detail) {
+      await notifyNewApprover(
+        type,
+        id,
+        `Pengajuan ${getTypeName(type)} Baru`,
+        `${detail.number} • ${detail.employeeName} (${detail.employeeNumber}) — ${detail.summary}`,
+        "/approval",
 			);
 		}
 	} catch {
@@ -184,91 +184,91 @@ export async function mulaiAlurApproval(type: ReferensiType, id: string): Promis
 	}
 }
 
-export type ProsesApprovalInput = {
-	type: ReferensiType;
-	id: string;
-	approverUserId: string;
-	approverRole: string;
-	approverKaryawanId: string | null;
-	keputusan: "SETUJU" | "TOLAK";
-	catatan?: string;
-	onFinalApprove?: () => Promise<{ success: boolean; message: string }>;
+export type ProcessApprovalInput = {
+  type: ReferensiType;
+  id: string;
+  approverUserId: string;
+  approverRole: string;
+  approverEmployeeId: string | null;
+  decision: "SETUJU" | "TOLAK";
+  note?: string;
+  onFinalApproval?: () => Promise<{ success: boolean; message: string }>;
 };
 
-export type HasilProsesApproval = {
-	success: boolean;
-	message: string;
-	/** Terisi bila keputusan final — pengajuan selesai (DISETUJUI/DITOLAK). */
-	selesai?: "DISETUJUI" | "DITOLAK";
+export type ApprovalProcessResult = {
+  success: boolean;
+  message: string;
+  /** Terisi bila keputusan final — pengajuan selesai (DISETUJUI/DITOLAK). */
+  outcome?: "DISETUJUI" | "DITOLAK";
 };
 
-export async function prosesApproval(input: ProsesApprovalInput): Promise<HasilProsesApproval> {
-	const current = await prisma.approvalStep.findFirst({
-		where: { referensiType: input.type, referensiId: input.id, status: "MENUNGGU" },
-		orderBy: { tahap: "asc" },
-	});
-	if (!current) {
-		return { success: false, message: "Tidak ada tahap approval yang menunggu." };
-	}
+export async function processApproval(input: ProcessApprovalInput): Promise<ApprovalProcessResult> {
+  const current = await prisma.approvalStep.findFirst({
+    where: { referensiType: input.type, referensiId: input.id, status: "MENUNGGU" },
+    orderBy: { tahap: "asc" },
+  });
+  if (!current) {
+    return { success: false, message: "Tidak ada tahap approval yang menunggu." };
+  }
 
-	const isHr = input.approverRole === "SUPER_ADMIN" || input.approverRole === "ADMIN_HR";
-	const bolehAtasan = current.approverKaryawanId !== null && input.approverKaryawanId === current.approverKaryawanId;
-	const bolehHr = current.approverRole === "ADMIN_HR" && isHr;
-	if (!bolehAtasan && !bolehHr) {
-		return { success: false, message: "Anda bukan approver tahap ini." };
-	}
+  const isHr = input.approverRole === "SUPER_ADMIN" || input.approverRole === "ADMIN_HR";
+  const canLead = current.approverKaryawanId !== null && input.approverEmployeeId === current.approverKaryawanId;
+  const canHr = current.approverRole === "ADMIN_HR" && isHr;
+  if (!canLead && !canHr) {
+    return { success: false, message: "Anda bukan approver tahap ini." };
+  }
 
-	await prisma.approvalStep.update({
-		where: { id: current.id },
-		data: {
-			status: input.keputusan === "SETUJU" ? "DISETUJUI" : "DITOLAK",
-			catatan: input.catatan || null,
-			diprosesOlehId: input.approverUserId,
-			diprosesPada: new Date(),
-		},
-	});
+  await prisma.approvalStep.update({
+    where: { id: current.id },
+    data: {
+      status: input.decision === "SETUJU" ? "DISETUJUI" : "DITOLAK",
+      catatan: input.note || null,
+      diprosesOlehId: input.approverUserId,
+      diprosesPada: new Date(),
+    },
+  });
 
-	if (input.keputusan === "TOLAK") {
-		await terapkanStatusPengajuan(input.type, input.id, "DITOLAK");
-		return { success: true, message: "Pengajuan ditolak.", selesai: "DITOLAK" };
-	}
+  if (input.decision === "TOLAK") {
+    await applyRequestStatus(input.type, input.id, "DITOLAK");
+    return { success: true, message: "Pengajuan ditolak.", outcome: "DITOLAK" };
+  }
 
-	const remaining = await prisma.approvalStep.count({
-		where: { referensiType: input.type, referensiId: input.id, status: "MENUNGGU" },
-	});
-	if (remaining > 0) {
-		await terapkanStatusPengajuan(input.type, input.id, "MENUNGGU_APPROVAL");
-		return { success: true, message: "Disetujui. Diteruskan ke tahap berikutnya." };
-	}
+  const remaining = await prisma.approvalStep.count({
+    where: { referensiType: input.type, referensiId: input.id, status: "MENUNGGU" },
+  });
+  if (remaining > 0) {
+    await applyRequestStatus(input.type, input.id, "MENUNGGU_APPROVAL");
+    return { success: true, message: "Disetujui. Diteruskan ke tahap berikutnya." };
+  }
 
-	if (input.onFinalApprove) {
-		const final = await input.onFinalApprove();
-		if (!final.success) {
-			await prisma.approvalStep.update({
-				where: { id: current.id },
-				data: { status: "MENUNGGU", catatan: null, diprosesOlehId: null, diprosesPada: null },
-			});
-			return final;
-		}
-	}
+  if (input.onFinalApproval) {
+    const final = await input.onFinalApproval();
+    if (!final.success) {
+      await prisma.approvalStep.update({
+        where: { id: current.id },
+        data: { status: "MENUNGGU", catatan: null, diprosesOlehId: null, diprosesPada: null },
+      });
+      return final;
+    }
+  }
 
-	await terapkanStatusPengajuan(input.type, input.id, "DISETUJUI");
-	return { success: true, message: "Pengajuan disetujui final.", selesai: "DISETUJUI" };
+  await applyRequestStatus(input.type, input.id, "DISETUJUI");
+  return { success: true, message: "Pengajuan disetujui final.", outcome: "DISETUJUI" };
 }
 
-export type AntrianItem = {
-	type: ReferensiType;
-	id: string;
-	nomor: string;
-	karyawanId: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	ringkasan: string;
-	tahap: number;
-	diajukanPada: string | null;
+export type QueueItem = {
+  type: ReferensiType;
+  id: string;
+  number: string;
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  summary: string;
+  stage: number;
+  submittedAt: string | null;
 };
 
-function namaJenis(type: ReferensiType): string {
+function getTypeName(type: ReferensiType): string {
 	return type === REFERENSI_CUTI
 		? "Cuti/Izin"
 		: type === REFERENSI_LEMBUR
@@ -292,77 +292,77 @@ function namaJenis(type: ReferensiType): string {
 						: "Dinas/WFH";
 }
 
-export async function getAntrianApproval(
-	approverKaryawanId: string | null,
-	isHr: boolean,
-): Promise<AntrianItem[]> {
-	const steps = await prisma.approvalStep.findMany({
-		where: { status: "MENUNGGU" },
-		orderBy: [{ createdAt: "asc" }],
-	});
+export async function getApprovalQueue(
+  approverEmployeeId: string | null,
+  isHr: boolean,
+): Promise<QueueItem[]> {
+  const steps = await prisma.approvalStep.findMany({
+    where: { status: "MENUNGGU" },
+    orderBy: [{ createdAt: "asc" }],
+  });
 
-	const hasil: AntrianItem[] = [];
-	for (const step of steps) {
-		const mine =
-			(step.approverKaryawanId !== null && step.approverKaryawanId === approverKaryawanId) ||
-			(step.approverRole === "ADMIN_HR" && isHr);
-		if (!mine) continue;
+  const result: QueueItem[] = [];
+  for (const step of steps) {
+    const mine =
+      (step.approverKaryawanId !== null && step.approverKaryawanId === approverEmployeeId) ||
+      (step.approverRole === "ADMIN_HR" && isHr);
+    if (!mine) continue;
 
-		const earlierPending = await prisma.approvalStep.count({
-			where: {
-				referensiType: step.referensiType,
-				referensiId: step.referensiId,
-				status: "MENUNGGU",
-				tahap: { lt: step.tahap },
-			},
-		});
-		if (earlierPending > 0) continue;
+    const earlierPending = await prisma.approvalStep.count({
+      where: {
+        referensiType: step.referensiType,
+        referensiId: step.referensiId,
+        status: "MENUNGGU",
+        tahap: { lt: step.tahap },
+      },
+    });
+    if (earlierPending > 0) continue;
 
-		const detail = await getRingkasanPengajuan(step.referensiType as ReferensiType, step.referensiId);
-		if (detail) hasil.push({ ...detail, type: step.referensiType as ReferensiType, tahap: step.tahap });
-	}
-	return hasil;
+    const detail = await getRequestSummary(step.referensiType as ReferensiType, step.referensiId);
+    if (detail) result.push({ ...detail, type: step.referensiType as ReferensiType, stage: step.tahap });
+  }
+  return result;
 }
 
-export async function getRingkasanPengajuan(
-	type: ReferensiType,
-	id: string,
-): Promise<Omit<AntrianItem, "type" | "tahap"> | null> {
-	if (type === REFERENSI_CUTI) {
-		const r = await prisma.pengajuanKetidakhadiran.findUnique({
-			where: { id },
-			include: {
-				karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
-				jenisKetidakhadiran: { select: { nama: true } },
-			},
-		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.nomorPengajuan,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `${r.jenisKetidakhadiran.nama} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)} • ${r.jumlahHari} hari`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
-	if (type === REFERENSI_LEMBUR) {
-		const r = await prisma.lembur.findUnique({
-			where: { id },
-			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
-		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.tanggal.toISOString().slice(0, 10),
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Lembur ${r.jumlahJam} jam • ${r.alasan}`,
-			diajukanPada: r.createdAt.toISOString(),
-		};
-	}
+export async function getRequestSummary(
+  type: ReferensiType,
+  id: string,
+): Promise<Omit<QueueItem, "type" | "stage"> | null> {
+  if (type === REFERENSI_CUTI) {
+    const r = await prisma.pengajuanKetidakhadiran.findUnique({
+      where: { id },
+      include: {
+        karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
+        jenisKetidakhadiran: { select: { nama: true } },
+      },
+    });
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.nomorPengajuan,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `${r.jenisKetidakhadiran.nama} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)} • ${r.jumlahHari} hari`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
+  if (type === REFERENSI_LEMBUR) {
+    const r = await prisma.lembur.findUnique({
+      where: { id },
+      include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+    });
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.tanggal.toISOString().slice(0, 10),
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Lembur ${r.jumlahJam} jam • ${r.alasan}`,
+      submittedAt: r.createdAt.toISOString(),
+    };
+  }
 	if (type === REFERENSI_MUTASI) {
 		const r = await prisma.mutasi.findUnique({
 			where: { id },
@@ -373,51 +373,51 @@ export async function getRingkasanPengajuan(
 				keLokasi: { select: { nama: true } },
 			},
 		});
-		if (!r) return null;
-		const dari = r.dariPosisiNama ?? r.dariUnitNama ?? "-";
-		const ke = r.kePosisi?.nama ?? r.keUnit?.nama ?? r.keLokasi?.nama ?? "-";
-		return {
-			id: r.id,
-			nomor: r.nomor,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `${labelJenisMutasi(r.jenis)} • ${dari} → ${ke} • efektif ${r.tanggalEfektif.toISOString().slice(0, 10)}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    const from = r.dariPosisiNama ?? r.dariUnitNama ?? "-";
+    const to = r.kePosisi?.nama ?? r.keUnit?.nama ?? r.keLokasi?.nama ?? "-";
+    return {
+      id: r.id,
+      number: r.nomor,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `${getTransferTypeLabel(r.jenis)} • ${from} → ${to} • efektif ${r.tanggalEfektif.toISOString().slice(0, 10)}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_RESIGN) {
 		const r = await prisma.offboarding.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: `RSG-${r.id.slice(-6).toUpperCase()}`,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Resign • rencana ${r.tanggalRencana.toISOString().slice(0, 10)} • ${r.alasan}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: `RSG-${r.id.slice(-6).toUpperCase()}`,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Resign • rencana ${r.tanggalRencana.toISOString().slice(0, 10)} • ${r.alasan}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_PROBATION) {
 		const r = await prisma.probationReview.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: `PRB-${r.id.slice(-6).toUpperCase()}`,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Probation s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}${r.hasil ? ` • ${labelHasilProbation(r.hasil)}` : ""}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: `PRB-${r.id.slice(-6).toUpperCase()}`,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Probation s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}${r.hasil ? ` • ${getProbationResultLabel(r.hasil)}` : ""}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_TUKAR) {
 		const r = await prisma.tukarShift.findUnique({
 			where: { id },
@@ -426,96 +426,96 @@ export async function getRingkasanPengajuan(
 				pasangan: { select: { namaLengkap: true } },
 			},
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.tanggal.toISOString().slice(0, 10),
-			karyawanId: r.pemohonKaryawanId,
-			karyawanNama: r.pemohon.namaLengkap,
-			nomorKaryawan: r.pemohon.nomorKaryawan,
-			ringkasan: `Tukar ${r.tanggal.toISOString().slice(0, 10)} ↔ ${r.pasangan.namaLengkap}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.tanggal.toISOString().slice(0, 10),
+      employeeId: r.pemohonKaryawanId,
+      employeeName: r.pemohon.namaLengkap,
+      employeeNumber: r.pemohon.nomorKaryawan,
+      summary: `Tukar ${r.tanggal.toISOString().slice(0, 10)} ↔ ${r.pasangan.namaLengkap}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_KOREKSI) {
 		const r = await prisma.koreksiPresensi.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.tanggal.toISOString().slice(0, 10),
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Koreksi ${r.tipe} → ${r.waktuBaru.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} • ${r.alasan}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.tanggal.toISOString().slice(0, 10),
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Koreksi ${r.tipe} → ${r.waktuBaru.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} • ${r.alasan}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_REIMBURSE) {
 		const r = await prisma.expenseClaim.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.nomor,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Reimburse ${r.kategori} Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.keterangan}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.nomor,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Reimburse ${r.kategori} Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.keterangan}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_UPDATEDATA) {
 		const r = await prisma.updateDataRequest.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
 		if (!r) return null;
-		const { ringkasanUpdateData, labelKategori } = await import("@/src/modules/employee/lib/updatedata");
-		return {
-			id: r.id,
-			nomor: r.nomor,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `${labelKategori(r.kategori)} • ${ringkasanUpdateData(r.kategori, (r.dataBaru ?? {}) as Record<string, unknown>)}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    const { summarizeDataUpdate, getCategoryLabel } = await import("@/src/modules/employee/lib/updatedata");
+    return {
+      id: r.id,
+      number: r.nomor,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `${getCategoryLabel(r.kategori)} • ${summarizeDataUpdate(r.kategori, (r.dataBaru ?? {}) as Record<string, unknown>)}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	if (type === REFERENSI_UANGDINAS) {
 		const r = await prisma.uangDinas.findUnique({
 			where: { id },
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
-		if (!r) return null;
-		return {
-			id: r.id,
-			nomor: r.nomor,
-			karyawanId: r.karyawanId,
-			karyawanNama: r.karyawan.namaLengkap,
-			nomorKaryawan: r.karyawan.nomorKaryawan,
-			ringkasan: `Uang muka Rp${Number(r.nominalMuka).toLocaleString("id-ID")}`,
-			diajukanPada: r.diajukanPada?.toISOString() ?? null,
-		};
-	}
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.nomor,
+      employeeId: r.karyawanId,
+      employeeName: r.karyawan.namaLengkap,
+      employeeNumber: r.karyawan.nomorKaryawan,
+      summary: `Uang muka Rp${Number(r.nominalMuka).toLocaleString("id-ID")}`,
+      submittedAt: r.diajukanPada?.toISOString() ?? null,
+    };
+  }
 	const r = await prisma.dinasWFH.findUnique({
 		where: { id },
 		include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 	});
-	if (!r) return null;
-	return {
-		id: r.id,
-		nomor: r.nomorPengajuan,
-		karyawanId: r.karyawanId,
-		karyawanNama: r.karyawan.namaLengkap,
-		nomorKaryawan: r.karyawan.nomorKaryawan,
-		ringkasan: `${r.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH"} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}`,
-		diajukanPada: r.diajukanPada?.toISOString() ?? null,
-	};
+  if (!r) return null;
+  return {
+    id: r.id,
+    number: r.nomorPengajuan,
+    employeeId: r.karyawanId,
+    employeeName: r.karyawan.namaLengkap,
+    employeeNumber: r.karyawan.nomorKaryawan,
+    summary: `${r.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH"} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}`,
+    submittedAt: r.diajukanPada?.toISOString() ?? null,
+  };
 }
 
-export { namaJenis };
+export { getTypeName };

@@ -1,33 +1,33 @@
 /** Template + penomoran surat keluar: render variabel dan nomor formal murni. */
 
-export const JENIS_SURAT: Array<{ kode: string; nama: string; butuhRef: boolean }> = [
-  { kode: "MUT", nama: "Mutasi / Promosi", butuhRef: true },
-  { kode: "PAK", nama: "Paklaring", butuhRef: true },
-  { kode: "SP", nama: "Peringatan / PHK", butuhRef: true },
-  { kode: "KET", nama: "Keterangan Kerja", butuhRef: false },
+export const LETTER_TYPES: Array<{ code: string; name: string; needsRef: boolean }> = [
+  { code: "MUT", name: "Mutasi / Promosi", needsRef: true },
+  { code: "PAK", name: "Paklaring", needsRef: true },
+  { code: "SP", name: "Peringatan / PHK", needsRef: true },
+  { code: "KET", name: "Keterangan Kerja", needsRef: false },
 ];
 
-const ROMAWI = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
-export function bulanRomawi(bulan: number): string {
-  return ROMAWI[bulan - 1] ?? String(bulan);
+export function romanMonth(month: number): string {
+  return ROMAN_NUMERALS[month - 1] ?? String(month);
 }
 
 /** Format formal: 001/MUT/X/2026. */
-export function formatNomorSurat(seq: number, kodeJenis: string, tanggal: Date): string {
-  return `${String(seq).padStart(3, "0")}/${kodeJenis}/${bulanRomawi(tanggal.getMonth() + 1)}/${tanggal.getFullYear()}`;
+export function formatLetterNumber(seq: number, letterCode: string, date: Date): string {
+  return `${String(seq).padStart(3, "0")}/${letterCode}/${romanMonth(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
 
 /** Ganti {{kunci}} dengan vars; placeholder tak dikenal dibiarkan apa adanya. */
-export function renderSurat(badan: string, vars: Record<string, string>): string {
-  return badan.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (cocok, kunci: string) =>
-    vars[kunci] !== undefined ? vars[kunci] : cocok,
+export function renderLetter(body: string, vars: Record<string, string>): string {
+  return body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key: string) =>
+    vars[key] !== undefined ? vars[key] : match,
   );
 }
 
 /** Daftar placeholder {{..}} yang dipakai template. */
-export function daftarPlaceholder(badan: string): string[] {
-  const hasil = new Set<string>();
-  for (const m of badan.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)) hasil.add(m[1]);
-  return [...hasil];
+export function listPlaceholders(body: string): string[] {
+  const found = new Set<string>();
+  for (const m of body.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)) found.add(m[1]);
+  return [...found];
 }

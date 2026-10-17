@@ -2,306 +2,306 @@ import prisma from "@/src/lib/prisma";
 import { StatusRekap, type HariDalamMinggu } from "@/generated/prisma/client";
 import { addDays, dayName, startOfDay, timeToMinutes, toDbDate } from "@/src/lib/time";
 
-export type RekapHasil = {
-	karyawanId: string;
-	tanggal: Date;
-	sumberJadwal: string;
-	acuanId: string | null;
-	jamMasukSeharusnya: Date | null;
-	jamKeluarSeharusnya: Date | null;
-	masukAktual: Date | null;
-	keluarAktual: Date | null;
-	telatMenit: number;
-	pulangCepatMenit: number;
-	lemburMenit: number;
-	status: StatusRekap;
+export type RecapResult = {
+  karyawanId: string;
+  tanggal: Date;
+  sumberJadwal: string;
+  acuanId: string | null;
+  jamMasukSeharusnya: Date | null;
+  jamKeluarSeharusnya: Date | null;
+  masukAktual: Date | null;
+  keluarAktual: Date | null;
+  telatMenit: number;
+  pulangCepatMenit: number;
+  lemburMenit: number;
+  status: StatusRekap;
 };
 
 function combineDayTime(day: Date, minutes: number, plusDays = 0): Date {
-	const d = new Date(day);
-	if (plusDays) d.setDate(d.getDate() + plusDays);
-	d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-	return d;
+  const d = new Date(day);
+  if (plusDays) d.setDate(d.getDate() + plusDays);
+  d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return d;
 }
 
 function endOfDay(day: Date): Date {
-	const d = new Date(day);
-	d.setHours(23, 59, 59, 999);
-	return d;
+  const d = new Date(day);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }
 
-export async function hitungRekapHarian(karyawanId: string, tanggal: Date): Promise<RekapHasil | null> {
-	const day = toDbDate(tanggal);
+export async function calculateDailyRecap(employeeId: string, tanggal: Date): Promise<RecapResult | null> {
+  const day = toDbDate(tanggal);
 
-	const roster = await prisma.rosterShift.findUnique({
-		where: { karyawanId_tanggal: { karyawanId, tanggal: day } },
-		include: { shift: true },
-	});
+  const roster = await prisma.rosterShift.findUnique({
+    where: { karyawanId_tanggal: { karyawanId: employeeId, tanggal: day } },
+    include: { shift: true },
+  });
 
-	let jamMasukMin: number | null = null;
-	let jamKeluarMin: number | null = null;
-	let plusDaysKeluar = 0;
-	let toleransi = 0;
-	let sumberJadwal = "";
-	let acuanId: string | null = null;
-	let kalenderId: number | null = null;
+  let checkInMin: number | null = null;
+  let checkOutMin: number | null = null;
+  let checkoutPlusDays = 0;
+  let tolerance = 0;
+  let sumberJadwal = "";
+  let acuanId: string | null = null;
+  let calendarId: number | null = null;
 
-	if (roster && roster.shift.isActive) {
-		jamMasukMin = timeToMinutes(roster.shift.jamMasuk);
-		jamKeluarMin = timeToMinutes(roster.shift.jamKeluar);
-		if (roster.shift.lintasHari) plusDaysKeluar = 1;
-		toleransi = roster.shift.toleransiTelatMenit;
-		sumberJadwal = "ROSTER";
-		acuanId = roster.shiftId;
-	} else {
-		const penugasan = await prisma.penugasanKalender.findFirst({
-			where: {
-				karyawanId,
-				tanggalMulai: { lte: day },
-				OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gte: day } }],
-			},
-			orderBy: { tanggalMulai: "desc" },
-		});
+  if (roster && roster.shift.isActive) {
+    checkInMin = timeToMinutes(roster.shift.jamMasuk);
+    checkOutMin = timeToMinutes(roster.shift.jamKeluar);
+    if (roster.shift.lintasHari) checkoutPlusDays = 1;
+    tolerance = roster.shift.toleransiTelatMenit;
+    sumberJadwal = "ROSTER";
+    acuanId = roster.shiftId;
+  } else {
+    const assignment = await prisma.penugasanKalender.findFirst({
+      where: {
+        karyawanId: employeeId,
+        tanggalMulai: { lte: day },
+        OR: [{ tanggalSelesai: null }, { tanggalSelesai: { gte: day } }],
+      },
+      orderBy: { tanggalMulai: "desc" },
+    });
 
-		if (penugasan) {
-			kalenderId = penugasan.kalenderKerjaId;
-			sumberJadwal = "KALENDER";
-			acuanId = String(penugasan.kalenderKerjaId);
-		} else {
-			const def = await prisma.kalenderKerja.findFirst({
-				where: { isDefault: true, isActive: true },
-			});
-			if (!def) return null;
-			kalenderId = def.id;
-			sumberJadwal = "KALENDER_DEFAULT";
-			acuanId = String(def.id);
-		}
+    if (assignment) {
+      calendarId = assignment.kalenderKerjaId;
+      sumberJadwal = "KALENDER";
+      acuanId = String(assignment.kalenderKerjaId);
+    } else {
+      const def = await prisma.kalenderKerja.findFirst({
+        where: { isDefault: true, isActive: true },
+      });
+      if (!def) return null;
+      calendarId = def.id;
+      sumberJadwal = "KALENDER_DEFAULT";
+      acuanId = String(def.id);
+    }
 
-		const jadwal = await prisma.jadwalKerja.findUnique({
-			where: { kalenderKerjaId_hari: { kalenderKerjaId: kalenderId, hari: dayName(day) as HariDalamMinggu } },
-		});
+    const schedule = await prisma.jadwalKerja.findUnique({
+      where: { kalenderKerjaId_hari: { kalenderKerjaId: calendarId, hari: dayName(day) as HariDalamMinggu } },
+    });
 
-		if (!jadwal || !jadwal.isHariKerja || !jadwal.jamMasuk || !jadwal.jamKeluar) {
-			const kerja = await adaKehadiran(karyawanId, day, false);
-			return simpanRekap({
-				karyawanId,
-				tanggal: day,
-				sumberJadwal,
-				acuanId,
-				jamMasukSeharusnya: null,
-				jamKeluarSeharusnya: null,
-				masukAktual: kerja.masuk,
-				keluarAktual: kerja.keluar,
-				telatMenit: 0,
-				pulangCepatMenit: 0,
-				lemburMenit: kerja.masuk && kerja.keluar ? diffMenit(kerja.masuk, kerja.keluar) : 0,
-				status: kerja.masuk ? StatusRekap.HADIR : StatusRekap.LIBUR,
-			});
-		}
+    if (!schedule || !schedule.isHariKerja || !schedule.jamMasuk || !schedule.jamKeluar) {
+      const attendance = await hasAttendance(employeeId, day, false);
+      return saveRecap({
+        karyawanId: employeeId,
+        tanggal: day,
+        sumberJadwal,
+        acuanId,
+        jamMasukSeharusnya: null,
+        jamKeluarSeharusnya: null,
+        masukAktual: attendance.checkIn,
+        keluarAktual: attendance.checkOut,
+        telatMenit: 0,
+        pulangCepatMenit: 0,
+        lemburMenit: attendance.checkIn && attendance.checkOut ? diffMinutes(attendance.checkIn, attendance.checkOut) : 0,
+        status: attendance.checkIn ? StatusRekap.HADIR : StatusRekap.LIBUR,
+      });
+    }
 
-		jamMasukMin = timeToMinutes(jadwal.jamMasuk);
-		jamKeluarMin = timeToMinutes(jadwal.jamKeluar);
-	}
+    checkInMin = timeToMinutes(schedule.jamMasuk);
+    checkOutMin = timeToMinutes(schedule.jamKeluar);
+  }
 
-	if (jamMasukMin === null || jamKeluarMin === null) return null;
+  if (checkInMin === null || checkOutMin === null) return null;
 
-	const libur = await prisma.hariLibur.findFirst({
-		where: {
-			tanggal: day,
-			...(kalenderId ? { kalenderKerjaId: kalenderId } : {}),
-		},
-		select: { id: true },
-	});
+  const holiday = await prisma.hariLibur.findFirst({
+    where: {
+      tanggal: day,
+      ...(calendarId ? { kalenderKerjaId: calendarId } : {}),
+    },
+    select: { id: true },
+  });
 
-	if (libur) {
-		const kerja = await adaKehadiran(karyawanId, day, plusDaysKeluar > 0);
-		return simpanRekap({
-			karyawanId,
-			tanggal: day,
-			sumberJadwal,
-			acuanId,
-			jamMasukSeharusnya: combineDayTime(day, jamMasukMin),
-			jamKeluarSeharusnya: combineDayTime(day, jamKeluarMin, plusDaysKeluar),
-			masukAktual: kerja.masuk,
-			keluarAktual: kerja.keluar,
-			telatMenit: 0,
-			pulangCepatMenit: 0,
-			lemburMenit: kerja.masuk && kerja.keluar ? diffMenit(kerja.masuk, kerja.keluar) : 0,
-			status: kerja.masuk ? StatusRekap.HADIR : StatusRekap.LIBUR,
-		});
-	}
+  if (holiday) {
+    const attendance = await hasAttendance(employeeId, day, checkoutPlusDays > 0);
+    return saveRecap({
+      karyawanId: employeeId,
+      tanggal: day,
+      sumberJadwal,
+      acuanId,
+      jamMasukSeharusnya: combineDayTime(day, checkInMin),
+      jamKeluarSeharusnya: combineDayTime(day, checkOutMin, checkoutPlusDays),
+      masukAktual: attendance.checkIn,
+      keluarAktual: attendance.checkOut,
+      telatMenit: 0,
+      pulangCepatMenit: 0,
+      lemburMenit: attendance.checkIn && attendance.checkOut ? diffMinutes(attendance.checkIn, attendance.checkOut) : 0,
+      status: attendance.checkIn ? StatusRekap.HADIR : StatusRekap.LIBUR,
+    });
+  }
 
-	const cuti = await prisma.pengajuanKetidakhadiran.findFirst({
-		where: {
-			karyawanId,
-			status: "DISETUJUI",
-			tanggalMulai: { lte: endOfDay(day) },
-			tanggalSelesai: { gte: day },
-		},
-		include: { jenisKetidakhadiran: { select: { kategori: true } } },
-	});
+  const leave = await prisma.pengajuanKetidakhadiran.findFirst({
+    where: {
+      karyawanId: employeeId,
+      status: "DISETUJUI",
+      tanggalMulai: { lte: endOfDay(day) },
+      tanggalSelesai: { gte: day },
+    },
+    include: { jenisKetidakhadiran: { select: { kategori: true } } },
+  });
 
-	const dinas = cuti
-		? null
-		: await prisma.dinasWFH.findFirst({
-				where: {
-					karyawanId,
-					status: "DISETUJUI",
-					tanggalMulai: { lte: day },
-					tanggalSelesai: { gte: day },
-				},
-				select: { id: true },
-			});
+  const duty = leave
+    ? null
+    : await prisma.dinasWFH.findFirst({
+        where: {
+          karyawanId: employeeId,
+          status: "DISETUJUI",
+          tanggalMulai: { lte: day },
+          tanggalSelesai: { gte: day },
+        },
+        select: { id: true },
+      });
 
-	if (dinas) {
-		return simpanRekap({
-			karyawanId,
-			tanggal: day,
-			sumberJadwal,
-			acuanId,
-			jamMasukSeharusnya: combineDayTime(day, jamMasukMin),
-			jamKeluarSeharusnya: combineDayTime(day, jamKeluarMin, plusDaysKeluar),
-			masukAktual: null,
-			keluarAktual: null,
-			telatMenit: 0,
-			pulangCepatMenit: 0,
-			lemburMenit: 0,
-			status: StatusRekap.DINAS,
-		});
-	}
+  if (duty) {
+    return saveRecap({
+      karyawanId: employeeId,
+      tanggal: day,
+      sumberJadwal,
+      acuanId,
+      jamMasukSeharusnya: combineDayTime(day, checkInMin),
+      jamKeluarSeharusnya: combineDayTime(day, checkOutMin, checkoutPlusDays),
+      masukAktual: null,
+      keluarAktual: null,
+      telatMenit: 0,
+      pulangCepatMenit: 0,
+      lemburMenit: 0,
+      status: StatusRekap.DINAS,
+    });
+  }
 
-	if (cuti) {
-		return simpanRekap({
-			karyawanId,
-			tanggal: day,
-			sumberJadwal,
-			acuanId,
-			jamMasukSeharusnya: combineDayTime(day, jamMasukMin),
-			jamKeluarSeharusnya: combineDayTime(day, jamKeluarMin, plusDaysKeluar),
-			masukAktual: null,
-			keluarAktual: null,
-			telatMenit: 0,
-			pulangCepatMenit: 0,
-			lemburMenit: 0,
-			status: cuti.jenisKetidakhadiran.kategori === "CUTI" ? StatusRekap.CUTI : StatusRekap.IZIN,
-		});
-	}
+  if (leave) {
+    return saveRecap({
+      karyawanId: employeeId,
+      tanggal: day,
+      sumberJadwal,
+      acuanId,
+      jamMasukSeharusnya: combineDayTime(day, checkInMin),
+      jamKeluarSeharusnya: combineDayTime(day, checkOutMin, checkoutPlusDays),
+      masukAktual: null,
+      keluarAktual: null,
+      telatMenit: 0,
+      pulangCepatMenit: 0,
+      lemburMenit: 0,
+      status: leave.jenisKetidakhadiran.kategori === "CUTI" ? StatusRekap.CUTI : StatusRekap.IZIN,
+    });
+  }
 
-	const kerja = await adaKehadiran(karyawanId, day, plusDaysKeluar > 0);
-	const expectedMasuk = combineDayTime(day, jamMasukMin);
-	const expectedKeluar = combineDayTime(day, jamKeluarMin, plusDaysKeluar);
+  const attendance = await hasAttendance(employeeId, day, checkoutPlusDays > 0);
+  const expectedCheckIn = combineDayTime(day, checkInMin);
+  const expectedCheckOut = combineDayTime(day, checkOutMin, checkoutPlusDays);
 
-	if (!kerja.masuk) {
-		return simpanRekap({
-			karyawanId,
-			tanggal: day,
-			sumberJadwal,
-			acuanId,
-			jamMasukSeharusnya: expectedMasuk,
-			jamKeluarSeharusnya: expectedKeluar,
-			masukAktual: null,
-			keluarAktual: kerja.keluar,
-			telatMenit: 0,
-			pulangCepatMenit: 0,
-			lemburMenit: 0,
-			status: StatusRekap.ALPA,
-		});
-	}
+  if (!attendance.checkIn) {
+    return saveRecap({
+      karyawanId: employeeId,
+      tanggal: day,
+      sumberJadwal,
+      acuanId,
+      jamMasukSeharusnya: expectedCheckIn,
+      jamKeluarSeharusnya: expectedCheckOut,
+      masukAktual: null,
+      keluarAktual: attendance.checkOut,
+      telatMenit: 0,
+      pulangCepatMenit: 0,
+      lemburMenit: 0,
+      status: StatusRekap.ALPA,
+    });
+  }
 
-	const telat = Math.max(0, diffMenit(expectedMasuk, kerja.masuk));
-	const pulangCepat = kerja.keluar ? Math.max(0, diffMenit(kerja.keluar, expectedKeluar)) : 0;
-	const lembur = kerja.keluar ? Math.max(0, diffMenit(expectedKeluar, kerja.keluar)) : 0;
+  const late = Math.max(0, diffMinutes(expectedCheckIn, attendance.checkIn));
+  const earlyLeave = attendance.checkOut ? Math.max(0, diffMinutes(attendance.checkOut, expectedCheckOut)) : 0;
+  const overtime = attendance.checkOut ? Math.max(0, diffMinutes(expectedCheckOut, attendance.checkOut)) : 0;
 
-	return simpanRekap({
-		karyawanId,
-		tanggal: day,
-		sumberJadwal,
-		acuanId,
-		jamMasukSeharusnya: expectedMasuk,
-		jamKeluarSeharusnya: expectedKeluar,
-		masukAktual: kerja.masuk,
-		keluarAktual: kerja.keluar,
-		telatMenit: telat,
-		pulangCepatMenit: pulangCepat,
-		lemburMenit: lembur,
-		status: telat > toleransi ? StatusRekap.TERLAMBAT : StatusRekap.HADIR,
-	});
+  return saveRecap({
+    karyawanId: employeeId,
+    tanggal: day,
+    sumberJadwal,
+    acuanId,
+    jamMasukSeharusnya: expectedCheckIn,
+    jamKeluarSeharusnya: expectedCheckOut,
+    masukAktual: attendance.checkIn,
+    keluarAktual: attendance.checkOut,
+    telatMenit: late,
+    pulangCepatMenit: earlyLeave,
+    lemburMenit: overtime,
+    status: late > tolerance ? StatusRekap.TERLAMBAT : StatusRekap.HADIR,
+  });
 }
 
-async function adaKehadiran(
-	karyawanId: string,
-	day: Date,
-	lewatTengahMalam: boolean,
-): Promise<{ masuk: Date | null; keluar: Date | null }> {
-	const from = startOfDay(day);
-	const to = lewatTengahMalam ? combineDayTime(addDays(day, 1), 12 * 60) : endOfDay(day);
+async function hasAttendance(
+  karyawanId: string,
+  day: Date,
+  pastMidnight: boolean,
+): Promise<{ checkIn: Date | null; checkOut: Date | null }> {
+  const from = startOfDay(day);
+  const to = pastMidnight ? combineDayTime(addDays(day, 1), 12 * 60) : endOfDay(day);
 
-	const events = await prisma.absensi.findMany({
-		where: {
-			karyawanId,
-			waktu: { gte: from, lte: to },
-			status: { in: ["VALID", "DIKOREKSI"] },
-		},
-		orderBy: { waktu: "asc" },
-		select: { waktu: true, tipe: true },
-	});
+  const events = await prisma.absensi.findMany({
+    where: {
+      karyawanId,
+      waktu: { gte: from, lte: to },
+      status: { in: ["VALID", "DIKOREKSI"] },
+    },
+    orderBy: { waktu: "asc" },
+    select: { waktu: true, tipe: true },
+  });
 
-	const masukList = events.filter((e) => e.tipe === "MASUK").map((e) => e.waktu);
-	const keluarList = events.filter((e) => e.tipe === "KELUAR").map((e) => e.waktu);
+  const checkIns = events.filter((e) => e.tipe === "MASUK").map((e) => e.waktu);
+  const checkOuts = events.filter((e) => e.tipe === "KELUAR").map((e) => e.waktu);
 
-	return {
-		masuk: masukList.length ? masukList[0] : null,
-		keluar: keluarList.length ? keluarList[keluarList.length - 1] : null,
-	};
+  return {
+    checkIn: checkIns.length ? checkIns[0] : null,
+    checkOut: checkOuts.length ? checkOuts[checkOuts.length - 1] : null,
+  };
 }
 
-function diffMenit(from: Date, to: Date): number {
-	return Math.round((to.getTime() - from.getTime()) / 60000);
+function diffMinutes(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / 60000);
 }
 
-async function simpanRekap(hasil: RekapHasil): Promise<RekapHasil> {
-	await prisma.rekapHarian.upsert({
-		where: { karyawanId_tanggal: { karyawanId: hasil.karyawanId, tanggal: hasil.tanggal } },
-		update: {
-			sumberJadwal: hasil.sumberJadwal,
-			acuanId: hasil.acuanId,
-			jamMasukSeharusnya: hasil.jamMasukSeharusnya,
-			jamKeluarSeharusnya: hasil.jamKeluarSeharusnya,
-			masukAktual: hasil.masukAktual,
-			keluarAktual: hasil.keluarAktual,
-			telatMenit: hasil.telatMenit,
-			pulangCepatMenit: hasil.pulangCepatMenit,
-			lemburMenit: hasil.lemburMenit,
-			status: hasil.status,
-		},
-		create: {
-			karyawanId: hasil.karyawanId,
-			tanggal: hasil.tanggal,
-			sumberJadwal: hasil.sumberJadwal,
-			acuanId: hasil.acuanId,
-			jamMasukSeharusnya: hasil.jamMasukSeharusnya,
-			jamKeluarSeharusnya: hasil.jamKeluarSeharusnya,
-			masukAktual: hasil.masukAktual,
-			keluarAktual: hasil.keluarAktual,
-			telatMenit: hasil.telatMenit,
-			pulangCepatMenit: hasil.pulangCepatMenit,
-			lemburMenit: hasil.lemburMenit,
-			status: hasil.status,
-		},
-	});
-	return hasil;
+async function saveRecap(result: RecapResult): Promise<RecapResult> {
+  await prisma.rekapHarian.upsert({
+    where: { karyawanId_tanggal: { karyawanId: result.karyawanId, tanggal: result.tanggal } },
+    update: {
+      sumberJadwal: result.sumberJadwal,
+      acuanId: result.acuanId,
+      jamMasukSeharusnya: result.jamMasukSeharusnya,
+      jamKeluarSeharusnya: result.jamKeluarSeharusnya,
+      masukAktual: result.masukAktual,
+      keluarAktual: result.keluarAktual,
+      telatMenit: result.telatMenit,
+      pulangCepatMenit: result.pulangCepatMenit,
+      lemburMenit: result.lemburMenit,
+      status: result.status,
+    },
+    create: {
+      karyawanId: result.karyawanId,
+      tanggal: result.tanggal,
+      sumberJadwal: result.sumberJadwal,
+      acuanId: result.acuanId,
+      jamMasukSeharusnya: result.jamMasukSeharusnya,
+      jamKeluarSeharusnya: result.jamKeluarSeharusnya,
+      masukAktual: result.masukAktual,
+      keluarAktual: result.keluarAktual,
+      telatMenit: result.telatMenit,
+      pulangCepatMenit: result.pulangCepatMenit,
+      lemburMenit: result.lemburMenit,
+      status: result.status,
+    },
+  });
+  return result;
 }
 
-export async function hitungRekapPeriode(karyawanIds: string[], mulai: Date, selesai: Date): Promise<RekapHasil[]> {
-	const hasil: RekapHasil[] = [];
-	let cursor = toDbDate(mulai);
-	const end = toDbDate(selesai);
-	while (cursor <= end) {
-		for (const karyawanId of karyawanIds) {
-			const r = await hitungRekapHarian(karyawanId, cursor);
-			if (r) hasil.push(r);
-		}
-		cursor = addDays(cursor, 1);
-	}
-	return hasil;
+export async function calculateRecapPeriod(employeeIds: string[], start: Date, end: Date): Promise<RecapResult[]> {
+  const results: RecapResult[] = [];
+  let cursor = toDbDate(start);
+  const periodEnd = toDbDate(end);
+  while (cursor <= periodEnd) {
+    for (const employeeId of employeeIds) {
+      const r = await calculateDailyRecap(employeeId, cursor);
+      if (r) results.push(r);
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return results;
 }

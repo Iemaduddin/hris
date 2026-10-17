@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
-import { hapusTandaTangan, tambahTandaTangan, type KontrakDetailView } from "../actions/kontrak.actions";
+import { deleteSignature, addSignature, type KontrakDetailView } from "../actions/kontrak.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
@@ -16,11 +16,11 @@ const PIHAK_OPTIONS = [
 
 export default function KontrakDetailClient({
   userId,
-  karyawanId,
+  employeeId,
   detail,
 }: {
   userId: string;
-  karyawanId: string;
+  employeeId: string;
   detail: KontrakDetailView;
 }) {
   const router = useRouter();
@@ -44,7 +44,7 @@ export default function KontrakDetailClient({
       try {
         const fd = new FormData();
         fd.set("ownerType", "karyawan");
-        fd.set("ownerId", karyawanId);
+        fd.set("ownerId", employeeId);
         fd.set("subfolder", "kontrak");
         fd.set("jenis", "KONTRAK_KERJA");
         fd.set("file", file);
@@ -54,8 +54,8 @@ export default function KontrakDetailClient({
           toast.error(body.error ?? "Upload gagal.");
           return;
         }
-        const simpan = await tambahTandaTangan(
-          { kontrakId: detail.id, pihak, namaPenanda: nama, fileUrl: body.path },
+        const simpan = await addSignature(
+          { contractId: detail.id, party: pihak, signerName: nama, fileUrl: body.path },
           userId,
         );
         refresh(simpan.success, simpan.message);
@@ -73,13 +73,13 @@ export default function KontrakDetailClient({
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {detail.nomorKontrak} • {detail.jenisKontrak} • {detail.status.replaceAll("_", " ")}
+          {detail.contractNumber} • {detail.contractType} • {detail.status.replaceAll("_", " ")}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          {detail.karyawanNama} • {detail.tanggalMulai} s/d {detail.tanggalSelesai ?? "-"}
-          {detail.gajiPokok ? ` • Rp${rupiah.format(Number(detail.gajiPokok))}` : ""}
+          {detail.employeeName} • {detail.startDate} s/d {detail.endDate ?? "-"}
+          {detail.baseSalary ? ` • Rp${rupiah.format(Number(detail.baseSalary))}` : ""}
         </p>
-        {detail.catatan ? <p className="mt-1 text-sm text-slate-500">{detail.catatan}</p> : null}
+        {detail.note ? <p className="mt-1 text-sm text-slate-500">{detail.note}</p> : null}
         <button
           type="button"
           onClick={() => window.print()}
@@ -91,21 +91,21 @@ export default function KontrakDetailClient({
 
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tanda Tangan</h2>
-        {detail.tandaTangan.length === 0 ? (
+        {detail.signatures.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">Belum ada tanda tangan.</p>
         ) : (
           <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {detail.tandaTangan.map((t) => (
-              <li key={t.pihak} className="rounded-xl border border-blue-100 p-3 dark:border-blue-900/60">
-                <p className="text-sm font-semibold">{t.pihak}{t.namaPenanda ? ` — ${t.namaPenanda}` : ""}</p>
-                <p className="text-xs text-slate-500">{new Date(t.ditandatanganiPada).toLocaleString("id-ID")}</p>
+            {detail.signatures.map((t) => (
+              <li key={t.party} className="rounded-xl border border-blue-100 p-3 dark:border-blue-900/60">
+                <p className="text-sm font-semibold">{t.party}{t.signerName ? ` — ${t.signerName}` : ""}</p>
+                <p className="text-xs text-slate-500">{new Date(t.signedAt).toLocaleString("id-ID")}</p>
                 {t.fileUrl.toLowerCase().endsWith(".pdf") ? (
                   <a href={`/api/files/${t.fileUrl}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
                     Buka PDF
                   </a>
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={`/api/files/${t.fileUrl}`} alt={`TTD ${t.pihak}`} className="mt-2 max-h-32 rounded border" />
+                  <img src={`/api/files/${t.fileUrl}`} alt={`TTD ${t.party}`} className="mt-2 max-h-32 rounded border" />
                 )}
                 <div className="mt-2 print:hidden">
                   <button
@@ -114,7 +114,7 @@ export default function KontrakDetailClient({
                     onClick={() => {
                       if (!confirm("Hapus tanda tangan ini?")) return;
                       startTransition(async () => {
-                        const r = await hapusTandaTangan(detail.id, t.pihak, userId);
+                        const r = await deleteSignature(detail.id, t.party, userId);
                         refresh(r.success, r.message);
                       });
                     }}
@@ -129,7 +129,7 @@ export default function KontrakDetailClient({
         )}
 
         <div className="mt-4 grid grid-cols-1 gap-4 border-t border-blue-100 pt-4 md:grid-cols-4 dark:border-blue-900/60 print:hidden">
-          <FloatingSelect name="pihak" label="Pihak" value={pihak} onValueChange={setPihak} options={PIHAK_OPTIONS} searchable={false} />
+          <FloatingSelect name="party" label="Pihak" value={pihak} onValueChange={setPihak} options={PIHAK_OPTIONS} searchable={false} />
           <FloatingInput name="nama" label="Nama Penanda" value={nama} onChange={(e) => setNama(e.currentTarget.value)} />
           <div className="flex flex-col gap-1">
             <label htmlFor="ttd-file" className="text-xs font-medium text-slate-500">File (gambar/PDF)</label>

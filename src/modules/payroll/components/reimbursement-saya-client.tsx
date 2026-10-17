@@ -5,21 +5,21 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
-import { ajukanReimburse, batalkanReimburse, buatReimburse } from "@/src/modules/payroll/actions/reimbursement.actions";
-import { KATEGORI_REIMBURSE } from "@/src/modules/payroll/lib/uang-keluar";
+import { submitReimbursement, cancelReimbursement, createReimbursement } from "@/src/modules/payroll/actions/reimbursement.actions";
+import { REIMBURSE_CATEGORIES } from "@/src/modules/payroll/lib/uang-keluar";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
-type KlaimSayaRow = { id: string; nomor: string; kategori: string; nominal: string; keterangan: string; status: string };
+type KlaimSayaRow = { id: string; number: string; category: string; amount: string; description: string; status: string };
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
 export default function ReimbursementSayaClient({
   userId,
-  karyawanId,
+  employeeId,
   items,
 }: {
   userId: string;
-  karyawanId: string;
+  employeeId: string;
   items: KlaimSayaRow[];
 }) {
   const router = useRouter();
@@ -44,24 +44,24 @@ export default function ReimbursementSayaClient({
       toast.error("Nominal, keterangan, dan lampiran wajib diisi.");
       return;
     }
-    runAction(buatReimburse({ karyawanId, kategori, tanggalKwitansi: tanggal, nominal: Number(nominal), keterangan, lampiranUrl: lampiran }, userId));
+    runAction(createReimbursement({ employeeId, category: kategori, receiptDate: tanggal, amount: Number(nominal), description: keterangan, attachmentUrl: lampiran }, userId));
   }
 
   const kolomKlaim: DataTableColumn<KlaimSayaRow>[] = [
     {
       id: "nomor",
       header: "Nomor",
-      render: (k) => <span><span className="font-medium">{k.nomor}</span><br /><span className="text-xs text-slate-500">{k.kategori} • {k.keterangan}</span></span>,
-      sortValue: (k) => k.nomor,
-      searchValue: (k) => `${k.nomor} ${k.kategori} ${k.keterangan}`,
+      render: (k) => <span><span className="font-medium">{k.number}</span><br /><span className="text-xs text-slate-500">{k.category} • {k.description}</span></span>,
+      sortValue: (k) => k.number,
+      searchValue: (k) => `${k.number} ${k.category} ${k.description}`,
     },
     {
       id: "nominal",
       header: "Nominal",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (k) => <span>{rupiah.format(Number(k.nominal))}</span>,
-      sortValue: (k) => Number(k.nominal),
+      render: (k) => <span>{rupiah.format(Number(k.amount))}</span>,
+      sortValue: (k) => Number(k.amount),
       searchable: false,
     },
     {
@@ -80,11 +80,11 @@ export default function ReimbursementSayaClient({
       searchable: false,
       render: (k) =>
         k.status === "DRAFT" ? (
-          <button type="button" disabled={isPending} onClick={() => runAction(ajukanReimburse(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+          <button type="button" disabled={isPending} onClick={() => runAction(submitReimbursement(k.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
             Ajukan
           </button>
         ) : ["DRAFT", "DIAJUKAN"].includes(k.status) ? (
-          <button type="button" disabled={isPending} onClick={() => runAction(batalkanReimburse(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+          <button type="button" disabled={isPending} onClick={() => runAction(cancelReimbursement(k.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
             Batalkan
           </button>
         ) : (
@@ -104,7 +104,7 @@ export default function ReimbursementSayaClient({
             label="Kategori"
             value={kategori}
             onValueChange={setKategori}
-            options={KATEGORI_REIMBURSE.filter((k) => k !== "DINAS").map((k) => ({ value: k, label: k }))}
+            options={REIMBURSE_CATEGORIES.filter((k) => k !== "DINAS").map((k) => ({ value: k, label: k }))}
             searchable={false}
           />
           <FloatingInput name="tanggal" label="Tanggal Kwitansi" type="date" value={tanggal} onChange={(e) => setTanggal(e.currentTarget.value)} />

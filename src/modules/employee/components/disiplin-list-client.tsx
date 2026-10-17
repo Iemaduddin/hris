@@ -7,20 +7,20 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  buatDisiplin,
-  hapusDisiplin,
-  terbitkanDisiplin,
+  createDisiplin,
+  deleteDisiplin,
+  publishDisiplin,
 } from "../actions/disiplin.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 type DisiplinRow = {
   id: string;
-  nomor: string;
-  karyawanNama: string;
-  tingkatLabel: string;
-  judul: string;
-  tanggalTerbit: string;
-  aktif: boolean;
+  number: string;
+  employeeName: string;
+  levelLabel: string;
+  title: string;
+  publishedAt: string;
+  active: boolean;
   status: string;
 };
 
@@ -70,39 +70,39 @@ export default function DisiplinListClient({
       return;
     }
     runAction(
-      buatDisiplin({
-        karyawanId, tingkat, judul, pelanggaran, pelanggaranBerat: berat,
-        tanggalTerbit: terbit, berlakuSampai: "", skorsingMulai: skMulai,
-        skorsingSelesai: skSelesai, dokumenUrl: "", catatan,
+      createDisiplin({
+        employeeId: karyawanId, level: tingkat, title: judul, violation: pelanggaran, seriousViolation: berat,
+        publishedAt: terbit, validUntil: "", suspensionStart: skMulai,
+        suspensionEnd: skSelesai, documentUrl: "", note: catatan,
       }, userId),
     );
   }
 
   function handleHapus(id: string) {
     if (!confirm("Hapus draf ini?")) return;
-    runAction(hapusDisiplin(id, userId));
+    runAction(deleteDisiplin(id, userId));
   }
 
   const kolomDisiplin: DataTableColumn<DisiplinRow>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (d) => <span className="font-medium">{d.nomor}</span>,
-      sortValue: (d) => d.nomor,
-      searchValue: (d) => `${d.nomor} ${d.judul}`,
+      render: (d) => <span className="font-medium">{d.number}</span>,
+      sortValue: (d) => d.number,
+      searchValue: (d) => `${d.number} ${d.title}`,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
       id: "tingkat",
       header: "Tingkat",
       render: (d) => (
         <span>
-          {d.tingkatLabel}
-          {d.aktif ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">aktif</span> : null}
+          {d.levelLabel}
+          {d.active ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">aktif</span> : null}
         </span>
       ),
-      sortValue: (d) => d.tingkatLabel,
-      searchValue: (d) => d.tingkatLabel,
+      sortValue: (d) => d.levelLabel,
+      searchValue: (d) => d.levelLabel,
     },
     {
       id: "status",
@@ -124,7 +124,7 @@ export default function DisiplinListClient({
             Buka
           </Link>
           {d.status === "DRAFT" && bolehTerbit ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(terbitkanDisiplin(d.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(publishDisiplin(d.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Terbitkan
             </button>
           ) : null}
@@ -149,7 +149,7 @@ export default function DisiplinListClient({
           <FloatingSelect name="karyawan" label="Karyawan" value={karyawanId} onValueChange={setKaryawanId} options={karyawanOptions} placeholder="Pilih karyawan" searchable />
           <FloatingSelect name="tingkat" label="Tingkat" value={tingkat} onValueChange={setTingkat} options={TINGKAT_OPTIONS} searchable={false} />
           <FloatingInput name="terbit" label="Tanggal Terbit" type="date" value={terbit} onChange={(e) => setTerbit(e.currentTarget.value)} />
-          <FloatingInput name="judul" label="Judul" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
+          <FloatingInput name="title" label="Judul" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
           <FloatingInput name="pelanggaran" label="Pelanggaran" value={pelanggaran} onChange={(e) => setPelanggaran(e.currentTarget.value)} />
           <FloatingInput name="catatan" label="Catatan (opsional)" value={catatan} onChange={(e) => setCatatan(e.currentTarget.value)} />
           {tingkat === "SKORSING" ? (

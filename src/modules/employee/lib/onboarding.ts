@@ -1,6 +1,6 @@
 /** Onboarding: progres + validasi murni. */
 
-export const KATEGORI_LABEL: Record<string, string> = {
+export const CATEGORY_LABELS: Record<string, string> = {
   DOKUMEN: "Dokumen",
   AKUN: "Akun",
   ASET: "Aset",
@@ -8,27 +8,27 @@ export const KATEGORI_LABEL: Record<string, string> = {
   LAINNYA: "Lainnya",
 };
 
-export type ItemProgres = { wajib: boolean; status: string };
+export type ProgressItem = { required: boolean; status: string };
 
-export function hitungProgres(items: ItemProgres[]): {
+export function calculateProgress(items: ProgressItem[]): {
   total: number;
-  wajib: number;
-  terverifikasiWajib: number;
-  selesaiSemua: number;
-  persen: number;
-  bisaSelesai: boolean;
+  required: number;
+  verifiedRequired: number;
+  completedAll: number;
+  percent: number;
+  canComplete: boolean;
 } {
   const total = items.length;
-  const wajib = items.filter((i) => i.wajib);
-  const terverifikasiWajib = wajib.filter((i) => i.status === "TERVERIFIKASI").length;
-  const selesaiSemua = items.filter((i) => i.status !== "BELUM").length;
-  const persen = total === 0 ? 100 : Math.round((selesaiSemua / total) * 100);
-  return { total, wajib: wajib.length, terverifikasiWajib, selesaiSemua, persen, bisaSelesai: wajib.length > 0 && terverifikasiWajib === wajib.length };
+  const required = items.filter((i) => i.required);
+  const verifiedRequired = required.filter((i) => i.status === "TERVERIFIKASI").length;
+  const completedAll = items.filter((i) => i.status !== "BELUM").length;
+  const percent = total === 0 ? 100 : Math.round((completedAll / total) * 100);
+  return { total, required: required.length, verifiedRequired, completedAll, percent, canComplete: required.length > 0 && verifiedRequired === required.length };
 }
 
-export function validasiTemplate(input: { nama: string; items: Array<{ judul: string }> }): string | null {
-  if (!input.nama.trim()) return "Nama template wajib diisi.";
+export function validateTemplate(input: { name: string; items: Array<{ title: string }> }): string | null {
+  if (!input.name.trim()) return "Nama template wajib diisi.";
   if (input.items.length === 0) return "Template minimal punya 1 item.";
-  if (input.items.some((i) => !i.judul.trim())) return "Semua item wajib berjudul.";
+  if (input.items.some((i) => !i.title.trim())) return "Semua item wajib berjudul.";
   return null;
 }

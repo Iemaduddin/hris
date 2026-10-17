@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { buatThrRun, hapusThrRun, type ThrRunItem } from "../actions/thr.actions";
+import { createThrRun, deleteThrRun, type ThrRunItem } from "../actions/thr.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
@@ -15,7 +15,7 @@ const HARI_RAYA_OPSI = ["Idul Fitri", "Idul Adha", "Natal", "Nyepi", "Waisak", "
 export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [tahun, setTahun] = useState(String(new Date().getFullYear()));
+  const [year, setTahun] = useState(String(new Date().getFullYear()));
   const [nama, setNama] = useState(HARI_RAYA_OPSI[0]);
   const [tglRaya, setTglRaya] = useState("");
   const [tglBayar, setTglBayar] = useState("");
@@ -26,11 +26,11 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
       return;
     }
     startTransition(async () => {
-      const result = await buatThrRun({
-        tahun: Number(tahun),
-        namaHariRaya: nama,
-        tanggalHariRaya: tglRaya,
-        tanggalBayar: tglBayar,
+      const result = await createThrRun({
+        year: Number(year),
+        holidayName: nama,
+        holidayDate: tglRaya,
+        payDate: tglBayar,
       });
       if (!result.success) {
         toast.error(result.message);
@@ -44,7 +44,7 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
   function handleHapus(id: string) {
     if (!confirm("Hapus THR run ini?")) return;
     startTransition(async () => {
-      const result = await hapusThrRun(id);
+      const result = await deleteThrRun(id);
       if (!result.success) {
         toast.error(result.message);
         return;
@@ -58,23 +58,23 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
     {
       id: "thr",
       header: "THR",
-      render: (r) => <span className="font-medium">{r.namaHariRaya} {r.tahun}</span>,
-      sortValue: (r) => `${r.tahun} ${r.namaHariRaya}`,
-      searchValue: (r) => `${r.namaHariRaya} ${r.tahun}`,
+      render: (r) => <span className="font-medium">{r.holidayName} {r.year}</span>,
+      sortValue: (r) => `${r.year} ${r.holidayName}`,
+      searchValue: (r) => `${r.holidayName} ${r.year}`,
     },
-    { id: "hariRaya", header: "Hari Raya", accessor: "tanggalHariRaya" },
+    { id: "hariRaya", header: "Hari Raya", accessor: "holidayDate" },
     {
       id: "bayar",
       header: "Bayar",
       render: (r) => (
         <span>
-          {r.tanggalBayar}
-          {r.terlambat ? (
+          {r.payDate}
+          {r.late ? (
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">lewat H-7</span>
           ) : null}
         </span>
       ),
-      sortValue: (r) => r.tanggalBayar,
+      sortValue: (r) => r.payDate,
       searchable: false,
     },
     {
@@ -85,21 +85,21 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
       searchValue: (r) => r.status.replaceAll("_", " "),
     },
     {
-      id: "jumlahKaryawan",
+      id: "employeeCount",
       header: "Karyawan",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (r) => <span>{r.jumlahKaryawan}</span>,
-      sortValue: (r) => r.jumlahKaryawan,
+      render: (r) => <span>{r.employeeCount}</span>,
+      sortValue: (r) => r.employeeCount,
       searchable: false,
     },
     {
-      id: "totalBersih",
+      id: "totalNet",
       header: "Total Bersih",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (r) => <span>{rupiah.format(Number(r.totalBersih))}</span>,
-      sortValue: (r) => Number(r.totalBersih),
+      render: (r) => <span>{rupiah.format(Number(r.totalNet))}</span>,
+      sortValue: (r) => Number(r.totalNet),
       searchable: false,
     },
     {
@@ -137,7 +137,7 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
           Nominal: ≥12 bulan masa kerja → 1x upah (gapok + tunjangan tetap); &lt;12 bulan → prorata. Bayar paling lambat H-7 (denda 5% bila telat).
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-4">
-          <FloatingInput name="tahun" label="Tahun" value={tahun} onChange={(e) => setTahun(e.currentTarget.value)} />
+          <FloatingInput name="year" label="Tahun" value={year} onChange={(e) => setTahun(e.currentTarget.value)} />
           <div className="flex flex-col gap-1">
             <label htmlFor="thr-nama" className="text-xs font-medium text-slate-500">Hari Raya</label>
             <select

@@ -7,13 +7,13 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  hapusSurat,
-  terbitkanSurat,
-  type OpsiRef,
+  deleteLetter,
+  publishLetter,
+  type RefOption,
 } from "../actions/surat.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
-type SuratRow = { id: string; nomor: string; jenis: string; karyawanNama: string | null; createdAt: string };
+type SuratRow = { id: string; number: string; kind: string; employeeName: string | null; createdAt: string };
 
 const JENIS_OPTIONS = [
   { value: "MUT", label: "Mutasi / Promosi (dari data)" },
@@ -26,18 +26,18 @@ export default function SuratTerbitClient({
   userId,
   items,
   refs,
-  karyawans,
+  employees,
   templates,
 }: {
   userId: string;
   items: SuratRow[];
-  refs: Record<string, OpsiRef[]>;
-  karyawans: OpsiRef[];
-  templates: Array<{ value: string; label: string; kode: string }>;
+  refs: Record<string, RefOption[]>;
+  employees: RefOption[];
+  templates: Array<{ value: string; label: string; code: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [jenis, setJenis] = useState("MUT");
+  const [kind, setJenis] = useState("MUT");
   const [refId, setRefId] = useState("");
   const [karyawanId, setKaryawanId] = useState("");
   const [keperluan, setKeperluan] = useState("");
@@ -53,29 +53,29 @@ export default function SuratTerbitClient({
   }
 
   const templateOpsi = templates.filter(
-    (t) => t.kode === ({ MUT: "MUTASI", PAK: "PAKLARING", SP: "SP", KET: "KETERANGAN" } as Record<string, string>)[jenis],
+    (t) => t.code === ({ MUT: "MUTASI", PAK: "PAKLARING", SP: "SP", KET: "KETERANGAN" } as Record<string, string>)[kind],
   );
 
   function handleHapus(id: string) {
     if (!confirm("Hapus surat ini?")) return;
-    runAction(hapusSurat(id, userId));
+    runAction(deleteLetter(id, userId));
   }
 
   const kolomSurat: DataTableColumn<SuratRow>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (s) => <span className="font-medium">{s.nomor}</span>,
-      sortValue: (s) => s.nomor,
-      searchValue: (s) => s.nomor,
+      render: (s) => <span className="font-medium">{s.number}</span>,
+      sortValue: (s) => s.number,
+      searchValue: (s) => s.number,
     },
-    { id: "jenis", header: "Jenis", accessor: "jenis" },
+    { id: "kind", header: "Jenis", accessor: "kind" },
     {
       id: "karyawan",
       header: "Karyawan",
-      render: (s) => <span>{s.karyawanNama ?? "-"}</span>,
-      sortValue: (s) => s.karyawanNama ?? "-",
-      searchValue: (s) => s.karyawanNama ?? "",
+      render: (s) => <span>{s.employeeName ?? "-"}</span>,
+      sortValue: (s) => s.employeeName ?? "-",
+      searchValue: (s) => s.employeeName ?? "",
     },
     { id: "terbit", header: "Terbit", accessor: "createdAt" },
     {
@@ -109,21 +109,21 @@ export default function SuratTerbitClient({
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Terbitkan Surat</h2>
         <p className="mt-1 text-xs text-slate-500">Nomor formal otomatis + QR verifikasi.</p>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingSelect name="jenis" label="Jenis" value={jenis} onValueChange={(v) => { setJenis(v); setRefId(""); }} options={JENIS_OPTIONS} searchable={false} />
-          {jenis === "KET" ? (
-            <FloatingSelect name="karyawan" label="Karyawan" value={karyawanId} onValueChange={setKaryawanId} options={karyawans} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="kind" label="Jenis" value={kind} onValueChange={(v) => { setJenis(v); setRefId(""); }} options={JENIS_OPTIONS} searchable={false} />
+          {kind === "KET" ? (
+            <FloatingSelect name="karyawan" label="Karyawan" value={karyawanId} onValueChange={setKaryawanId} options={employees} placeholder="Pilih karyawan" searchable />
           ) : (
-            <FloatingSelect name="ref" label="Referensi" value={refId} onValueChange={setRefId} options={refs[jenis] ?? []} placeholder="Pilih data" searchable />
+            <FloatingSelect name="ref" label="Referensi" value={refId} onValueChange={setRefId} options={refs[kind] ?? []} placeholder="Pilih data" searchable />
           )}
           <FloatingSelect name="template" label="Template" value={templateId} onValueChange={setTemplateId} options={templateOpsi} placeholder="Pilih template" searchable />
-          {jenis === "KET" ? (
+          {kind === "KET" ? (
             <FloatingInput name="keperluan" label="Keperluan" value={keperluan} onChange={(e) => setKeperluan(e.currentTarget.value)} />
           ) : null}
         </div>
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={() => runAction(terbitkanSurat({ jenis, referensiId: refId, karyawanId, keperluan, templateId }, userId))}
+            onClick={() => runAction(publishLetter({ kind, referenceId: refId, employeeId: karyawanId, purpose: keperluan, templateId }, userId))}
             disabled={isPending}
             className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70"
           >

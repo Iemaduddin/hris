@@ -3,31 +3,31 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { canManageUsers } from "@/src/lib/auth-guard";
-import { catatAudit } from "@/src/modules/audit/lib/audit";
+import { recordAudit } from "@/src/modules/audit/lib/audit";
 import { generateEmployeeNumber } from "./employee.actions";
 import {
-	HEADER_KARYAWAN,
-	HEADER_RIWAYAT,
-	MAKS_BARIS_IMPOR,
+	EMPLOYEE_CSV_HEADERS,
+	HISTORY_CSV_HEADERS,
+	MAX_IMPORT_ROWS,
 	buildCsv,
 	parseCsv,
-	validasiBentukKaryawan,
-	validasiBentukRiwayat,
+	validateEmployeeShape,
+	validateHistoryShape,
 } from "../lib/impor";
 
-export type ImporActionResult = { success: boolean; message: string; dibuat?: number };
+export type ImportActionResult = { success: boolean; message: string; created?: number };
 
-export type BarisImpor = { noBaris: number; ringkasan: string; galat: string[] };
+export type ImportRow = { rowNumber: number; summary: string; errors: string[] };
 
-export type HasilValidasiImpor = {
+export type ImportValidationResult = {
 	total: number;
-	jumlahValid: number;
-	jumlahGagal: number;
-	baris: BarisImpor[];
+	validCount: number;
+	invalidCount: number;
+	rows: ImportRow[];
 };
 
 /** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
-function segarkan(path: string): void {
+function revalidateBestEffort(path: string): void {
 	try {
 		revalidatePath(path);
 	} catch {
@@ -35,7 +35,7 @@ function segarkan(path: string): void {
 	}
 }
 
-function keObj(header: readonly string[], cells: string[]): Record<string, string> {
+function toRecord(header: readonly string[], cells: string[]): Record<string, string> {
 	const obj: Record<string, string> = {};
 	header.forEach((h, i) => {
 		obj[h] = (cells[i] ?? "").trim();
@@ -43,7 +43,7 @@ function keObj(header: readonly string[], cells: string[]): Record<string, strin
 	return obj;
 }
 
-async function boleh(): Promise<boolean> {
+async function allowed(): Promise<boolean> {
 	try {
 		return await canManageUsers();
 	} catch {
@@ -52,26 +52,26 @@ async function boleh(): Promise<boolean> {
 }
 
 /** Validasi kering impor karyawan: bentuk + NIK/nomor ganda (intra-file & vs DB). */
-export async function validasiImporKaryawanInti(csv: string): Promise<HasilValidasiImpor & { success: boolean; message: string }> {
-	const tabel = parseCsv(csv);
-	if (tabel.length === 0) return { success: false, message: "File kosong.", total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
-	const header = tabel[0].map((h) => h.trim());
-	for (const h of HEADER_KARYAWAN) {
+export async function validateEmployeeImportCore(csv: string): Promise<ImportValidationResult & { success: boolean; message: string }> {
+	const table = parseCsv(csv);
+	if (table.length === 0) return { success: false, message: "File kosong.", total: 0, validCount: 0, invalidCount: 0, rows: [] };
+	const header = table[0].map((h) => h.trim());
+	for (const h of EMPLOYEE_CSV_HEADERS) {
 		if (!header.includes(h)) {
-			return { success: false, message: `Header kurang kolom: ${h}. Unduh template dulu.`, total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
+			return { success: false, message: `Header kurang kolom: ${h}. Unduh template dulu.`, total: 0, validCount: 0, invalidCount: 0, rows: [] };
 		}
 	}
-	const dataRows = tabel.slice(1);
-	if (dataRows.length > MAKS_BARIS_IMPOR) {
-		return { success: false, message: `Maksimal ${MAKS_BARIS_IMPOR} baris per impor.`, total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
+	const dataRows = table.slice(1);
+	if (dataRows.length > MAX_IMPORT_ROWS) {
+		return { success: false, message: `Maksimal ${MAX_IMPORT_ROWS} baris per impor.`, total: 0, validCount: 0, invalidCount: 0, rows: [] };
 	}
 
-	const objs = dataRows.map((cells, i) => ({ noBaris: i + 2, obj: keObj(header, cells) }));
-	const bentuk = objs.map(({ noBaris, obj }) => validasiBentukKaryawan(obj, noBaris));
+	const records = dataRows.map((cells, i) => ({ rowNumber: i + 2, record: toRecord(header, cells) }));
+	const shapes = records.map(({ rowNumber, record }) => validateEmployeeShape(record, rowNumber));
 
 	// NIK/nomor yang sudah ada di DB.
-	const nikFile = [...new Set(objs.map(({ obj }) => obj["nik"]).filter(Boolean))];
-	const nomorFile = [...new Set(objs.map(({ obj }) => obj["nomorKaryawan"]).filter(Boolean))];
+	const nikFile = [...new Set(records.map(({ record }) => record["nik"]).filter(Boolean))];
+	const nomorFile = [...new Set(records.map(({ record }) => record["nomorKaryawan"]).filter(Boolean))];
 	const [nikDb, nomorDb] = await Promise.all([
 		nikFile.length
 			? prisma.karyawan.findMany({ where: { nik: { in: nikFile } }, select: { nik: true } })
@@ -80,53 +80,53 @@ export async function validasiImporKaryawanInti(csv: string): Promise<HasilValid
 			? prisma.karyawan.findMany({ where: { nomorKaryawan: { in: nomorFile } }, select: { nomorKaryawan: true } })
 			: [],
 	]);
-	const nikDbSet = new Set(nikDb.map((r) => r.nik));
-	const nomorDbSet = new Set(nomorDb.map((r) => r.nomorKaryawan));
+	const existingNik = new Set(nikDb.map((r) => r.nik));
+	const existingNumbers = new Set(nomorDb.map((r) => r.nomorKaryawan));
 
 	// Ganda intra-file.
-	const hitung = (arr: string[]) => {
+	const countDuplicates = (arr: string[]) => {
 		const m = new Map<string, number>();
 		for (const v of arr) if (v) m.set(v, (m.get(v) ?? 0) + 1);
 		return new Set([...m.entries()].filter(([, n]) => n > 1).map(([v]) => v));
 	};
-	const nikGandaFile = hitung(objs.map(({ obj }) => obj["nik"]));
-	const nomorGandaFile = hitung(objs.map(({ obj }) => obj["nomorKaryawan"]));
+	const duplicateNikInFile = countDuplicates(records.map(({ record }) => record["nik"]));
+	const duplicateNumbersInFile = countDuplicates(records.map(({ record }) => record["nomorKaryawan"]));
 
-	const baris: BarisImpor[] = bentuk.map(({ noBaris, data }) => {
-		const galat = [...validasiBentukKaryawan(data, noBaris).galat];
+	const rows: ImportRow[] = shapes.map(({ rowNumber, data }) => {
+		const errors = [...validateEmployeeShape(data, rowNumber).errors];
 		const nik = data["nik"];
 		const nomor = data["nomorKaryawan"];
-		if (nik && nikGandaFile.has(nik)) galat.push("nik ganda di file ini");
-		if (nik && nikDbSet.has(nik)) galat.push("nik sudah dipakai karyawan lain");
-		if (nomor && nomorGandaFile.has(nomor)) galat.push("nomorKaryawan ganda di file ini");
-		if (nomor && nomorDbSet.has(nomor)) galat.push("nomorKaryawan sudah dipakai");
-		return { noBaris, ringkasan: `${data["namaLengkap"] || "(tanpa nama)"}${nomor ? ` • ${nomor}` : ""}`, galat };
+		if (nik && duplicateNikInFile.has(nik)) errors.push("nik ganda di file ini");
+		if (nik && existingNik.has(nik)) errors.push("nik sudah dipakai karyawan lain");
+		if (nomor && duplicateNumbersInFile.has(nomor)) errors.push("nomorKaryawan ganda di file ini");
+		if (nomor && existingNumbers.has(nomor)) errors.push("nomorKaryawan sudah dipakai");
+		return { rowNumber, summary: `${data["namaLengkap"] || "(tanpa nama)"}${nomor ? ` • ${nomor}` : ""}`, errors };
 	});
 
-	const jumlahGagal = baris.filter((b) => b.galat.length > 0).length;
+	const invalidCount = rows.filter((b) => b.errors.length > 0).length;
 	return {
 		success: true,
-		message: jumlahGagal === 0 ? `${baris.length} baris siap diimpor.` : `${jumlahGagal} dari ${baris.length} baris bermasalah.`,
-		total: baris.length,
-		jumlahValid: baris.length - jumlahGagal,
-		jumlahGagal,
-		baris,
+		message: invalidCount === 0 ? `${rows.length} baris siap diimpor.` : `${invalidCount} dari ${rows.length} baris bermasalah.`,
+		total: rows.length,
+		validCount: rows.length - invalidCount,
+		invalidCount,
+		rows,
 	};
 }
 
 /** Eksekusi impor karyawan (validasi ulang; gagal bila ada satu baris bermasalah). */
-export async function eksekusiImporKaryawanInti(csv: string, actorUserId?: string): Promise<ImporActionResult> {
-	const cek = await validasiImporKaryawanInti(csv);
-	if (!cek.success) return { success: false, message: cek.message };
-	if (cek.jumlahGagal > 0) return { success: false, message: `${cek.jumlahGagal} baris bermasalah — perbaiki dulu.` };
-	if (cek.total === 0) return { success: false, message: "Tidak ada baris data." };
+export async function executeEmployeeImportCore(csv: string, actorUserId?: string): Promise<ImportActionResult> {
+	const check = await validateEmployeeImportCore(csv);
+	if (!check.success) return { success: false, message: check.message };
+	if (check.invalidCount > 0) return { success: false, message: `${check.invalidCount} baris bermasalah — perbaiki dulu.` };
+	if (check.total === 0) return { success: false, message: "Tidak ada baris data." };
 
-	const tabel = parseCsv(csv);
-	const header = tabel[0].map((h) => h.trim());
-	const objs = tabel.slice(1).map((cells) => keObj(header, cells));
+	const table = parseCsv(csv);
+	const header = table[0].map((h) => h.trim());
+	const records = table.slice(1).map((cells) => toRecord(header, cells));
 
-	let dibuat = 0;
-	for (const o of objs) {
+	let created = 0;
+	for (const o of records) {
 		let nomor = o["nomorKaryawan"];
 		if (!nomor) {
 			const gen = await generateEmployeeNumber({ joinDate: o["tanggalMasuk"] || undefined });
@@ -152,80 +152,80 @@ export async function eksekusiImporKaryawanInti(csv: string, actorUserId?: strin
 				status: (o["status"] || "AKTIF") as never,
 			},
 		});
-		dibuat++;
+		created++;
 	}
 
-	await catatAudit({
+	await recordAudit({
 		actorUserId: actorUserId ?? null,
 		aksi: "IMPORT.KARYAWAN",
 		entityType: "Karyawan",
 		entityId: "bulk",
 		sebelum: null,
-		sesudah: { dibuat, total: cek.total },
-		alasan: `Impor CSV ${dibuat} karyawan`,
+		sesudah: { dibuat: created, total: check.total },
+		alasan: `Impor CSV ${created} karyawan`,
 	});
-	segarkan("/employees");
-	segarkan("/employees/import");
-	return { success: true, message: `${dibuat} karyawan diimpor.`, dibuat };
+	revalidateBestEffort("/employees");
+	revalidateBestEffort("/employees/import");
+	return { success: true, message: `${created} karyawan diimpor.`, created };
 }
 
 /** Validasi kering impor riwayat (append; karyawan dicocokkan via nomorKaryawan). */
-export async function validasiImporRiwayatInti(csv: string): Promise<HasilValidasiImpor & { success: boolean; message: string }> {
-	const tabel = parseCsv(csv);
-	if (tabel.length === 0) return { success: false, message: "File kosong.", total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
-	const header = tabel[0].map((h) => h.trim());
-	for (const h of HEADER_RIWAYAT) {
+export async function validateHistoryImportCore(csv: string): Promise<ImportValidationResult & { success: boolean; message: string }> {
+	const table = parseCsv(csv);
+	if (table.length === 0) return { success: false, message: "File kosong.", total: 0, validCount: 0, invalidCount: 0, rows: [] };
+	const header = table[0].map((h) => h.trim());
+	for (const h of HISTORY_CSV_HEADERS) {
 		if (!header.includes(h)) {
-			return { success: false, message: `Header kurang kolom: ${h}. Unduh template dulu.`, total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
+			return { success: false, message: `Header kurang kolom: ${h}. Unduh template dulu.`, total: 0, validCount: 0, invalidCount: 0, rows: [] };
 		}
 	}
-	const dataRows = tabel.slice(1);
-	if (dataRows.length > MAKS_BARIS_IMPOR) {
-		return { success: false, message: `Maksimal ${MAKS_BARIS_IMPOR} baris per impor.`, total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
+	const dataRows = table.slice(1);
+	if (dataRows.length > MAX_IMPORT_ROWS) {
+		return { success: false, message: `Maksimal ${MAX_IMPORT_ROWS} baris per impor.`, total: 0, validCount: 0, invalidCount: 0, rows: [] };
 	}
-	const nomorUnik = [...new Set(dataRows.map((cells) => (cells[header.indexOf("nomorKaryawan")] ?? "").trim()).filter(Boolean))];
-	const ada = await prisma.karyawan.findMany({
-		where: { nomorKaryawan: { in: nomorUnik } },
+	const uniqueNumbers = [...new Set(dataRows.map((cells) => (cells[header.indexOf("nomorKaryawan")] ?? "").trim()).filter(Boolean))];
+	const found = await prisma.karyawan.findMany({
+		where: { nomorKaryawan: { in: uniqueNumbers } },
 		select: { nomorKaryawan: true },
 	});
-	const adaSet = new Set(ada.map((r) => r.nomorKaryawan));
-	const baris: BarisImpor[] = dataRows.map((cells, i) => {
-		const obj = keObj(header, cells);
-		const galat = [...validasiBentukRiwayat(obj, i + 2).galat];
-		if (obj["nomorKaryawan"] && !adaSet.has(obj["nomorKaryawan"])) galat.push("nomorKaryawan tidak ditemukan");
-		return { noBaris: i + 2, ringkasan: `${obj["nomorKaryawan"] || "-"} • ${obj["namaPerusahaan"] || "-"}`, galat };
+	const foundSet = new Set(found.map((r) => r.nomorKaryawan));
+	const rows: ImportRow[] = dataRows.map((cells, i) => {
+		const record = toRecord(header, cells);
+		const errors = [...validateHistoryShape(record, i + 2).errors];
+		if (record["nomorKaryawan"] && !foundSet.has(record["nomorKaryawan"])) errors.push("nomorKaryawan tidak ditemukan");
+		return { rowNumber: i + 2, summary: `${record["nomorKaryawan"] || "-"} • ${record["namaPerusahaan"] || "-"}`, errors };
 	});
-	const jumlahGagal = baris.filter((b) => b.galat.length > 0).length;
+	const invalidCount = rows.filter((b) => b.errors.length > 0).length;
 	return {
 		success: true,
-		message: jumlahGagal === 0 ? `${baris.length} baris siap diimpor.` : `${jumlahGagal} dari ${baris.length} baris bermasalah.`,
-		total: baris.length,
-		jumlahValid: baris.length - jumlahGagal,
-		jumlahGagal,
-		baris,
+		message: invalidCount === 0 ? `${rows.length} baris siap diimpor.` : `${invalidCount} dari ${rows.length} baris bermasalah.`,
+		total: rows.length,
+		validCount: rows.length - invalidCount,
+		invalidCount,
+		rows,
 	};
 }
 
 /** Eksekusi impor riwayat (append ke data yang ada). */
-export async function eksekusiImporRiwayatInti(csv: string, actorUserId?: string): Promise<ImporActionResult> {
-	const cek = await validasiImporRiwayatInti(csv);
-	if (!cek.success) return { success: false, message: cek.message };
-	if (cek.jumlahGagal > 0) return { success: false, message: `${cek.jumlahGagal} baris bermasalah — perbaiki dulu.` };
-	if (cek.total === 0) return { success: false, message: "Tidak ada baris data." };
+export async function executeHistoryImportCore(csv: string, actorUserId?: string): Promise<ImportActionResult> {
+	const check = await validateHistoryImportCore(csv);
+	if (!check.success) return { success: false, message: check.message };
+	if (check.invalidCount > 0) return { success: false, message: `${check.invalidCount} baris bermasalah — perbaiki dulu.` };
+	if (check.total === 0) return { success: false, message: "Tidak ada baris data." };
 
-	const tabel = parseCsv(csv);
-	const header = tabel[0].map((h) => h.trim());
+	const table = parseCsv(csv);
+	const header = table[0].map((h) => h.trim());
 	const idMap = new Map(
 		(
 			await prisma.karyawan.findMany({
-				where: { nomorKaryawan: { in: tabel.slice(1).map((c) => (c[header.indexOf("nomorKaryawan")] ?? "").trim()).filter(Boolean) } },
+				where: { nomorKaryawan: { in: table.slice(1).map((c) => (c[header.indexOf("nomorKaryawan")] ?? "").trim()).filter(Boolean) } },
 				select: { id: true, nomorKaryawan: true },
 			})
 		).map((k) => [k.nomorKaryawan, k.id]),
 	);
-	let dibuat = 0;
-	for (const cells of tabel.slice(1)) {
-		const o = keObj(header, cells);
+	let created = 0;
+	for (const cells of table.slice(1)) {
+		const o = toRecord(header, cells);
 		const karyawanId = idMap.get(o["nomorKaryawan"]);
 		if (!karyawanId) continue;
 		await prisma.riwayatPekerjaan.create({
@@ -240,23 +240,23 @@ export async function eksekusiImporRiwayatInti(csv: string, actorUserId?: string
 				teleponReferensi: o["teleponReferensi"] || null,
 			},
 		});
-		dibuat++;
+		created++;
 	}
-	await catatAudit({
+	await recordAudit({
 		actorUserId: actorUserId ?? null,
 		aksi: "IMPORT.RIWAYAT",
 		entityType: "RiwayatPekerjaan",
 		entityId: "bulk",
 		sebelum: null,
-		sesudah: { dibuat, total: cek.total },
-		alasan: `Impor CSV ${dibuat} riwayat`,
+		sesudah: { dibuat: created, total: check.total },
+		alasan: `Impor CSV ${created} riwayat`,
 	});
-	segarkan("/employees/import");
-	return { success: true, message: `${dibuat} riwayat diimpor (append).`, dibuat };
+	revalidateBestEffort("/employees/import");
+	return { success: true, message: `${created} riwayat diimpor (append).`, created };
 }
 
 /** Ekspor CSV karyawan (kolom sama dengan template impor). */
-export async function eksporKaryawanInti(): Promise<{ success: boolean; message: string; csv?: string }> {
+export async function exportEmployeesCore(): Promise<{ success: boolean; message: string; csv?: string }> {
 	const rows = await prisma.karyawan.findMany({
 		orderBy: { namaLengkap: "asc" },
 		select: {
@@ -272,11 +272,11 @@ export async function eksporKaryawanInti(): Promise<{ success: boolean; message:
 		k.statusPtkp, k.tanggalMasuk.toISOString().slice(0, 10),
 		k.bankNama ?? "", k.bankNorek ?? "", k.bankAtasNama ?? "", k.status,
 	]);
-	return { success: true, message: `${rows.length} baris.`, csv: buildCsv(HEADER_KARYAWAN, matrix) };
+	return { success: true, message: `${rows.length} baris.`, csv: buildCsv(EMPLOYEE_CSV_HEADERS, matrix) };
 }
 
 /** Ekspor CSV riwayat pekerjaan. */
-export async function eksporRiwayatInti(): Promise<{ success: boolean; message: string; csv?: string }> {
+export async function exportHistoryCore(): Promise<{ success: boolean; message: string; csv?: string }> {
 	const rows = await prisma.riwayatPekerjaan.findMany({
 		orderBy: [{ karyawan: { namaLengkap: "asc" } }, { tanggalMulai: "asc" }],
 		include: { karyawan: { select: { nomorKaryawan: true } } },
@@ -288,19 +288,19 @@ export async function eksporRiwayatInti(): Promise<{ success: boolean; message: 
 		r.gajiTerakhir ? r.gajiTerakhir.toString() : "",
 		r.alasanKeluar ?? "", r.teleponReferensi ?? "",
 	]);
-	return { success: true, message: `${rows.length} baris.`, csv: buildCsv(HEADER_RIWAYAT, matrix) };
+	return { success: true, message: `${rows.length} baris.`, csv: buildCsv(HISTORY_CSV_HEADERS, matrix) };
 }
 
-export type MasalahKualitas = {
-	kunci: string;
+export type QualityIssue = {
+	key: string;
 	label: string;
-	jumlah: number;
-	contoh: Array<{ id: string; nomorKaryawan: string; namaLengkap: string; info: string }>;
+	count: number;
+	samples: Array<{ id: string; nomorKaryawan: string; namaLengkap: string; info: string }>;
 };
 
 /** Dashboard kualitas data: NIK ganda + field tak lengkap + relasi hilang. */
-export async function getKualitasDataInti(): Promise<{ success: boolean; message: string; masalah?: MasalahKualitas[] }> {
-	const semua = await prisma.karyawan.findMany({
+export async function getDataQualityCore(): Promise<{ success: boolean; message: string; issues?: QualityIssue[] }> {
+	const employees = await prisma.karyawan.findMany({
 		orderBy: { namaLengkap: "asc" },
 		select: {
 			id: true, nomorKaryawan: true, namaLengkap: true, nik: true, telepon: true, email: true, alamat: true,
@@ -310,68 +310,68 @@ export async function getKualitasDataInti(): Promise<{ success: boolean; message
 		},
 	});
 
-	const grupNik = new Map<string, typeof semua>();
-	for (const k of semua) {
+	const nikGroups = new Map<string, typeof employees>();
+	for (const k of employees) {
 		if (!k.nik) continue;
-		const arr = grupNik.get(k.nik) ?? [];
+		const arr = nikGroups.get(k.nik) ?? [];
 		arr.push(k);
-		grupNik.set(k.nik, arr);
+		nikGroups.set(k.nik, arr);
 	}
-	const ganda = [...grupNik.values()].filter((arr) => arr.length > 1);
+	const duplicates = [...nikGroups.values()].filter((arr) => arr.length > 1);
 
-	const ambil = (pred: (k: (typeof semua)[number]) => string | null): MasalahKualitas["contoh"] =>
-		semua
+	const collect = (pred: (k: (typeof employees)[number]) => string | null): QualityIssue["samples"] =>
+		employees
 			.map((k) => ({ k, info: pred(k) }))
-			.filter((x): x is { k: (typeof semua)[number]; info: string } => x.info !== null)
+			.filter((x): x is { k: (typeof employees)[number]; info: string } => x.info !== null)
 			.slice(0, 100)
 			.map(({ k, info }) => ({ id: k.id, nomorKaryawan: k.nomorKaryawan, namaLengkap: k.namaLengkap, info }));
 
-	const masalah: MasalahKualitas[] = [
+	const issues: QualityIssue[] = [
 		{
-			kunci: "nik-ganda",
+			key: "nik-ganda",
 			label: "NIK ganda",
-			jumlah: ganda.reduce((a, arr) => a + arr.length, 0),
-			contoh: ganda.flatMap((arr) => arr.map((k) => ({ id: k.id, nomorKaryawan: k.nomorKaryawan, namaLengkap: k.namaLengkap, info: `NIK ${k.nik} dipakai ${arr.length}x` }))).slice(0, 100),
+			count: duplicates.reduce((a, arr) => a + arr.length, 0),
+			samples: duplicates.flatMap((arr) => arr.map((k) => ({ id: k.id, nomorKaryawan: k.nomorKaryawan, namaLengkap: k.namaLengkap, info: `NIK ${k.nik} dipakai ${arr.length}x` }))).slice(0, 100),
 		},
-		{ kunci: "tanpa-nik", label: "Tanpa NIK", jumlah: 0, contoh: ambil((k) => (!k.nik ? "NIK kosong" : null)) },
-		{ kunci: "tanpa-telepon", label: "Tanpa telepon", jumlah: 0, contoh: ambil((k) => (!k.telepon ? "Telepon kosong" : null)) },
-		{ kunci: "tanpa-alamat", label: "Tanpa alamat", jumlah: 0, contoh: ambil((k) => (!k.alamat ? "Alamat kosong" : null)) },
-		{ kunci: "tanpa-email", label: "Tanpa email", jumlah: 0, contoh: ambil((k) => (!k.email ? "Email kosong" : null)) },
+		{ key: "tanpa-nik", label: "Tanpa NIK", count: 0, samples: collect((k) => (!k.nik ? "NIK kosong" : null)) },
+		{ key: "tanpa-telepon", label: "Tanpa telepon", count: 0, samples: collect((k) => (!k.telepon ? "Telepon kosong" : null)) },
+		{ key: "tanpa-alamat", label: "Tanpa alamat", count: 0, samples: collect((k) => (!k.alamat ? "Alamat kosong" : null)) },
+		{ key: "tanpa-email", label: "Tanpa email", count: 0, samples: collect((k) => (!k.email ? "Email kosong" : null)) },
 		{
-			kunci: "rekening-tak-lengkap",
+			key: "rekening-tak-lengkap",
 			label: "Rekening tak lengkap",
-			jumlah: 0,
-			contoh: ambil((k) => {
-				const isi = [k.bankNama, k.bankNorek, k.bankAtasNama].filter(Boolean).length;
-				return isi > 0 && isi < 3 ? `${isi}/3 field terisi` : null;
+			count: 0,
+			samples: collect((k) => {
+				const filled = [k.bankNama, k.bankNorek, k.bankAtasNama].filter(Boolean).length;
+				return filled > 0 && filled < 3 ? `${filled}/3 field terisi` : null;
 			}),
 		},
-		{ kunci: "tanpa-penempatan", label: "Tanpa penempatan aktif", jumlah: 0, contoh: ambil((k) => (k.posisiKaryawan.length === 0 ? "Tak ada posisi current" : null)) },
-		{ kunci: "tanpa-kontrak", label: "Tanpa kontrak aktif", jumlah: 0, contoh: ambil((k) => (k.kontrakKerja.length === 0 ? "Tak ada kontrak AKTIF" : null)) },
-		{ kunci: "tanpa-atasan", label: "Tanpa atasan langsung", jumlah: 0, contoh: ambil((k) => (!k.atasanLangsungId ? "Atasan kosong" : null)) },
-		{ kunci: "tanpa-akun", label: "Tanpa akun login", jumlah: 0, contoh: ambil((k) => (!k.userId ? "Belum taut user" : null)) },
+		{ key: "tanpa-penempatan", label: "Tanpa penempatan aktif", count: 0, samples: collect((k) => (k.posisiKaryawan.length === 0 ? "Tak ada posisi current" : null)) },
+		{ key: "tanpa-kontrak", label: "Tanpa kontrak aktif", count: 0, samples: collect((k) => (k.kontrakKerja.length === 0 ? "Tak ada kontrak AKTIF" : null)) },
+		{ key: "tanpa-atasan", label: "Tanpa atasan langsung", count: 0, samples: collect((k) => (!k.atasanLangsungId ? "Atasan kosong" : null)) },
+		{ key: "tanpa-akun", label: "Tanpa akun login", count: 0, samples: collect((k) => (!k.userId ? "Belum taut user" : null)) },
 	];
 	// Jumlah eksak dihitung dari seluruh data (contoh dibatasi 100 baris).
-	const hitungPenuh = (pred: (k: (typeof semua)[number]) => boolean) => semua.filter(pred).length;
-	const peta: Record<string, (k: (typeof semua)[number]) => boolean> = {
+	const countAll = (pred: (k: (typeof employees)[number]) => boolean) => employees.filter(pred).length;
+	const matchers: Record<string, (k: (typeof employees)[number]) => boolean> = {
 		"tanpa-nik": (k) => !k.nik,
 		"tanpa-telepon": (k) => !k.telepon,
 		"tanpa-alamat": (k) => !k.alamat,
 		"tanpa-email": (k) => !k.email,
 		"rekening-tak-lengkap": (k) => {
-			const isi = [k.bankNama, k.bankNorek, k.bankAtasNama].filter(Boolean).length;
-			return isi > 0 && isi < 3;
+			const filled = [k.bankNama, k.bankNorek, k.bankAtasNama].filter(Boolean).length;
+			return filled > 0 && filled < 3;
 		},
 		"tanpa-penempatan": (k) => k.posisiKaryawan.length === 0,
 		"tanpa-kontrak": (k) => k.kontrakKerja.length === 0,
 		"tanpa-atasan": (k) => !k.atasanLangsungId,
 		"tanpa-akun": (k) => !k.userId,
 	};
-	for (const m of masalah) {
-		const fn = peta[m.kunci];
-		if (fn) m.jumlah = hitungPenuh(fn);
+	for (const m of issues) {
+		const fn = matchers[m.key];
+		if (fn) m.count = countAll(fn);
 	}
-	return { success: true, message: "OK", masalah };
+	return { success: true, message: "OK", issues };
 }
 
 // ============================================================
@@ -379,37 +379,37 @@ export async function getKualitasDataInti(): Promise<{ success: boolean; message
 // dipakai E2E tanpa konteks sesi.
 // ============================================================
 
-export async function validasiImporKaryawan(csv: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin.", total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
-	return validasiImporKaryawanInti(csv);
+export async function validateEmployeeImport(csv: string) {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin.", total: 0, validCount: 0, invalidCount: 0, rows: [] };
+	return validateEmployeeImportCore(csv);
 }
 
-export async function eksekusiImporKaryawan(csv: string, actorUserId?: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return eksekusiImporKaryawanInti(csv, actorUserId);
+export async function executeEmployeeImport(csv: string, actorUserId?: string) {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+	return executeEmployeeImportCore(csv, actorUserId);
 }
 
-export async function validasiImporRiwayat(csv: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin.", total: 0, jumlahValid: 0, jumlahGagal: 0, baris: [] };
-	return validasiImporRiwayatInti(csv);
+export async function validateHistoryImport(csv: string) {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin.", total: 0, validCount: 0, invalidCount: 0, rows: [] };
+	return validateHistoryImportCore(csv);
 }
 
-export async function eksekusiImporRiwayat(csv: string, actorUserId?: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return eksekusiImporRiwayatInti(csv, actorUserId);
+export async function executeHistoryImport(csv: string, actorUserId?: string) {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+	return executeHistoryImportCore(csv, actorUserId);
 }
 
-export async function eksporKaryawan() {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return eksporKaryawanInti();
+export async function exportEmployees() {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+	return exportEmployeesCore();
 }
 
-export async function eksporRiwayat() {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return eksporRiwayatInti();
+export async function exportHistory() {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+	return exportHistoryCore();
 }
 
-export async function getKualitasData() {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return getKualitasDataInti();
+export async function getDataQuality() {
+	if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+	return getDataQualityCore();
 }

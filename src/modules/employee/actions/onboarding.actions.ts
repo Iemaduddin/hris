@@ -3,55 +3,55 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
-import { hitungProgres, validasiTemplate } from "@/src/modules/employee/lib/onboarding";
+import { calculateProgress, validateTemplate } from "@/src/modules/employee/lib/onboarding";
 
 export type OnboardingActionResult = { success: boolean; message: string; id?: string };
 
 export type TemplateItem = {
   id: string;
   templateId: string;
-  templateNama: string;
-  jenisKontrak: string | null;
-  jumlahItem: number;
+  templateName: string;
+  contractType: string | null;
+  itemCount: number;
 };
 
 export type OnboardingItem = {
   id: string;
-  nomor: string;
-  karyawanId: string;
-  karyawanNama: string;
-  templateNama: string | null;
+  number: string;
+  employeeId: string;
+  employeeName: string;
+  templateName: string | null;
   status: string;
-  targetSelesai: string | null;
-  persen: number;
-  wajibSelesai: string;
+  targetDate: string | null;
+  percent: number;
+  requiredDone: string;
 };
 
-type Penindak = { role: string; karyawanId: string | null };
+type Actor = { role: string; employeeId: string | null };
 
-async function resolvePenindak(userId: string): Promise<Penindak> {
-  if (!userId) return { role: "EMPLOYEE", karyawanId: null };
+async function resolveActor(userId: string): Promise<Actor> {
+  if (!userId) return { role: "EMPLOYEE", employeeId: null };
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  const karyawan = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
-  return { role: user?.role ?? "EMPLOYEE", karyawanId: karyawan?.id ?? null };
+  const employee = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
+  return { role: user?.role ?? "EMPLOYEE", employeeId: employee?.id ?? null };
 }
 
 function isHr(role: string): boolean {
   return role === "SUPER_ADMIN" || role === "ADMIN_HR";
 }
 
-async function bolehKelola(p: Penindak, karyawanId: string): Promise<boolean> {
+async function canManage(p: Actor, employeeId: string): Promise<boolean> {
   if (isHr(p.role)) return true;
-  if (p.role !== "MANAJER" || !p.karyawanId) return false;
-  const bawahan = await prisma.karyawan.findFirst({
-    where: { id: karyawanId, atasanLangsungId: p.karyawanId },
+  if (p.role !== "MANAJER" || !p.employeeId) return false;
+  const subordinate = await prisma.karyawan.findFirst({
+    where: { id: employeeId, atasanLangsungId: p.employeeId },
     select: { id: true },
   });
-  return !!bawahan;
+  return !!subordinate;
 }
 
-async function bolehVerifikasi(p: Penindak, karyawanId: string): Promise<boolean> {
-  return bolehKelola(p, karyawanId);
+async function canVerify(p: Actor, employeeId: string): Promise<boolean> {
+  return canManage(p, employeeId);
 }
 
 export async function getTemplates(): Promise<TemplateItem[]> {
@@ -62,30 +62,30 @@ export async function getTemplates(): Promise<TemplateItem[]> {
   return rows.map((r) => ({
     id: r.id,
     templateId: r.id,
-    templateNama: `${r.nama}${r.isActive ? "" : " (nonaktif)"}`,
-    jenisKontrak: r.jenisKontrak,
-    jumlahItem: r._count.items,
+    templateName: `${r.nama}${r.isActive ? "" : " (nonaktif)"}`,
+    contractType: r.jenisKontrak,
+    itemCount: r._count.items,
   }));
 }
 
 export async function saveTemplate(input: {
   id?: string;
-  nama: string;
-  jenisKontrak: string;
+  name: string;
+  contractType: string;
   isActive: boolean;
-  items: Array<{ judul: string; deskripsi: string; kategori: string; wajib: boolean }>;
+  items: Array<{ title: string; description: string; category: string; required: boolean }>;
 }): Promise<OnboardingActionResult> {
-  const err = validasiTemplate({ nama: input.nama, items: input.items });
+  const err = validateTemplate({ name: input.name, items: input.items });
   if (err) return { success: false, message: err };
-  const jenis = input.jenisKontrak || null;
+  const contractType = input.contractType || null;
 
   if (input.id) {
-    const dipakai = await prisma.onboarding.count({ where: { templateId: input.id } });
-    if (dipakai > 0) {
+    const inUse = await prisma.onboarding.count({ where: { templateId: input.id } });
+    if (inUse > 0) {
       // Template terpakai: hanya nama/status yang boleh berubah (isi dikunci).
       await prisma.onboardingTemplate.update({
         where: { id: input.id },
-        data: { nama: input.nama.trim(), isActive: input.isActive },
+        data: { nama: input.name.trim(), isActive: input.isActive },
       });
     } else {
       await prisma.$transaction([
@@ -93,15 +93,15 @@ export async function saveTemplate(input: {
         prisma.onboardingTemplate.update({
           where: { id: input.id },
           data: {
-            nama: input.nama.trim(),
-            jenisKontrak: jenis as never,
+            nama: input.name.trim(),
+            jenisKontrak: contractType as never,
             isActive: input.isActive,
             items: {
               create: input.items.map((it, i) => ({
-                judul: it.judul.trim(),
-                deskripsi: it.deskripsi.trim() || null,
-                kategori: it.kategori as never,
-                wajib: it.wajib,
+                judul: it.title.trim(),
+                deskripsi: it.description.trim() || null,
+                kategori: it.category as never,
+                wajib: it.required,
                 urutan: i + 1,
               })),
             },
@@ -112,15 +112,15 @@ export async function saveTemplate(input: {
   } else {
     await prisma.onboardingTemplate.create({
       data: {
-        nama: input.nama.trim(),
-        jenisKontrak: jenis as never,
+        nama: input.name.trim(),
+        jenisKontrak: contractType as never,
         isActive: input.isActive,
         items: {
           create: input.items.map((it, i) => ({
-            judul: it.judul.trim(),
-            deskripsi: it.deskripsi.trim() || null,
-            kategori: it.kategori as never,
-            wajib: it.wajib,
+            judul: it.title.trim(),
+            deskripsi: it.description.trim() || null,
+            kategori: it.category as never,
+            wajib: it.required,
             urutan: i + 1,
           })),
         },
@@ -131,9 +131,9 @@ export async function saveTemplate(input: {
   return { success: true, message: "Template tersimpan." };
 }
 
-export async function hapusTemplate(id: string): Promise<OnboardingActionResult> {
-  const dipakai = await prisma.onboarding.count({ where: { templateId: id } });
-  if (dipakai > 0) return { success: false, message: "Template sudah dipakai onboarding." };
+export async function deleteTemplate(id: string): Promise<OnboardingActionResult> {
+  const inUse = await prisma.onboarding.count({ where: { templateId: id } });
+  if (inUse > 0) return { success: false, message: "Template sudah dipakai onboarding." };
   await prisma.$transaction([
     prisma.onboardingTemplateItem.deleteMany({ where: { templateId: id } }),
     prisma.onboardingTemplate.delete({ where: { id } }),
@@ -142,7 +142,7 @@ export async function hapusTemplate(id: string): Promise<OnboardingActionResult>
   return { success: true, message: "Template dihapus." };
 }
 
-const TEMPLATE_BAWAAN: Array<{
+const DEFAULT_TEMPLATES: Array<{
   nama: string;
   jenisKontrak: string | null;
   items: Array<{ judul: string; deskripsi: string; kategori: "DOKUMEN" | "AKUN" | "ASET" | "ORIENTASI" | "LAINNYA"; wajib: boolean }>;
@@ -182,11 +182,11 @@ const TEMPLATE_BAWAAN: Array<{
   },
 ];
 
-export async function seedTemplateBawaan(): Promise<OnboardingActionResult> {
-  let dibuat = 0;
-  for (const t of TEMPLATE_BAWAAN) {
-    const ada = await prisma.onboardingTemplate.findFirst({ where: { nama: t.nama }, select: { id: true } });
-    if (ada) continue;
+export async function seedDefaultTemplates(): Promise<OnboardingActionResult> {
+  let created = 0;
+  for (const t of DEFAULT_TEMPLATES) {
+    const exists = await prisma.onboardingTemplate.findFirst({ where: { nama: t.nama }, select: { id: true } });
+    if (exists) continue;
     await prisma.onboardingTemplate.create({
       data: {
         nama: t.nama,
@@ -194,16 +194,16 @@ export async function seedTemplateBawaan(): Promise<OnboardingActionResult> {
         items: { create: t.items.map((it, i) => ({ ...it, kategori: it.kategori as never, urutan: i + 1 })) },
       },
     });
-    dibuat++;
+    created++;
   }
   revalidatePath("/employees/onboarding");
-  return { success: true, message: dibuat > 0 ? `${dibuat} template dibuat.` : "Template bawaan sudah lengkap." };
+  return { success: true, message: created > 0 ? `${created} template dibuat.` : "Template bawaan sudah lengkap." };
 }
 
 export async function getOnboardingList(userId: string): Promise<OnboardingItem[]> {
-  const p = await resolvePenindak(userId);
+  const p = await resolveActor(userId);
   const rows = await prisma.onboarding.findMany({
-    where: !isHr(p.role) && p.karyawanId ? { karyawan: { atasanLangsungId: p.karyawanId } } : {},
+    where: !isHr(p.role) && p.employeeId ? { karyawan: { atasanLangsungId: p.employeeId } } : {},
     orderBy: { createdAt: "desc" },
     include: {
       karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
@@ -211,48 +211,48 @@ export async function getOnboardingList(userId: string): Promise<OnboardingItem[
     },
   });
   return rows.map((r) => {
-    const prog = hitungProgres(r.items);
+    const progress = calculateProgress(r.items.map((i) => ({ required: i.wajib, status: i.status })));
     return {
       id: r.id,
-      nomor: r.id.slice(-6).toUpperCase(),
-      karyawanId: r.karyawanId,
-      karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-      templateNama: r.templateNama,
+      number: r.id.slice(-6).toUpperCase(),
+      employeeId: r.karyawanId,
+      employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+      templateName: r.templateNama,
       status: r.status,
-      targetSelesai: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
-      persen: prog.persen,
-      wajibSelesai: `${prog.terverifikasiWajib}/${prog.wajib}`,
+      targetDate: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
+      percent: progress.percent,
+      requiredDone: `${progress.verifiedRequired}/${progress.required}`,
     };
   });
 }
 
-export type OnboardingDetailItem = {
+export type OnboardingChecklistItem = {
   id: string;
-  judul: string;
-  kategori: string;
-  wajib: boolean;
+  title: string;
+  category: string;
+  required: boolean;
   status: string;
-  catatan: string | null;
-  diselesaikanPada: string | null;
-  diverifikasiPada: string | null;
+  note: string | null;
+  completedAt: string | null;
+  verifiedAt: string | null;
 };
 
 export type OnboardingDetail = {
   id: string;
-  karyawanId: string;
-  karyawanNama: string;
-  templateNama: string | null;
+  employeeId: string;
+  employeeName: string;
+  templateName: string | null;
   status: string;
-  tanggalMulai: string;
-  targetSelesai: string | null;
-  selesaiPada: string | null;
-  persen: number;
-  bisaSelesai: boolean;
-  items: OnboardingDetailItem[];
+  startDate: string;
+  targetDate: string | null;
+  completedAt: string | null;
+  percent: number;
+  canComplete: boolean;
+  items: OnboardingChecklistItem[];
 };
 
 export async function getOnboardingDetail(id: string, userId: string): Promise<OnboardingDetail | null> {
-  const p = await resolvePenindak(userId);
+  const p = await resolveActor(userId);
   const r = await prisma.onboarding.findUnique({
     where: { id },
     include: {
@@ -261,36 +261,36 @@ export async function getOnboardingDetail(id: string, userId: string): Promise<O
     },
   });
   if (!r) return null;
-  const milikSendiri = p.karyawanId === r.karyawanId;
-  if (!isHr(p.role) && !milikSendiri && r.karyawan.atasanLangsungId !== p.karyawanId) return null;
-  const prog = hitungProgres(r.items);
+  const isOwner = p.employeeId === r.karyawanId;
+  if (!isHr(p.role) && !isOwner && r.karyawan.atasanLangsungId !== p.employeeId) return null;
+  const progress = calculateProgress(r.items.map((i) => ({ required: i.wajib, status: i.status })));
   return {
     id: r.id,
-    karyawanId: r.karyawanId,
-    karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-    templateNama: r.templateNama,
+    employeeId: r.karyawanId,
+    employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+    templateName: r.templateNama,
     status: r.status,
-    tanggalMulai: r.tanggalMulai.toISOString().slice(0, 10),
-    targetSelesai: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
-    selesaiPada: r.selesaiPada?.toISOString() ?? null,
-    persen: prog.persen,
-    bisaSelesai: prog.bisaSelesai && r.status === "BERJALAN",
+    startDate: r.tanggalMulai.toISOString().slice(0, 10),
+    targetDate: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
+    completedAt: r.selesaiPada?.toISOString() ?? null,
+    percent: progress.percent,
+    canComplete: progress.canComplete && r.status === "BERJALAN",
     items: r.items.map((i) => ({
       id: i.id,
-      judul: i.judul,
-      kategori: i.kategori,
-      wajib: i.wajib,
+      title: i.judul,
+      category: i.kategori,
+      required: i.wajib,
       status: i.status,
-      catatan: i.catatan,
-      diselesaikanPada: i.diselesaikanPada?.toISOString() ?? null,
-      diverifikasiPada: i.diverifikasiPada?.toISOString() ?? null,
+      note: i.catatan,
+      completedAt: i.diselesaikanPada?.toISOString() ?? null,
+      verifiedAt: i.diverifikasiPada?.toISOString() ?? null,
     })),
   };
 }
 
-export async function getOnboardingSaya(karyawanId: string): Promise<OnboardingItem[]> {
+export async function getMyOnboarding(employeeId: string): Promise<OnboardingItem[]> {
   const rows = await prisma.onboarding.findMany({
-    where: { karyawanId },
+    where: { karyawanId: employeeId },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: {
       karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
@@ -298,31 +298,31 @@ export async function getOnboardingSaya(karyawanId: string): Promise<OnboardingI
     },
   });
   return rows.map((r) => {
-    const prog = hitungProgres(r.items);
+    const progress = calculateProgress(r.items.map((i) => ({ required: i.wajib, status: i.status })));
     return {
       id: r.id,
-      nomor: r.id.slice(-6).toUpperCase(),
-      karyawanId: r.karyawanId,
-      karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-      templateNama: r.templateNama,
+      number: r.id.slice(-6).toUpperCase(),
+      employeeId: r.karyawanId,
+      employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+      templateName: r.templateNama,
       status: r.status,
-      targetSelesai: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
-      persen: prog.persen,
-      wajibSelesai: `${prog.terverifikasiWajib}/${prog.wajib}`,
+      targetDate: r.targetSelesai?.toISOString().slice(0, 10) ?? null,
+      percent: progress.percent,
+      requiredDone: `${progress.verifiedRequired}/${progress.required}`,
     };
   });
 }
 
 export async function getOnboardingOptions(userId: string): Promise<{
-  karyawan: Array<{ value: string; label: string }>;
+  employees: Array<{ value: string; label: string }>;
   templates: Array<{ value: string; label: string }>;
 }> {
-  const p = await resolvePenindak(userId);
-  const [karyawan, templates] = await Promise.all([
+  const p = await resolveActor(userId);
+  const [employees, templates] = await Promise.all([
     prisma.karyawan.findMany({
       where: {
         status: { in: ["AKTIF", "PROBASI"] },
-        ...(!isHr(p.role) && p.karyawanId ? { atasanLangsungId: p.karyawanId } : {}),
+        ...(!isHr(p.role) && p.employeeId ? { atasanLangsungId: p.employeeId } : {}),
       },
       orderBy: { namaLengkap: "asc" },
       select: { id: true, namaLengkap: true, nomorKaryawan: true },
@@ -334,28 +334,28 @@ export async function getOnboardingOptions(userId: string): Promise<{
     }),
   ]);
   return {
-    karyawan: karyawan.map((k) => ({ value: k.id, label: `${k.namaLengkap} (${k.nomorKaryawan})` })),
+    employees: employees.map((k) => ({ value: k.id, label: `${k.namaLengkap} (${k.nomorKaryawan})` })),
     templates: templates.map((t) => ({ value: t.id, label: t.nama })),
   };
 }
 
-export async function buatOnboarding(
-  input: { karyawanId: string; templateId: string; targetSelesai: string },
+export async function createOnboarding(
+  input: { employeeId: string; templateId: string; targetDate: string },
   userId: string,
 ): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
-  if (!(await bolehKelola(p, input.karyawanId))) {
+  const p = await resolveActor(userId);
+  if (!(await canManage(p, input.employeeId))) {
     return { success: false, message: "Anda hanya bisa membuat onboarding bawahan langsung." };
   }
-  const karyawan = await prisma.karyawan.findUnique({ where: { id: input.karyawanId }, select: { status: true } });
-  if (!karyawan || !["AKTIF", "PROBASI"].includes(karyawan.status)) {
+  const employee = await prisma.karyawan.findUnique({ where: { id: input.employeeId }, select: { status: true } });
+  if (!employee || !["AKTIF", "PROBASI"].includes(employee.status)) {
     return { success: false, message: "Karyawan tidak aktif." };
   }
-  const berjalan = await prisma.onboarding.findFirst({
-    where: { karyawanId: input.karyawanId, status: "BERJALAN" },
+  const active = await prisma.onboarding.findFirst({
+    where: { karyawanId: input.employeeId, status: "BERJALAN" },
     select: { id: true },
   });
-  if (berjalan) return { success: false, message: "Karyawan masih punya onboarding berjalan." };
+  if (active) return { success: false, message: "Karyawan masih punya onboarding berjalan." };
   const template = await prisma.onboardingTemplate.findUnique({
     where: { id: input.templateId },
     include: { items: { orderBy: { urutan: "asc" } } },
@@ -364,11 +364,11 @@ export async function buatOnboarding(
 
   const created = await prisma.onboarding.create({
     data: {
-      karyawanId: input.karyawanId,
+      karyawanId: input.employeeId,
       templateId: template.id,
       templateNama: template.nama,
       tanggalMulai: toDbDate(new Date()),
-      targetSelesai: input.targetSelesai ? toDbDate(input.targetSelesai) : null,
+      targetSelesai: input.targetDate ? toDbDate(input.targetDate) : null,
       createdById: userId,
       items: {
         create: template.items.map((it) => ({
@@ -385,23 +385,23 @@ export async function buatOnboarding(
   return { success: true, message: "Onboarding dibuat.", id: created.id };
 }
 
-export async function tambahItem(
+export async function addItem(
   onboardingId: string,
-  input: { judul: string; kategori: string; wajib: boolean },
+  input: { title: string; category: string; required: boolean },
   userId: string,
 ): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa menambah item." };
-  if (!input.judul.trim()) return { success: false, message: "Judul wajib diisi." };
+  if (!input.title.trim()) return { success: false, message: "Judul wajib diisi." };
   const ob = await prisma.onboarding.findUnique({ where: { id: onboardingId }, select: { status: true } });
   if (!ob || ob.status !== "BERJALAN") return { success: false, message: "Onboarding tidak berjalan." };
   const max = await prisma.onboardingItem.aggregate({ where: { onboardingId }, _max: { urutan: true } });
   await prisma.onboardingItem.create({
     data: {
       onboardingId,
-      judul: input.judul.trim(),
-      kategori: input.kategori as never,
-      wajib: input.wajib,
+      judul: input.title.trim(),
+      kategori: input.category as never,
+      wajib: input.required,
       urutan: (max._max.urutan ?? 0) + 1,
     },
   });
@@ -409,8 +409,8 @@ export async function tambahItem(
   return { success: true, message: "Item ditambahkan." };
 }
 
-export async function centangItem(itemId: string, selesai: boolean, userId: string): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+export async function toggleChecklistItem(itemId: string, done: boolean, userId: string): Promise<OnboardingActionResult> {
+  const p = await resolveActor(userId);
   const item = await prisma.onboardingItem.findUnique({
     where: { id: itemId },
     select: {
@@ -421,8 +421,8 @@ export async function centangItem(itemId: string, selesai: boolean, userId: stri
   if (!item || item.onboarding.status !== "BERJALAN") {
     return { success: false, message: "Item tidak tersedia." };
   }
-  const milikSendiri = p.karyawanId === item.onboarding.karyawanId;
-  if (!isHr(p.role) && !milikSendiri && !(await bolehKelola(p, item.onboarding.karyawanId))) {
+  const isOwner = p.employeeId === item.onboarding.karyawanId;
+  if (!isHr(p.role) && !isOwner && !(await canManage(p, item.onboarding.karyawanId))) {
     return { success: false, message: "Akses ditolak." };
   }
   if (item.status === "TERVERIFIKASI" && !isHr(p.role)) {
@@ -430,16 +430,16 @@ export async function centangItem(itemId: string, selesai: boolean, userId: stri
   }
   await prisma.onboardingItem.update({
     where: { id: itemId },
-    data: selesai
+    data: done
       ? { status: "SELESAI", diselesaikanPada: new Date() }
       : { status: "BELUM", diselesaikanPada: null, catatan: null },
   });
   revalidatePath("/employees/onboarding");
-  return { success: true, message: selesai ? "Item ditandai selesai." : "Centang dibatalkan." };
+  return { success: true, message: done ? "Item ditandai selesai." : "Centang dibatalkan." };
 }
 
-export async function verifikasiItem(itemId: string, userId: string): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+export async function verifyItem(itemId: string, userId: string): Promise<OnboardingActionResult> {
+  const p = await resolveActor(userId);
   const item = await prisma.onboardingItem.findUnique({
     where: { id: itemId },
     select: {
@@ -449,7 +449,7 @@ export async function verifikasiItem(itemId: string, userId: string): Promise<On
     },
   });
   if (!item) return { success: false, message: "Item tidak ditemukan." };
-  if (!(await bolehVerifikasi(p, item.onboarding.karyawanId))) {
+  if (!(await canVerify(p, item.onboarding.karyawanId))) {
     return { success: false, message: "Hanya atasan/HR yang bisa verifikasi." };
   }
   if (item.status !== "SELESAI") return { success: false, message: "Hanya item SELESAI yang bisa diverifikasi." };
@@ -459,17 +459,17 @@ export async function verifikasiItem(itemId: string, userId: string): Promise<On
       data: { status: "TERVERIFIKASI", diverifikasiOlehId: userId, diverifikasiPada: new Date() },
     }),
   ]);
-  await tutupOtomatis(item.onboardingId);
+  await autoClose(item.onboardingId);
   revalidatePath("/employees/onboarding");
   return { success: true, message: "Item terverifikasi." };
 }
 
-async function tutupOtomatis(onboardingId: string): Promise<void> {
+async function autoClose(onboardingId: string): Promise<void> {
   const items = await prisma.onboardingItem.findMany({
     where: { onboardingId },
     select: { wajib: true, status: true },
   });
-  if (hitungProgres(items).bisaSelesai) {
+  if (calculateProgress(items.map((i) => ({ required: i.wajib, status: i.status }))).canComplete) {
     await prisma.onboarding.update({
       where: { id: onboardingId },
       data: { status: "SELESAI", selesaiPada: new Date() },
@@ -477,15 +477,15 @@ async function tutupOtomatis(onboardingId: string): Promise<void> {
   }
 }
 
-export async function tutupOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+export async function closeOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa menutup." };
   const ob = await prisma.onboarding.findUnique({
     where: { id },
     select: { status: true, items: { select: { wajib: true, status: true } } },
   });
   if (!ob || ob.status !== "BERJALAN") return { success: false, message: "Onboarding tidak berjalan." };
-  if (!hitungProgres(ob.items).bisaSelesai) {
+  if (!calculateProgress(ob.items.map((i) => ({ required: i.wajib, status: i.status }))).canComplete) {
     return { success: false, message: "Masih ada item wajib belum terverifikasi." };
   }
   await prisma.onboarding.update({ where: { id }, data: { status: "SELESAI", selesaiPada: new Date() } });
@@ -493,8 +493,8 @@ export async function tutupOnboarding(id: string, userId: string): Promise<Onboa
   return { success: true, message: "Onboarding selesai." };
 }
 
-export async function batalkanOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+export async function cancelOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa membatalkan." };
   const ob = await prisma.onboarding.findUnique({ where: { id }, select: { status: true } });
   if (!ob || ob.status !== "BERJALAN") return { success: false, message: "Onboarding tidak berjalan." };
@@ -503,8 +503,8 @@ export async function batalkanOnboarding(id: string, userId: string): Promise<On
   return { success: true, message: "Onboarding dibatalkan." };
 }
 
-export async function hapusOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
-  const p = await resolvePenindak(userId);
+export async function deleteOnboarding(id: string, userId: string): Promise<OnboardingActionResult> {
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa menghapus." };
   const ob = await prisma.onboarding.findUnique({ where: { id }, select: { status: true } });
   if (!ob || ob.status !== "DIBATALKAN") return { success: false, message: "Hanya yang DIBATALKAN yang bisa dihapus." };

@@ -4,16 +4,16 @@
  * BIAYA_PERUSAHAAN → info slip saja (tak pengaruhi bersih);
  * tak dikenal → potongan (aman).
  */
-export function akumulasiKelompok(
-  kelompok: string,
-  jumlah: number,
-  acc: { pendapatan: number; potongan: number; biayaPerusahaan: number },
+export function accumulateGroups(
+  group: string,
+  amount: number,
+  acc: { earnings: number; deductions: number; companyCost: number },
 ): void {
-  if (kelompok === "PENDAPATAN" || kelompok === "TUNJANGAN") {
-    acc.pendapatan += jumlah;
-  } else if (kelompok === "BIAYA_PERUSAHAAN") {
-    acc.biayaPerusahaan += jumlah;
+  if (group === "PENDAPATAN" || group === "TUNJANGAN") {
+    acc.earnings += amount;
+  } else if (group === "BIAYA_PERUSAHAAN") {
+    acc.companyCost += amount;
   } else {
-    acc.potongan += jumlah;
+    acc.deductions += amount;
   }
 }

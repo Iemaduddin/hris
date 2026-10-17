@@ -2,14 +2,14 @@ import { randomBytes } from "crypto";
 import prisma from "@/src/lib/prisma";
 
 /** Kode verifikasi 24-hex untuk slip PDF + halaman verify publik. */
-export function buatKodeVerifikasi(): string {
+export function createVerificationCode(): string {
   return randomBytes(12).toString("hex").toUpperCase();
 }
 
 /** Pastikan payslip punya kode (backfill untuk slip terbitan lama). */
-export async function pastikanKodePayslip(nomor: string): Promise<string | null> {
+export async function ensurePayslipCode(number: string): Promise<string | null> {
   const s = await prisma.payslip.findUnique({
-    where: { nomor },
+    where: { nomor: number },
     select: { id: true, kodeVerifikasi: true, run: { select: { status: true } } },
   });
   if (!s || (s.run.status !== "DITERBITKAN" && s.run.status !== "FINAL")) return null;
@@ -18,7 +18,7 @@ export async function pastikanKodePayslip(nomor: string): Promise<string | null>
     try {
       const updated = await prisma.payslip.update({
         where: { id: s.id },
-        data: { kodeVerifikasi: buatKodeVerifikasi() },
+        data: { kodeVerifikasi: createVerificationCode() },
         select: { kodeVerifikasi: true },
       });
       return updated.kodeVerifikasi;
@@ -29,9 +29,9 @@ export async function pastikanKodePayslip(nomor: string): Promise<string | null>
   return null;
 }
 
-export async function pastikanKodeThr(nomor: string): Promise<string | null> {
+export async function ensureThrCode(number: string): Promise<string | null> {
   const d = await prisma.thrDetail.findUnique({
-    where: { nomor },
+    where: { nomor: number },
     select: { id: true, kodeVerifikasi: true, run: { select: { status: true } } },
   });
   if (!d || (d.run.status !== "DITERBITKAN" && d.run.status !== "FINAL")) return null;
@@ -40,7 +40,7 @@ export async function pastikanKodeThr(nomor: string): Promise<string | null> {
     try {
       const updated = await prisma.thrDetail.update({
         where: { id: d.id },
-        data: { kodeVerifikasi: buatKodeVerifikasi() },
+        data: { kodeVerifikasi: createVerificationCode() },
         select: { kodeVerifikasi: true },
       });
       return updated.kodeVerifikasi;
@@ -51,21 +51,21 @@ export async function pastikanKodeThr(nomor: string): Promise<string | null> {
   return null;
 }
 
-export type HasilVerifikasi =
+export type VerificationResult =
   | {
       valid: true;
-      jenis: "GAJI" | "THR";
-      nomor: string;
-      karyawanNama: string;
-      periode: string;
-      bersih: string;
-      statusRun: string;
+      kind: "GAJI" | "THR";
+      number: string;
+      employeeName: string;
+      period: string;
+      net: string;
+      runStatus: string;
     }
   | { valid: false };
 
 /** Lookup publik via kode (tanpa auth; kode hanya ada di slip pemegang). */
-export async function getVerifikasiSlip(kode: string): Promise<HasilVerifikasi> {
-  const k = kode.trim().toUpperCase();
+export async function verifySlip(code: string): Promise<VerificationResult> {
+  const k = code.trim().toUpperCase();
   if (!k) return { valid: false };
 
   const p = await prisma.payslip.findUnique({
@@ -84,12 +84,12 @@ export async function getVerifikasiSlip(kode: string): Promise<HasilVerifikasi> 
     if (!detail) return { valid: false };
     return {
       valid: true,
-      jenis: "GAJI",
-      nomor: p.nomor,
-      karyawanNama: p.karyawan.namaLengkap,
-      periode: p.run.periode,
-      bersih: detail.gajiBersih.toString(),
-      statusRun: p.run.status,
+      kind: "GAJI",
+      number: p.nomor,
+      employeeName: p.karyawan.namaLengkap,
+      period: p.run.periode,
+      net: detail.gajiBersih.toString(),
+      runStatus: p.run.status,
     };
   }
 
@@ -104,12 +104,12 @@ export async function getVerifikasiSlip(kode: string): Promise<HasilVerifikasi> 
     if (t.run.status !== "DITERBITKAN") return { valid: false };
     return {
       valid: true,
-      jenis: "THR",
-      nomor: t.nomor,
-      karyawanNama: t.karyawan.namaLengkap,
-      periode: `${t.run.namaHariRaya} ${t.run.tahun}`,
-      bersih: t.bersih.toString(),
-      statusRun: t.run.status,
+      kind: "THR",
+      number: t.nomor,
+      employeeName: t.karyawan.namaLengkap,
+      period: `${t.run.namaHariRaya} ${t.run.tahun}`,
+      net: t.bersih.toString(),
+      runStatus: t.run.status,
     };
   }
 

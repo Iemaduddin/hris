@@ -5,14 +5,14 @@ import prisma from "@/src/lib/prisma";
 import { addDays, dateOnlyInput, toDbDate } from "@/src/lib/time";
 
 export type RosterListItem = {
-	id: number;
-	karyawanId: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	tanggal: string;
-	shiftId: string;
-	shiftKode: string;
-	shiftNama: string;
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  date: string;
+  shiftId: string;
+  shiftCode: string;
+  shiftName: string;
 };
 
 export type RosterActionResult = { success: boolean; message: string };
@@ -26,168 +26,168 @@ function parseDay(value: string): Date | null {
 	}
 }
 
-export async function getRosterPeriode(mulai: string, selesai: string, karyawanId?: string): Promise<RosterListItem[]> {
-	const start = parseDay(mulai);
-	const end = parseDay(selesai);
-	if (!start || !end) return [];
+export async function getRosterPeriod(start: string, end: string, employeeId?: string): Promise<RosterListItem[]> {
+  const startDate = parseDay(start);
+  const endDate = parseDay(end);
+  if (!startDate || !endDate) return [];
 
-	const rows = await prisma.rosterShift.findMany({
-		where: {
-			tanggal: { gte: start, lte: end },
-			...(karyawanId ? { karyawanId } : {}),
-		},
-		orderBy: [{ tanggal: "asc" }, { karyawan: { namaLengkap: "asc" } }],
-		include: {
-			karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
-			shift: { select: { kode: true, nama: true } },
-		},
-	});
+  const rows = await prisma.rosterShift.findMany({
+    where: {
+      tanggal: { gte: startDate, lte: endDate },
+      ...(employeeId ? { karyawanId: employeeId } : {}),
+    },
+    orderBy: [{ tanggal: "asc" }, { karyawan: { namaLengkap: "asc" } }],
+    include: {
+      karyawan: { select: { namaLengkap: true, nomorKaryawan: true } },
+      shift: { select: { kode: true, nama: true } },
+    },
+  });
 
-	return rows.map((r) => ({
-		id: r.id,
-		karyawanId: r.karyawanId,
-		karyawanNama: r.karyawan.namaLengkap,
-		nomorKaryawan: r.karyawan.nomorKaryawan,
-		tanggal: dateOnlyInput(r.tanggal),
-		shiftId: r.shiftId,
-		shiftKode: r.shift.kode,
-		shiftNama: r.shift.nama,
-	}));
+  return rows.map((r) => ({
+    id: r.id,
+    employeeId: r.karyawanId,
+    employeeName: r.karyawan.namaLengkap,
+    employeeNumber: r.karyawan.nomorKaryawan,
+    date: dateOnlyInput(r.tanggal),
+    shiftId: r.shiftId,
+    shiftCode: r.shift.kode,
+    shiftName: r.shift.nama,
+  }));
 }
 
-export async function simpanRosterPola(input: {
-	karyawanIds: string[];
-	mulai: string;
-	selesai: string;
-	polaShiftIds: string[];
+export async function saveRosterPattern(input: {
+  employeeIds: string[];
+  start: string;
+  end: string;
+  patternShiftIds: string[];
 }): Promise<RosterActionResult> {
-	const start = parseDay(input.mulai);
-	const end = parseDay(input.selesai);
-	if (!start || !end || start > end) return { success: false, message: "Rentang tanggal tidak valid." };
-	if (input.karyawanIds.length === 0) return { success: false, message: "Pilih minimal satu karyawan." };
-	if (input.polaShiftIds.length === 0) return { success: false, message: "Pilih minimal satu shift untuk pola." };
+  const startDate = parseDay(input.start);
+  const endDate = parseDay(input.end);
+  if (!startDate || !endDate || startDate > endDate) return { success: false, message: "Rentang tanggal tidak valid." };
+  if (input.employeeIds.length === 0) return { success: false, message: "Pilih minimal satu karyawan." };
+  if (input.patternShiftIds.length === 0) return { success: false, message: "Pilih minimal satu shift untuk pola." };
 
-	const shifts = await prisma.shift.findMany({
-		where: { id: { in: input.polaShiftIds }, isActive: true },
-		select: { id: true },
-	});
-	if (shifts.length === 0) return { success: false, message: "Shift tidak valid." };
-	const validIds = shifts.map((s) => s.id);
+  const shifts = await prisma.shift.findMany({
+    where: { id: { in: input.patternShiftIds }, isActive: true },
+    select: { id: true },
+  });
+  if (shifts.length === 0) return { success: false, message: "Shift tidak valid." };
+  const validIds = shifts.map((s) => s.id);
 
-	let cursor = start;
-	let dayIndex = 0;
-	let count = 0;
-	while (cursor <= end) {
-		const shiftId = validIds[dayIndex % validIds.length];
-		for (const karyawanId of input.karyawanIds) {
-			await prisma.rosterShift.upsert({
-				where: { karyawanId_tanggal: { karyawanId, tanggal: cursor } },
-				update: { shiftId },
-				create: { karyawanId, tanggal: cursor, shiftId },
-			});
-			count++;
-		}
-		cursor = addDays(cursor, 1);
-		dayIndex++;
-	}
+  let cursor = startDate;
+  let dayIndex = 0;
+  let count = 0;
+  while (cursor <= endDate) {
+    const shiftId = validIds[dayIndex % validIds.length];
+    for (const employeeId of input.employeeIds) {
+      await prisma.rosterShift.upsert({
+        where: { karyawanId_tanggal: { karyawanId: employeeId, tanggal: cursor } },
+        update: { shiftId },
+        create: { karyawanId: employeeId, tanggal: cursor, shiftId },
+      });
+      count++;
+    }
+    cursor = addDays(cursor, 1);
+    dayIndex++;
+  }
 
-	revalidatePath("/roster");
-	return { success: true, message: `Roster tersimpan: ${count} penugasan.` };
+  revalidatePath("/roster");
+  return { success: true, message: `Roster tersimpan: ${count} penugasan.` };
 }
 
-export async function hapusRoster(input: {
-	karyawanIds: string[];
-	mulai: string;
-	selesai: string;
+export async function deleteRoster(input: {
+  employeeIds: string[];
+  start: string;
+  end: string;
 }): Promise<RosterActionResult> {
-	const start = parseDay(input.mulai);
-	const end = parseDay(input.selesai);
-	if (!start || !end || input.karyawanIds.length === 0) {
-		return { success: false, message: "Parameter tidak valid." };
-	}
+  const startDate = parseDay(input.start);
+  const endDate = parseDay(input.end);
+  if (!startDate || !endDate || input.employeeIds.length === 0) {
+    return { success: false, message: "Parameter tidak valid." };
+  }
 
-	const result = await prisma.rosterShift.deleteMany({
-		where: { karyawanId: { in: input.karyawanIds }, tanggal: { gte: start, lte: end } },
-	});
+  const result = await prisma.rosterShift.deleteMany({
+    where: { karyawanId: { in: input.employeeIds }, tanggal: { gte: startDate, lte: endDate } },
+  });
 
-	revalidatePath("/roster");
-	return { success: true, message: `${result.count} roster dihapus.` };
+  revalidatePath("/roster");
+  return { success: true, message: `${result.count} roster dihapus.` };
 }
 
-export type PenugasanKalenderItem = {
-	id: number;
-	karyawanId: string;
-	karyawanNama: string;
-	kalenderKerjaId: number;
-	kalenderNama: string;
-	tanggalMulai: string;
-	tanggalSelesai: string | null;
+export type CalendarAssignmentItem = {
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  calendarId: number;
+  calendarName: string;
+  startDate: string;
+  endDate: string | null;
 };
 
-export async function getPenugasanKalender(): Promise<PenugasanKalenderItem[]> {
-	const rows = await prisma.penugasanKalender.findMany({
-		orderBy: { tanggalMulai: "desc" },
-		include: {
-			karyawan: { select: { namaLengkap: true } },
-			kalenderKerja: { select: { nama: true } },
-		},
-	});
-	return rows.map((r) => ({
-		id: r.id,
-		karyawanId: r.karyawanId,
-		karyawanNama: r.karyawan.namaLengkap,
-		kalenderKerjaId: r.kalenderKerjaId,
-		kalenderNama: r.kalenderKerja.nama,
-		tanggalMulai: dateOnlyInput(r.tanggalMulai),
-		tanggalSelesai: r.tanggalSelesai ? dateOnlyInput(r.tanggalSelesai) : null,
-	}));
+export async function listCalendarAssignments(): Promise<CalendarAssignmentItem[]> {
+  const rows = await prisma.penugasanKalender.findMany({
+    orderBy: { tanggalMulai: "desc" },
+    include: {
+      karyawan: { select: { namaLengkap: true } },
+      kalenderKerja: { select: { nama: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    employeeId: r.karyawanId,
+    employeeName: r.karyawan.namaLengkap,
+    calendarId: r.kalenderKerjaId,
+    calendarName: r.kalenderKerja.nama,
+    startDate: dateOnlyInput(r.tanggalMulai),
+    endDate: r.tanggalSelesai ? dateOnlyInput(r.tanggalSelesai) : null,
+  }));
 }
 
-export async function simpanPenugasanKalender(input: {
-	karyawanId: string;
-	kalenderKerjaId: number;
-	tanggalMulai: string;
-	tanggalSelesai?: string;
+export async function saveCalendarAssignment(input: {
+  employeeId: string;
+  calendarId: number;
+  startDate: string;
+  endDate?: string;
 }): Promise<RosterActionResult> {
-	const mulai = parseDay(input.tanggalMulai);
-	const selesai = input.tanggalSelesai ? parseDay(input.tanggalSelesai) : null;
-	if (!input.karyawanId || !mulai || !input.kalenderKerjaId) {
-		return { success: false, message: "Karyawan, kalender, dan tanggal mulai wajib diisi." };
-	}
-	if (selesai && selesai < mulai) {
-		return { success: false, message: "Tanggal selesai tidak boleh sebelum tanggal mulai." };
-	}
+  const startDate = parseDay(input.startDate);
+  const endDate = input.endDate ? parseDay(input.endDate) : null;
+  if (!input.employeeId || !startDate || !input.calendarId) {
+    return { success: false, message: "Karyawan, kalender, dan tanggal mulai wajib diisi." };
+  }
+  if (endDate && endDate < startDate) {
+    return { success: false, message: "Tanggal selesai tidak boleh sebelum tanggal mulai." };
+  }
 
-	await prisma.$transaction(async (tx) => {
-		await tx.penugasanKalender.updateMany({
-			where: { karyawanId: input.karyawanId, tanggalSelesai: null },
-			data: { tanggalSelesai: addDays(mulai, -1) },
-		});
-		await tx.penugasanKalender.create({
-			data: {
-				karyawanId: input.karyawanId,
-				kalenderKerjaId: input.kalenderKerjaId,
-				tanggalMulai: mulai,
-				tanggalSelesai: selesai,
-			},
-		});
-	});
+  await prisma.$transaction(async (tx) => {
+    await tx.penugasanKalender.updateMany({
+      where: { karyawanId: input.employeeId, tanggalSelesai: null },
+      data: { tanggalSelesai: addDays(startDate, -1) },
+    });
+    await tx.penugasanKalender.create({
+      data: {
+        karyawanId: input.employeeId,
+        kalenderKerjaId: input.calendarId,
+        tanggalMulai: startDate,
+        tanggalSelesai: endDate,
+      },
+    });
+  });
 
-	revalidatePath("/roster");
-	return { success: true, message: "Penugasan kalender tersimpan." };
+  revalidatePath("/roster");
+  return { success: true, message: "Penugasan kalender tersimpan." };
 }
 
-export async function hapusPenugasanKalender(id: number): Promise<RosterActionResult> {
-	try {
-		await prisma.penugasanKalender.delete({ where: { id } });
-		revalidatePath("/roster");
-		return { success: true, message: "Penugasan dihapus." };
-	} catch {
-		return { success: false, message: "Gagal menghapus penugasan." };
-	}
+export async function deleteCalendarAssignment(id: number): Promise<RosterActionResult> {
+  try {
+    await prisma.penugasanKalender.delete({ where: { id } });
+    revalidatePath("/roster");
+    return { success: true, message: "Penugasan dihapus." };
+  } catch {
+    return { success: false, message: "Gagal menghapus penugasan." };
+  }
 }
 
-export async function getKalenderOptions(): Promise<Array<{ value: number; label: string }>> {
+export async function listCalendarOptions(): Promise<Array<{ value: number; label: string }>> {
 	const rows = await prisma.kalenderKerja.findMany({
 		where: { isActive: true },
 		orderBy: { nama: "asc" },

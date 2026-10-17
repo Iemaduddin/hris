@@ -2,72 +2,72 @@
 
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
-import { hitungRekapHarian } from "@/src/modules/recap/lib/recap-engine";
+import { calculateDailyRecap } from "@/src/modules/recap/lib/recap-engine";
 
-export type AnggotaTimHari = {
-  karyawanId: string;
-  nama: string;
-  nomorKaryawan: string;
+export type TeamDayMember = {
+  employeeId: string;
+  name: string;
+  employeeNumber: string;
   status: string;
   shift: string | null;
   info: string | null;
 };
 
 /** Status tim pada tanggal: rekap + shift + cuti/dinas disetujui yang mencakup tanggal. */
-export async function getTimHariIni(userId: string, tanggalIso: string): Promise<AnggotaTimHari[]> {
+export async function getTodayTeam(userId: string, dateIso: string): Promise<TeamDayMember[]> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  const saya = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
+  const me = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
   const isHr = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN_HR";
   if (!isHr && user?.role !== "MANAJER") return [];
-  if (!isHr && !saya) return [];
+  if (!isHr && !me) return [];
 
-  const tgl = toDbDate(tanggalIso);
-  if (Number.isNaN(tgl.getTime())) return [];
+  const date = toDbDate(dateIso);
+  if (Number.isNaN(date.getTime())) return [];
 
-  const anggota = await prisma.karyawan.findMany({
+  const members = await prisma.karyawan.findMany({
     where: {
       status: { in: ["AKTIF", "PROBASI"] },
-      ...(!isHr && saya ? { atasanLangsungId: saya.id } : {}),
+      ...(!isHr && me ? { atasanLangsungId: me.id } : {}),
     },
     orderBy: { namaLengkap: "asc" },
     select: { id: true, namaLengkap: true, nomorKaryawan: true },
   });
 
-  const hasil: AnggotaTimHari[] = [];
-  for (const a of anggota) {
-    const [rekap, roster, cuti, dinas] = await Promise.all([
-      hitungRekapHarian(a.id, tgl),
+  const result: TeamDayMember[] = [];
+  for (const m of members) {
+    const [recap, roster, leave, duty] = await Promise.all([
+      calculateDailyRecap(m.id, date),
       prisma.rosterShift.findUnique({
-        where: { karyawanId_tanggal: { karyawanId: a.id, tanggal: tgl } },
+        where: { karyawanId_tanggal: { karyawanId: m.id, tanggal: date } },
         select: { shift: { select: { nama: true } } },
       }),
       prisma.pengajuanKetidakhadiran.findFirst({
         where: {
-          karyawanId: a.id,
+          karyawanId: m.id,
           status: "DISETUJUI",
-          tanggalMulai: { lte: new Date(tgl.getTime() + 86_400_000 - 1) },
-          tanggalSelesai: { gte: tgl },
+          tanggalMulai: { lte: new Date(date.getTime() + 86_400_000 - 1) },
+          tanggalSelesai: { gte: date },
         },
         select: { jenisKetidakhadiran: { select: { nama: true } } },
       }),
       prisma.dinasWFH.findFirst({
         where: {
-          karyawanId: a.id,
+          karyawanId: m.id,
           status: "DISETUJUI",
-          tanggalMulai: { lte: tgl },
-          tanggalSelesai: { gte: tgl },
+          tanggalMulai: { lte: date },
+          tanggalSelesai: { gte: date },
         },
         select: { jenis: true },
       }),
     ]);
-    hasil.push({
-      karyawanId: a.id,
-      nama: a.namaLengkap,
-      nomorKaryawan: a.nomorKaryawan,
-      status: rekap?.status.replaceAll("_", " ") ?? "-",
+    result.push({
+      employeeId: m.id,
+      name: m.namaLengkap,
+      employeeNumber: m.nomorKaryawan,
+      status: recap?.status.replaceAll("_", " ") ?? "-",
       shift: roster?.shift.nama ?? null,
-      info: cuti?.jenisKetidakhadiran.nama ?? (dinas ? (dinas.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH") : null),
+      info: leave?.jenisKetidakhadiran.nama ?? (duty ? (duty.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH") : null),
     });
   }
-  return hasil;
+  return result;
 }

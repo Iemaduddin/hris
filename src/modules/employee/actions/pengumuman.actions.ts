@@ -3,24 +3,24 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { canManageUsers, getCurrentSession } from "@/src/lib/auth-guard";
-import { catatAudit } from "@/src/modules/audit/lib/audit";
-import { kirimNotifikasi } from "@/src/modules/notifikasi/lib/notify";
+import { recordAudit } from "@/src/modules/audit/lib/audit";
+import { sendNotification } from "@/src/modules/notifikasi/lib/notify";
 
-export type PengumumanActionResult = { success: boolean; message: string; id?: string };
+export type AnnouncementActionResult = { success: boolean; message: string; id?: string };
 
-export type PengumumanItem = {
-	id: string;
-	judul: string;
-	isi: string;
-	unitNama: string | null;
-	status: string;
-	tayangMulai: string;
-	tayangSelesai: string | null;
-	diterbitkanPada: string | null;
+export type AnnouncementItem = {
+  id: string;
+  title: string;
+  body: string;
+  unitName: string | null;
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  publishedAt: string | null;
 };
 
 /** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
-function segarkan(path: string): void {
+function revalidateBestEffort(path: string): void {
 	try {
 		revalidatePath(path);
 	} catch {
@@ -28,7 +28,7 @@ function segarkan(path: string): void {
 	}
 }
 
-async function boleh(): Promise<boolean> {
+async function allowed(): Promise<boolean> {
 	try {
 		return await canManageUsers();
 	} catch {
@@ -45,61 +45,61 @@ async function actorId(): Promise<string | null> {
 	}
 }
 
-function keItem(r: {
-	id: string;
-	judul: string;
-	isi: string;
-	status: string;
-	tayangMulai: Date;
-	tayangSelesai: Date | null;
-	diterbitkanPada: Date | null;
-	unitOrganisasi: { nama: string } | null;
-}): PengumumanItem {
-	return {
-		id: r.id,
-		judul: r.judul,
-		isi: r.isi,
-		unitNama: r.unitOrganisasi?.nama ?? null,
-		status: r.status,
-		tayangMulai: r.tayangMulai.toISOString(),
-		tayangSelesai: r.tayangSelesai?.toISOString() ?? null,
-		diterbitkanPada: r.diterbitkanPada?.toISOString() ?? null,
-	};
+function toItem(r: {
+  id: string;
+  judul: string;
+  isi: string;
+  status: string;
+  tayangMulai: Date;
+  tayangSelesai: Date | null;
+  diterbitkanPada: Date | null;
+  unitOrganisasi: { nama: string } | null;
+}): AnnouncementItem {
+  return {
+    id: r.id,
+    title: r.judul,
+    body: r.isi,
+    unitName: r.unitOrganisasi?.nama ?? null,
+    status: r.status,
+    startsAt: r.tayangMulai.toISOString(),
+    endsAt: r.tayangSelesai?.toISOString() ?? null,
+    publishedAt: r.diterbitkanPada?.toISOString() ?? null,
+  };
 }
 
-export async function buatPengumumanInti(
-	input: { judul: string; isi: string; unitOrganisasiId?: string; tayangSelesai?: string },
-	userId: string,
-): Promise<PengumumanActionResult> {
-	const judul = String(input.judul ?? "").trim();
-	const isi = String(input.isi ?? "").trim();
-	if (!judul) return { success: false, message: "Judul wajib diisi." };
-	if (!isi) return { success: false, message: "Isi wajib diisi." };
-	if (input.unitOrganisasiId) {
-		const unit = await prisma.unitOrganisasi.findUnique({ where: { id: input.unitOrganisasiId }, select: { id: true } });
-		if (!unit) return { success: false, message: "Unit tidak ditemukan." };
-	}
-	let selesai: Date | null = null;
-	if (input.tayangSelesai) {
-		selesai = new Date(input.tayangSelesai);
-		if (Number.isNaN(selesai.getTime())) return { success: false, message: "Tayang selesai tidak valid." };
-	}
-	const created = await prisma.pengumuman.create({
-		data: {
-			judul,
-			isi,
-			unitOrganisasiId: input.unitOrganisasiId || null,
-			tayangSelesai: selesai,
-			createdById: userId,
-		},
-		select: { id: true },
-	});
-	segarkan("/employees/pengumuman");
-	return { success: true, message: "Draf pengumuman tersimpan.", id: created.id };
+export async function createAnnouncementCore(
+  input: { title: string; body: string; orgUnitId?: string; endsAt?: string },
+  userId: string,
+): Promise<AnnouncementActionResult> {
+  const title = String(input.title ?? "").trim();
+  const body = String(input.body ?? "").trim();
+  if (!title) return { success: false, message: "Judul wajib diisi." };
+  if (!body) return { success: false, message: "Isi wajib diisi." };
+  if (input.orgUnitId) {
+    const unit = await prisma.unitOrganisasi.findUnique({ where: { id: input.orgUnitId }, select: { id: true } });
+    if (!unit) return { success: false, message: "Unit tidak ditemukan." };
+  }
+  let endsAt: Date | null = null;
+  if (input.endsAt) {
+    endsAt = new Date(input.endsAt);
+    if (Number.isNaN(endsAt.getTime())) return { success: false, message: "Tayang selesai tidak valid." };
+  }
+  const created = await prisma.pengumuman.create({
+    data: {
+      judul: title,
+      isi: body,
+      unitOrganisasiId: input.orgUnitId || null,
+      tayangSelesai: endsAt,
+      createdById: userId,
+    },
+    select: { id: true },
+  });
+  revalidateBestEffort("/employees/pengumuman");
+  return { success: true, message: "Draf pengumuman tersimpan.", id: created.id };
 }
 
 /** Terbitkan + broadcast ke target (seluruh aktif / satu unit). */
-export async function terbitkanPengumumanInti(id: string, actorUserId?: string | null): Promise<PengumumanActionResult> {
+export async function publishAnnouncementCore(id: string, actorUserId?: string | null): Promise<AnnouncementActionResult> {
 	const row = await prisma.pengumuman.findUnique({
 		where: { id },
 		include: { unitOrganisasi: { select: { nama: true } } },
@@ -123,180 +123,180 @@ export async function terbitkanPengumumanInti(id: string, actorUserId?: string |
 		},
 		select: { userId: true },
 	});
-	const cakupan = row.unitOrganisasi ? `unit ${row.unitOrganisasi.nama}` : "seluruh karyawan";
-	let terkirim = 0;
-	for (const t of target) {
-		if (!t.userId) continue;
-		await kirimNotifikasi({
-			userId: t.userId,
-			judul: `Pengumuman: ${row.judul}`,
-			isi: `${row.isi.slice(0, 160)}${row.isi.length > 160 ? "…" : ""}`,
-			jenis: "INFO",
-			referensiType: "PENGUMUMAN",
-			referensiId: id,
-			url: "/account/pengumuman",
-			pushData: { url: "/pengumuman", jenis: "pengumuman", id },
-		});
-		terkirim++;
-	}
+  const scope = row.unitOrganisasi ? `unit ${row.unitOrganisasi.nama}` : "seluruh karyawan";
+  let sent = 0;
+  for (const t of target) {
+    if (!t.userId) continue;
+    await sendNotification({
+      userId: t.userId,
+      title: `Pengumuman: ${row.judul}`,
+      body: `${row.isi.slice(0, 160)}${row.isi.length > 160 ? "…" : ""}`,
+      kind: "INFO",
+      referenceType: "PENGUMUMAN",
+      referenceId: id,
+      url: "/account/pengumuman",
+      pushData: { url: "/pengumuman", kind: "pengumuman", id },
+    });
+    sent++;
+  }
 
-	await catatAudit({
-		actorUserId: actorUserId ?? null,
-		aksi: "PENGUMUMAN.TERBIT",
-		entityType: "Pengumuman",
-		entityId: id,
-		sebelum: { status: row.status },
-		sesudah: { status: "TERBIT", target: cakupan, terkirim },
-		alasan: row.judul,
-	});
-	segarkan("/employees/pengumuman");
-	segarkan("/account/pengumuman");
-	return { success: true, message: `Terbit ke ${cakupan} (${terkirim} penerima).` };
+  await recordAudit({
+    actorUserId: actorUserId ?? null,
+    aksi: "PENGUMUMAN.TERBIT",
+    entityType: "Pengumuman",
+    entityId: id,
+    sebelum: { status: row.status },
+    sesudah: { status: "TERBIT", target: scope, terkirim: sent },
+    alasan: row.judul,
+  });
+  revalidateBestEffort("/employees/pengumuman");
+  revalidateBestEffort("/account/pengumuman");
+  return { success: true, message: `Terbit ke ${scope} (${sent} penerima).` };
 }
 
-export async function arsipkanPengumumanInti(id: string, actorUserId?: string | null): Promise<PengumumanActionResult> {
-	const row = await prisma.pengumuman.findUnique({ where: { id }, select: { status: true, judul: true } });
-	if (!row) return { success: false, message: "Pengumuman tidak ditemukan." };
-	if (row.status === "DIARSIPKAN") return { success: false, message: "Sudah diarsipkan." };
-	await prisma.pengumuman.update({ where: { id }, data: { status: "DIARSIPKAN" } });
-	await catatAudit({
-		actorUserId: actorUserId ?? null,
-		aksi: "PENGUMUMAN.ARSIP",
-		entityType: "Pengumuman",
-		entityId: id,
-		sebelum: { status: row.status },
-		sesudah: { status: "DIARSIPKAN" },
-		alasan: row.judul,
-	});
-	segarkan("/employees/pengumuman");
-	segarkan("/account/pengumuman");
-	return { success: true, message: "Diarsipkan." };
+export async function archiveAnnouncementCore(id: string, actorUserId?: string | null): Promise<AnnouncementActionResult> {
+  const row = await prisma.pengumuman.findUnique({ where: { id }, select: { status: true, judul: true } });
+  if (!row) return { success: false, message: "Pengumuman tidak ditemukan." };
+  if (row.status === "DIARSIPKAN") return { success: false, message: "Sudah diarsipkan." };
+  await prisma.pengumuman.update({ where: { id }, data: { status: "DIARSIPKAN" } });
+  await recordAudit({
+    actorUserId: actorUserId ?? null,
+    aksi: "PENGUMUMAN.ARSIP",
+    entityType: "Pengumuman",
+    entityId: id,
+    sebelum: { status: row.status },
+    sesudah: { status: "DIARSIPKAN" },
+    alasan: row.judul,
+  });
+  revalidateBestEffort("/employees/pengumuman");
+  revalidateBestEffort("/account/pengumuman");
+  return { success: true, message: "Diarsipkan." };
 }
 
-export async function hapusPengumumanInti(id: string): Promise<PengumumanActionResult> {
-	const row = await prisma.pengumuman.findUnique({ where: { id }, select: { status: true } });
-	if (!row) return { success: false, message: "Pengumuman tidak ditemukan." };
-	if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa dihapus." };
-	await prisma.pengumuman.delete({ where: { id } });
-	segarkan("/employees/pengumuman");
-	return { success: true, message: "Draf dihapus." };
+export async function deleteAnnouncementCore(id: string): Promise<AnnouncementActionResult> {
+  const row = await prisma.pengumuman.findUnique({ where: { id }, select: { status: true } });
+  if (!row) return { success: false, message: "Pengumuman tidak ditemukan." };
+  if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa dihapus." };
+  await prisma.pengumuman.delete({ where: { id } });
+  revalidateBestEffort("/employees/pengumuman");
+  return { success: true, message: "Draf dihapus." };
 }
 
-export async function getPengumumanHrInti(): Promise<PengumumanItem[]> {
-	const rows = await prisma.pengumuman.findMany({
-		orderBy: { createdAt: "desc" },
-		take: 100,
-		include: { unitOrganisasi: { select: { nama: true } } },
-	});
-	return rows.map(keItem);
+export async function listHrAnnouncementsCore(): Promise<AnnouncementItem[]> {
+  const rows = await prisma.pengumuman.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: { unitOrganisasi: { select: { nama: true } } },
+  });
+  return rows.map(toItem);
 }
 
 /** Daftar tayang untuk satu karyawan: global + unitnya sendiri. */
-export async function getPengumumanSayaInti(karyawanId: string): Promise<PengumumanItem[]> {
-	const saya = await prisma.karyawan.findUnique({
-		where: { id: karyawanId },
-		select: { posisiKaryawan: { where: { isCurrent: true }, select: { unitOrganisasiId: true } } },
-	});
-	const unitIds = (saya?.posisiKaryawan ?? []).map((p) => p.unitOrganisasiId).filter((x): x is string => !!x);
-	const kini = new Date();
-	const rows = await prisma.pengumuman.findMany({
-		where: {
-			status: "TERBIT",
-			tayangMulai: { lte: kini },
-			OR: [{ tayangSelesai: null }, { tayangSelesai: { gte: kini } }],
-			AND: [{ OR: [{ unitOrganisasiId: null }, { unitOrganisasiId: { in: unitIds } }] }],
-		},
-		orderBy: { diterbitkanPada: "desc" },
-		take: 50,
-		include: { unitOrganisasi: { select: { nama: true } } },
-	});
-	return rows.map(keItem);
+export async function getMyAnnouncementsCore(employeeId: string): Promise<AnnouncementItem[]> {
+  const me = await prisma.karyawan.findUnique({
+    where: { id: employeeId },
+    select: { posisiKaryawan: { where: { isCurrent: true }, select: { unitOrganisasiId: true } } },
+  });
+  const unitIds = (me?.posisiKaryawan ?? []).map((p) => p.unitOrganisasiId).filter((x): x is string => !!x);
+  const now = new Date();
+  const rows = await prisma.pengumuman.findMany({
+    where: {
+      status: "TERBIT",
+      tayangMulai: { lte: now },
+      OR: [{ tayangSelesai: null }, { tayangSelesai: { gte: now } }],
+      AND: [{ OR: [{ unitOrganisasiId: null }, { unitOrganisasiId: { in: unitIds } }] }],
+    },
+    orderBy: { diterbitkanPada: "desc" },
+    take: 50,
+    include: { unitOrganisasi: { select: { nama: true } } },
+  });
+  return rows.map(toItem);
 }
 
-export type PeristiwaOrang = {
-	namaLengkap: string;
-	nomorKaryawan: string;
-	jenis: "ULTAH" | "ANNIV";
-	tanggal: string;
-	info: string;
+export type PersonEvent = {
+  fullName: string;
+  employeeNumber: string;
+  kind: "ULTAH" | "ANNIV";
+  date: string;
+  info: string;
 };
 
 /** Ulang tahun + anniversary kerja 7 hari ke depan (on-the-fly, tanpa model). */
-export async function getPeristiwaMingguIni(): Promise<PeristiwaOrang[]> {
-	const semua = await prisma.karyawan.findMany({
-		where: { status: { in: ["AKTIF", "PROBASI"] } },
-		select: { namaLengkap: true, nomorKaryawan: true, tanggalLahir: true, tanggalMasuk: true },
-		orderBy: { namaLengkap: "asc" },
-	});
-	const kini = new Date();
-	const hasil: PeristiwaOrang[] = [];
-	const dalam7Hari = (bulan: number, tanggal: number): Date | null => {
-		for (let i = 0; i < 7; i++) {
-			const d = new Date(kini.getFullYear(), kini.getMonth(), kini.getDate() + i);
-			if (d.getMonth() === bulan && d.getDate() === tanggal) return d;
-		}
-		return null;
-	};
-	for (const k of semua) {
-		if (k.tanggalLahir) {
-			const t = dalam7Hari(k.tanggalLahir.getMonth(), k.tanggalLahir.getDate());
-			if (t) {
-				hasil.push({
-					namaLengkap: k.namaLengkap,
-					nomorKaryawan: k.nomorKaryawan,
-					jenis: "ULTAH",
-					tanggal: t.toISOString().slice(0, 10),
-					info: "Berulang tahun",
-				});
-			}
-		}
-		if (k.tanggalMasuk) {
-			const t = dalam7Hari(k.tanggalMasuk.getMonth(), k.tanggalMasuk.getDate());
-			const tahunKe = kini.getFullYear() - k.tanggalMasuk.getFullYear();
-			if (t && tahunKe >= 1) {
-				hasil.push({
-					namaLengkap: k.namaLengkap,
-					nomorKaryawan: k.nomorKaryawan,
-					jenis: "ANNIV",
-					tanggal: t.toISOString().slice(0, 10),
-					info: `${tahunKe} tahun bergabung`,
-				});
-			}
-		}
-	}
-	return hasil.sort((a, b) => a.tanggal.localeCompare(b.tanggal)).slice(0, 50);
+export async function getThisWeekEvents(): Promise<PersonEvent[]> {
+  const employees = await prisma.karyawan.findMany({
+    where: { status: { in: ["AKTIF", "PROBASI"] } },
+    select: { namaLengkap: true, nomorKaryawan: true, tanggalLahir: true, tanggalMasuk: true },
+    orderBy: { namaLengkap: "asc" },
+  });
+  const now = new Date();
+  const events: PersonEvent[] = [];
+  const within7Days = (month: number, day: number): Date | null => {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      if (d.getMonth() === month && d.getDate() === day) return d;
+    }
+    return null;
+  };
+  for (const k of employees) {
+    if (k.tanggalLahir) {
+      const match = within7Days(k.tanggalLahir.getMonth(), k.tanggalLahir.getDate());
+      if (match) {
+        events.push({
+          fullName: k.namaLengkap,
+          employeeNumber: k.nomorKaryawan,
+          kind: "ULTAH",
+          date: match.toISOString().slice(0, 10),
+          info: "Berulang tahun",
+        });
+      }
+    }
+    if (k.tanggalMasuk) {
+      const match = within7Days(k.tanggalMasuk.getMonth(), k.tanggalMasuk.getDate());
+      const yearsOfService = now.getFullYear() - k.tanggalMasuk.getFullYear();
+      if (match && yearsOfService >= 1) {
+        events.push({
+          fullName: k.namaLengkap,
+          employeeNumber: k.nomorKaryawan,
+          kind: "ANNIV",
+          date: match.toISOString().slice(0, 10),
+          info: `${yearsOfService} tahun bergabung`,
+        });
+      }
+    }
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 50);
 }
 
 // ============================================================
 // Wrapper berizin (ADMIN_HR/SUPER_ADMIN) untuk UI.
 // ============================================================
 
-export async function buatPengumuman(
-	input: { judul: string; isi: string; unitOrganisasiId?: string; tayangSelesai?: string },
-	userId: string,
+export async function createAnnouncement(
+  input: { title: string; body: string; orgUnitId?: string; endsAt?: string },
+  userId: string,
 ) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return buatPengumumanInti(input, userId);
+  if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+  return createAnnouncementCore(input, userId);
 }
 
-export async function terbitkanPengumuman(id: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return terbitkanPengumumanInti(id, await actorId());
+export async function publishAnnouncement(id: string) {
+  if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+  return publishAnnouncementCore(id, await actorId());
 }
 
-export async function arsipkanPengumuman(id: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return arsipkanPengumumanInti(id, await actorId());
+export async function archiveAnnouncement(id: string) {
+  if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+  return archiveAnnouncementCore(id, await actorId());
 }
 
-export async function hapusPengumuman(id: string) {
-	if (!(await boleh())) return { success: false, message: "Anda tidak memiliki izin." };
-	return hapusPengumumanInti(id);
+export async function deleteAnnouncement(id: string) {
+  if (!(await allowed())) return { success: false, message: "Anda tidak memiliki izin." };
+  return deleteAnnouncementCore(id);
 }
 
-export async function getPengumumanHr() {
-	if (!(await boleh())) return [];
-	return getPengumumanHrInti();
+export async function listHrAnnouncements() {
+  if (!(await allowed())) return [];
+  return listHrAnnouncementsCore();
 }
 
 export async function getUnitOptions(): Promise<Array<{ value: string; label: string }>> {

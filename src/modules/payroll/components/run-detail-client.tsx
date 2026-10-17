@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import {
-	finalisasiRun,
-	hitungSalaryRun,
-	terbitkanRun,
+	finalizeRun,
+	calculateSalaryRun,
+	publishRun,
 	type RunDetailItem,
 	type SalaryRunItem,
 } from "../actions/payroll.actions";
@@ -37,17 +37,17 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 			header: "Karyawan",
 			render: (d) => (
 				<span>
-					{d.karyawanNama} <span className="text-xs text-slate-500">({d.nomorKaryawan})</span>
+					{d.employeeName} <span className="text-xs text-slate-500">({d.employeeNumber})</span>
 					<details className="mt-1 text-xs text-slate-500">
-						<summary className="cursor-pointer">Rincian</summary>
+						<summary className="cursor-pointer">lines</summary>
 						<ul className="mt-1 space-y-1">
-							{d.rincian.map((r) => (
-								<li key={r.kode} className="flex justify-between gap-4">
+							{d.lines.map((r) => (
+								<li key={r.code} className="flex justify-between gap-4">
 									<span>
-										{r.nama} {r.keterangan ? `(${r.keterangan})` : ""}
+										{r.name} {r.description ? `(${r.description})` : ""}
 									</span>
-									<span className={r.kelompok === "POTONGAN" || r.kelompok === "IURAN" ? "text-red-600" : r.kelompok === "BIAYA_PERUSAHAAN" ? "text-sky-700" : "text-emerald-700"}>
-										{rupiah.format(r.jumlah)}
+									<span className={r.group === "POTONGAN" || r.group === "IURAN" ? "text-red-600" : r.group === "BIAYA_PERUSAHAAN" ? "text-sky-700" : "text-emerald-700"}>
+										{rupiah.format(r.amount)}
 									</span>
 								</li>
 							))}
@@ -55,52 +55,52 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 					</details>
 				</span>
 			),
-			sortValue: (d) => d.karyawanNama,
-			searchValue: (d) => `${d.karyawanNama} ${d.nomorKaryawan}`,
+			sortValue: (d) => d.employeeName,
+			searchValue: (d) => `${d.employeeName} ${d.employeeNumber}`,
 		},
 		{
-			id: "gajiPokok",
+			id: "baseSalary",
 			header: "Pokok",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (d) => <span>{rupiah.format(Number(d.gajiPokok))}</span>,
-			sortValue: (d) => Number(d.gajiPokok),
+			render: (d) => <span>{rupiah.format(Number(d.baseSalary))}</span>,
+			sortValue: (d) => Number(d.baseSalary),
 			searchable: false,
 		},
 		{
-			id: "totalPendapatan",
+			id: "totalEarnings",
 			header: "Pendapatan",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (d) => <span>{rupiah.format(Number(d.totalPendapatan))}</span>,
-			sortValue: (d) => Number(d.totalPendapatan),
+			render: (d) => <span>{rupiah.format(Number(d.totalEarnings))}</span>,
+			sortValue: (d) => Number(d.totalEarnings),
 			searchable: false,
 		},
 		{
-			id: "totalPotongan",
+			id: "totalDeductions",
 			header: "Potongan",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (d) => <span>{rupiah.format(Number(d.totalPotongan))}</span>,
-			sortValue: (d) => Number(d.totalPotongan),
+			render: (d) => <span>{rupiah.format(Number(d.totalDeductions))}</span>,
+			sortValue: (d) => Number(d.totalDeductions),
 			searchable: false,
 		},
 		{
-			id: "gajiBersih",
+			id: "netPay",
 			header: "Bersih",
 			headerClassName: "text-right",
 			cellClassName: "text-right font-semibold",
-			render: (d) => <span>{rupiah.format(Number(d.gajiBersih))}</span>,
-			sortValue: (d) => Number(d.gajiBersih),
+			render: (d) => <span>{rupiah.format(Number(d.netPay))}</span>,
+			sortValue: (d) => Number(d.netPay),
 			searchable: false,
 		},
 		{
-			id: "totalBiayaPerusahaan",
+			id: "totalCompanyCost",
 			header: "Biaya PT",
 			headerClassName: "text-right",
 			cellClassName: "text-right text-slate-500",
-			render: (d) => <span>{rupiah.format(Number(d.totalBiayaPerusahaan))}</span>,
-			sortValue: (d) => Number(d.totalBiayaPerusahaan),
+			render: (d) => <span>{rupiah.format(Number(d.totalCompanyCost))}</span>,
+			sortValue: (d) => Number(d.totalCompanyCost),
 			searchable: false,
 		},
 		{
@@ -112,7 +112,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 			searchable: false,
 			render: (d) =>
 				run.status === "DITERBITKAN" ? (
-					<Link href={`/payroll/payslip/SLIP-${run.periode}-${d.karyawanId.slice(-6).toUpperCase()}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+					<Link href={`/payroll/payslip/SLIP-${run.periode}-${d.employeeId.slice(-6).toUpperCase()}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
 						Slip
 					</Link>
 				) : (
@@ -128,21 +128,21 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 					<div>
 						<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Periode {run.periode}</h2>
 						<p className="mt-1 text-sm text-slate-500">
-							{run.mulai} – {run.selesai} • {run.status.replaceAll("_", " ")} • {run.jumlahKaryawan} karyawan • Total {rupiah.format(Number(run.totalBersih))}
+							{run.startDate} – {run.endDate} • {run.status.replaceAll("_", " ")} • {run.employeeCount} karyawan • Total {rupiah.format(Number(run.totalNet))}
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-2">
 						{["DRAF", "DIHITUNG"].includes(run.status) ? (
-							<button type="button" onClick={() => runAction(hitungSalaryRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
+							<button type="button" onClick={() => runAction(calculateSalaryRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
 								Hitung
 							</button>
 						) : null}						{run.status === "DIHITUNG" ? (
-							<button type="button" onClick={() => runAction(finalisasiRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-amber-600 px-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-70">
+							<button type="button" onClick={() => runAction(finalizeRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-amber-600 px-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-70">
 								Finalisasi (Kunci)
 							</button>
 						) : null}
 						{run.status === "FINAL" ? (
-							<button type="button" onClick={() => runAction(terbitkanRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70">
+							<button type="button" onClick={() => runAction(publishRun(run.id))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70">
 								Terbitkan Payslip
 							</button>
 						) : null}

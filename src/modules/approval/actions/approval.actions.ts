@@ -2,29 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
-import { catatAudit } from "@/src/modules/audit/lib/audit";
-import { potongSaldo } from "@/src/modules/leave/lib/balance";
-import { bukaClearance } from "@/src/modules/employee/actions/offboarding.actions";
-import { terapkanUpdateData } from "@/src/modules/employee/lib/updatedata";
-import { eksekusiTukar } from "@/src/modules/roster/actions/tukar.actions";
-import { terapkanKoreksi } from "@/src/modules/attendance/actions/koreksi.actions";
-import { notifikasiKeputusanPengajuan } from "../lib/approval-notify";
+import { recordAudit } from "@/src/modules/audit/lib/audit";
+import { deductBalance } from "@/src/modules/leave/lib/balance";
+import { openClearance } from "@/src/modules/employee/actions/offboarding.actions";
+import { applyDataUpdate } from "@/src/modules/employee/lib/updatedata";
+import { executeSwap } from "@/src/modules/roster/actions/tukar.actions";
+import { applyCorrection } from "@/src/modules/attendance/actions/koreksi.actions";
+import { notifyRequestDecision } from "../lib/approval-notify";
 import {
-	getAntrianApproval,
-	prosesApproval,
-	type AntrianItem,
-	type ReferensiType,
+  getApprovalQueue,
+  processApproval,
+  type QueueItem,
+  type ReferensiType,
 } from "../lib/approval-engine";
 
 export type ApprovalActionResult = {
-	success: boolean;
-	message: string;
-	/** Terisi bila keputusan final (untuk trigger notifikasi push M4). */
-	selesai?: "DISETUJUI" | "DITOLAK";
+  success: boolean;
+  message: string;
+  /** Terisi bila keputusan final (untuk trigger notifikasi push M4). */
+  outcome?: "DISETUJUI" | "DITOLAK";
 };
 
 /** Revalidate best-effort: di luar konteks request (E2E/CLI) Next melempar — abaikan. */
-function segarkan(path: string): void {
+function revalidateBestEffort(path: string): void {
 	try {
 		revalidatePath(path);
 	} catch {
@@ -32,142 +32,142 @@ function segarkan(path: string): void {
 	}
 }
 
-async function resolveApprover(userId: string): Promise<{ role: string; karyawanId: string | null }> {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { role: true },
-	});
-	const karyawan = await prisma.karyawan.findFirst({
-		where: { userId },
-		select: { id: true },
-	});
-	return { role: user?.role ?? "EMPLOYEE", karyawanId: karyawan?.id ?? null };
+async function resolveApprover(userId: string): Promise<{ role: string; employeeId: string | null }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const employee = await prisma.karyawan.findFirst({
+    where: { userId },
+    select: { id: true },
+  });
+  return { role: user?.role ?? "EMPLOYEE", employeeId: employee?.id ?? null };
 }
 
 function isHr(role: string): boolean {
-	return role === "SUPER_ADMIN" || role === "ADMIN_HR";
+  return role === "SUPER_ADMIN" || role === "ADMIN_HR";
 }
 
-export async function getAntrianSaya(userId: string): Promise<AntrianItem[]> {
-	const approver = await resolveApprover(userId);
-	return getAntrianApproval(approver.karyawanId, isHr(approver.role));
+export async function getMyQueue(userId: string): Promise<QueueItem[]> {
+  const approver = await resolveApprover(userId);
+  return getApprovalQueue(approver.employeeId, isHr(approver.role));
 }
 
-export async function prosesPengajuanAction(
-	userId: string,
-	type: ReferensiType,
-	id: string,
-	keputusan: "SETUJU" | "TOLAK",
-	catatan?: string,
+export async function processSubmissionAction(
+  userId: string,
+  type: ReferensiType,
+  id: string,
+  decision: "SETUJU" | "TOLAK",
+  note?: string,
 ): Promise<ApprovalActionResult> {
-	const approver = await resolveApprover(userId);
+  const approver = await resolveApprover(userId);
 
-	const onFinalApprove =
-		type === "CUTI"
-			? async () => {
-					const pengajuan = await prisma.pengajuanKetidakhadiran.findUnique({
-						where: { id },
-						include: { jenisKetidakhadiran: { select: { menggunakanSaldo: true } } },
-					});
-					if (!pengajuan) return { success: false, message: "Pengajuan tidak ditemukan." };
-					if (!pengajuan.jenisKetidakhadiran.menggunakanSaldo) {
-						return { success: true, message: "OK" };
-					}
-					const tahun = new Date(pengajuan.tanggalMulai).getUTCFullYear();
-					return potongSaldo(
-						pengajuan.karyawanId,
-						pengajuan.jenisKetidakhadiranId,
-						tahun,
-						Number(pengajuan.jumlahHari),
+  const onFinalApproval =
+    type === "CUTI"
+      ? async () => {
+          const request = await prisma.pengajuanKetidakhadiran.findUnique({
+            where: { id },
+            include: { jenisKetidakhadiran: { select: { menggunakanSaldo: true } } },
+          });
+          if (!request) return { success: false, message: "Pengajuan tidak ditemukan." };
+          if (!request.jenisKetidakhadiran.menggunakanSaldo) {
+            return { success: true, message: "OK" };
+          }
+          const year = new Date(request.tanggalMulai).getUTCFullYear();
+          return deductBalance(
+            request.karyawanId,
+            request.jenisKetidakhadiranId,
+            year,
+						Number(request.jumlahHari),
 						id,
-						`Pemakaian ${pengajuan.nomorPengajuan}`,
+						`Pemakaian ${request.nomorPengajuan}`,
 					);
 				}
-			: type === "TUKAR_SHIFT"
-				? async () => eksekusiTukar(id)
-			: type === "KOREKSI"
-				? async () => terapkanKoreksi(id)
-				: type === "UPDATE_DATA"
-					? async () => terapkanUpdateData(id)
-					: undefined;
+            : type === "TUKAR_SHIFT"
+              ? async () => executeSwap(id)
+            : type === "KOREKSI"
+              ? async () => applyCorrection(id)
+              : type === "UPDATE_DATA"
+                ? async () => applyDataUpdate(id)
+                : undefined;
 
-	const result = await prosesApproval({
-		type,
-		id,
-		approverUserId: userId,
-		approverRole: approver.role,
-		approverKaryawanId: approver.karyawanId,
-		keputusan,
-		catatan,
-		onFinalApprove,
-	});
+  const result = await processApproval({
+    type,
+    id,
+    approverUserId: userId,
+    approverRole: approver.role,
+    approverEmployeeId: approver.employeeId,
+    decision,
+    note,
+    onFinalApproval,
+  });
 
-	segarkan("/approval");
-	segarkan("/leave");
-	segarkan("/overtime");
-	segarkan("/duty");
-	segarkan("/employees/mutasi");
-	segarkan("/employees/offboarding");
-	segarkan("/employees/probation");
-	segarkan("/employees/update-data");
-	segarkan("/account/update-data");
-	segarkan("/account/tukar");
-	segarkan("/roster");
+  revalidateBestEffort("/approval");
+  revalidateBestEffort("/leave");
+  revalidateBestEffort("/overtime");
+  revalidateBestEffort("/duty");
+  revalidateBestEffort("/employees/mutasi");
+  revalidateBestEffort("/employees/offboarding");
+  revalidateBestEffort("/employees/probation");
+  revalidateBestEffort("/employees/update-data");
+  revalidateBestEffort("/account/update-data");
+  revalidateBestEffort("/account/tukar");
+  revalidateBestEffort("/roster");
 
-	// PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
-	if (result.success && result.selesai) {
-		await notifikasiKeputusanPengajuan(type, id, result.selesai);
-	}
+  // PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
+  if (result.success && result.outcome) {
+    await notifyRequestDecision(type, id, result.outcome);
+  }
 
-	// Offboarding disetujui final → buka fase clearance.
-	if (result.success && result.selesai === "DISETUJUI" && type === "RESIGN") {
-		await bukaClearance(id);
-		segarkan("/employees/offboarding");
-	}
+  // Offboarding disetujui final → buka fase clearance.
+  if (result.success && result.outcome === "DISETUJUI" && type === "RESIGN") {
+    await openClearance(id);
+    revalidateBestEffort("/employees/offboarding");
+  }
 
-	// P4-2: penolakan update-data teraudit (persetujuan tercatat di DITERAPKAN).
-	if (result.success && result.selesai === "DITOLAK" && type === "UPDATE_DATA") {
-		await prisma.updateDataRequest.update({
-			where: { id },
-			data: { diputuskanOlehId: userId, diputuskanPada: new Date(), catatanPutusan: catatan ?? null },
-		});
-		await catatAudit({
-			actorUserId: userId,
-			aksi: "UPDATE_DATA.DITOLAK",
-			entityType: "UpdateDataRequest",
-			entityId: id,
-			sebelum: { status: "MENUNGGU_APPROVAL" },
-			sesudah: { status: "DITOLAK" },
-			alasan: catatan ?? null,
-		});
-	}
+  // P4-2: penolakan update-data teraudit (persetujuan tercatat di DITERAPKAN).
+  if (result.success && result.outcome === "DITOLAK" && type === "UPDATE_DATA") {
+    await prisma.updateDataRequest.update({
+      where: { id },
+      data: { diputuskanOlehId: userId, diputuskanPada: new Date(), catatanPutusan: note ?? null },
+    });
+    await recordAudit({
+      actorUserId: userId,
+      aksi: "UPDATE_DATA.DITOLAK",
+      entityType: "UpdateDataRequest",
+      entityId: id,
+      sebelum: { status: "MENUNGGU_APPROVAL" },
+      sesudah: { status: "DITOLAK" },
+      alasan: note ?? null,
+    });
+  }
 
-	return result;
+  return result;
 }
 
-export type RiwayatApprovalItem = {
-	id: string;
-	type: string;
-	referensiId: string;
-	tahap: number;
-	status: string;
-	catatan: string | null;
-	diprosesPada: string | null;
+export type ApprovalHistoryItem = {
+  id: string;
+  type: string;
+  referenceId: string;
+  stage: number;
+  status: string;
+  note: string | null;
+  processedAt: string | null;
 };
 
-export async function getRiwayatApprovalSaya(userId: string): Promise<RiwayatApprovalItem[]> {
-	const rows = await prisma.approvalStep.findMany({
-		where: { diprosesOlehId: userId },
-		orderBy: { diprosesPada: "desc" },
-		take: 50,
-	});
-	return rows.map((r) => ({
-		id: r.id,
-		type: r.referensiType,
-		referensiId: r.referensiId,
-		tahap: r.tahap,
-		status: r.status,
-		catatan: r.catatan,
-		diprosesPada: r.diprosesPada?.toISOString() ?? null,
-	}));
+export async function getMyApprovalHistory(userId: string): Promise<ApprovalHistoryItem[]> {
+  const rows = await prisma.approvalStep.findMany({
+    where: { diprosesOlehId: userId },
+    orderBy: { diprosesPada: "desc" },
+    take: 50,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.referensiType,
+    referenceId: r.referensiId,
+    stage: r.tahap,
+    status: r.status,
+    note: r.catatan,
+    processedAt: r.diprosesPada?.toISOString() ?? null,
+  }));
 }

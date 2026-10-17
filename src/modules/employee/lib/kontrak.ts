@@ -1,22 +1,22 @@
 /** Kontrak batch + e-sign: validasi murni. */
 
-export function validasiPerpanjangan(input: {
-  tanggalSelesaiLama: Date | null;
-  tanggalSelesaiBaru: string;
+export function validateExtension(input: {
+  oldEndDate: Date | null;
+  newEndDate: string;
 }): string | null {
-  if (!input.tanggalSelesaiBaru.trim()) return "Tanggal selesai baru wajib diisi.";
-  const baru = new Date(input.tanggalSelesaiBaru);
-  if (Number.isNaN(baru.getTime())) return "Tanggal selesai baru tidak valid.";
-  if (input.tanggalSelesaiLama && baru.getTime() <= input.tanggalSelesaiLama.getTime()) {
+  if (!input.newEndDate.trim()) return "Tanggal selesai baru wajib diisi.";
+  const next = new Date(input.newEndDate);
+  if (Number.isNaN(next.getTime())) return "Tanggal selesai baru tidak valid.";
+  if (input.oldEndDate && next.getTime() <= input.oldEndDate.getTime()) {
     return "Tanggal baru harus sesudah tanggal selesai kontrak lama.";
   }
   return null;
 }
 
 /** Awal kontrak lanjutan = sehari setelah selesai lama (atau hari ini bila tak ada). */
-export function awalKontrakLanjutan(tanggalSelesaiLama: Date | null, kini = new Date()): Date {
-  if (!tanggalSelesaiLama) {
-    return new Date(kini.getFullYear(), kini.getMonth(), kini.getDate());
+export function nextContractStart(oldEndDate: Date | null, now = new Date()): Date {
+  if (!oldEndDate) {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
-  return new Date(tanggalSelesaiLama.getTime() + 86_400_000);
+  return new Date(oldEndDate.getTime() + 86_400_000);
 }

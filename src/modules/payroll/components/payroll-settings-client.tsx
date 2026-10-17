@@ -7,20 +7,20 @@ import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import { savePayrollSettings, type PayrollSettingItem } from "../actions/payroll.actions";
 import {
-  KUNCI_PEMBAGI_ALPA,
-  KUNCI_TELAT_MAX,
-  KUNCI_TELAT_PER_MENIT,
+  ALPHA_DIVISOR_KEY,
+  LATE_MONTHLY_CAP_KEY,
+  LATE_PER_MINUTE_KEY,
 } from "../lib/potongan";
 import {
-  KUNCI_LEMBUR_DIVISOR,
-  KUNCI_LEMBUR_MAX_JAM,
-  KUNCI_LEMBUR_TIERED,
+  OVERTIME_DIVISOR_KEY,
+  OVERTIME_MAX_HOURS_KEY,
+  OVERTIME_TIERED_KEY,
 } from "../lib/lembur";
 import {
-  KUNCI_KASBON_MAX_NOMINAL,
-  KUNCI_KASBON_MAX_TENOR,
+  SALARY_ADVANCE_MAX_AMOUNT_KEY,
+  SALARY_ADVANCE_MAX_TENOR_KEY,
 } from "../lib/kasbon";
-import { KUNCI_SKORSING_TANPA_UPAH } from "@/src/modules/employee/lib/disiplin";
+import { UNPAID_SUSPENSION_KEY } from "@/src/modules/employee/lib/disiplin";
 
 const SKORSING_OPTIONS = [
   { value: "0", label: "Tetap dibayar" },
@@ -35,35 +35,35 @@ const PEMBAGI_OPTIONS = [
 
 const TIERED_OPTIONS = [
   { value: "1", label: "Tiered Kepmen 102/2004 (1,5x + 2x dst)" },
-  { value: "0", label: "Flat (nilai komponen × jam)" },
+  { value: "0", label: "Flat (score komponen × jam)" },
 ];
 
 export default function PayrollSettingsClient({ items }: { items: PayrollSettingItem[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const byKunci = Object.fromEntries(items.map((i) => [i.kunci, i.nilai]));
-  const [pembagi, setPembagi] = useState(byKunci[KUNCI_PEMBAGI_ALPA] ?? "26");
-  const [tarif, setTarif] = useState(byKunci[KUNCI_TELAT_PER_MENIT] ?? "0");
-  const [max, setMax] = useState(byKunci[KUNCI_TELAT_MAX] ?? "");
-  const [tiered, setTiered] = useState(byKunci[KUNCI_LEMBUR_TIERED] ?? "1");
-  const [divisor, setDivisor] = useState(byKunci[KUNCI_LEMBUR_DIVISOR] ?? "173");
-  const [maxJam, setMaxJam] = useState(byKunci[KUNCI_LEMBUR_MAX_JAM] ?? "");
-  const [plafon, setPlafon] = useState(byKunci[KUNCI_KASBON_MAX_NOMINAL] ?? "");
-  const [maxTenor, setMaxTenor] = useState(byKunci[KUNCI_KASBON_MAX_TENOR] ?? "24");
-  const [skorsing, setSkorsing] = useState(byKunci[KUNCI_SKORSING_TANPA_UPAH] ?? "0");
+  const byKunci = Object.fromEntries(items.map((i) => [i.key, i.value]));
+  const [pembagi, setPembagi] = useState(byKunci[ALPHA_DIVISOR_KEY] ?? "26");
+  const [tarif, setTarif] = useState(byKunci[LATE_PER_MINUTE_KEY] ?? "0");
+  const [max, setMax] = useState(byKunci[LATE_MONTHLY_CAP_KEY] ?? "");
+  const [tiered, setTiered] = useState(byKunci[OVERTIME_TIERED_KEY] ?? "1");
+  const [divisor, setDivisor] = useState(byKunci[OVERTIME_DIVISOR_KEY] ?? "173");
+  const [maxJam, setMaxJam] = useState(byKunci[OVERTIME_MAX_HOURS_KEY] ?? "");
+  const [plafon, setPlafon] = useState(byKunci[SALARY_ADVANCE_MAX_AMOUNT_KEY] ?? "");
+  const [maxTenor, setMaxTenor] = useState(byKunci[SALARY_ADVANCE_MAX_TENOR_KEY] ?? "24");
+  const [skorsing, setSkorsing] = useState(byKunci[UNPAID_SUSPENSION_KEY] ?? "0");
 
   function handleSave() {
     startTransition(async () => {
       const result = await savePayrollSettings({
-        pembagiAlpa: pembagi,
-        tarifTelatPerMenit: tarif || "0",
-        maxTelatPerBulan: max,
-        lemburTiered: tiered,
-        lemburDivisor: divisor || "173",
-        lemburMaxJam: maxJam,
-        kasbonMaxNominal: plafon,
-        kasbonMaxTenor: maxTenor || "24",
-        skorsingTanpaUpah: skorsing,
+        alphaDivisor: pembagi,
+        lateRatePerMinute: tarif || "0",
+        lateMonthlyCap: max,
+        overtimeTiered: tiered,
+        overtimeDivisor: divisor || "173",
+        overtimeMaxHours: maxJam,
+        advanceMaxAmount: plafon,
+        advanceMaxTenor: maxTenor || "24",
+        unpaidSuspension: skorsing,
       });
       if (!result.success) {
         toast.error(result.message);
@@ -181,13 +181,13 @@ export default function PayrollSettingsClient({ items }: { items: PayrollSetting
       </div>
       <div className="mt-4 space-y-1 text-xs text-slate-500">
         {items.map((i) => (
-          <p key={i.kunci}>
-            <span className="font-medium">{i.kunci}</span> = {i.nilai === "" ? "(kosong)" : i.nilai} • {i.deskripsi}
+          <p key={i.key}>
+            <span className="font-medium">{i.key}</span> = {i.value === "" ? "(kosong)" : i.value} • {i.description}
           </p>
         ))}
         <p>
           Komponen terkait: <span className="font-medium">POTONGAN_ALPA</span> (tugaskan per karyawan agar
-          dipotong) dan <span className="font-medium">POTONGAN_TELAT</span> (sama; nilai komponen diabaikan,
+          dipotong) dan <span className="font-medium">POTONGAN_TELAT</span> (sama; value komponen diabaikan,
           tarif dari aturan ini).
         </p>
       </div>

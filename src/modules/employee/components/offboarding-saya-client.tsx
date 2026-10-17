@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { ajukanOffboarding, batalkanOffboarding, buatOffboarding } from "@/src/modules/employee/actions/offboarding.actions";
+import { submitOffboarding, cancelOffboarding, createOffboarding } from "@/src/modules/employee/actions/offboarding.actions";
 
-type OffboardingSayaRow = { id: string; tanggalRencana: string; status: string; nomorPaklaring: string | null };
+type OffboardingSayaRow = { id: string; plannedDate: string; status: string; paklaringNumber: string | null };
 
 export default function OffboardingSayaClient({
   userId,
-  karyawanId,
+  employeeId,
   items,
 }: {
   userId: string;
-  karyawanId: string;
+  employeeId: string;
   items: OffboardingSayaRow[];
 }) {
   const router = useRouter();
@@ -38,7 +38,7 @@ export default function OffboardingSayaClient({
       return;
     }
     startTransition(async () => {
-      const buat = await buatOffboarding({ karyawanId, tanggalRencana: rencana, alasan }, userId);
+      const buat = await createOffboarding({ employeeId, plannedDate: rencana, reason: alasan }, userId);
       if (!buat.success) {
         toast.error(buat.message);
         return;
@@ -53,9 +53,9 @@ export default function OffboardingSayaClient({
     {
       id: "rencana",
       header: "Rencana",
-      render: (o) => <span className="font-medium">{o.tanggalRencana}</span>,
-      sortValue: (o) => o.tanggalRencana,
-      searchValue: (o) => o.tanggalRencana,
+      render: (o) => <span className="font-medium">{o.plannedDate}</span>,
+      sortValue: (o) => o.plannedDate,
+      searchValue: (o) => o.plannedDate,
     },
     {
       id: "status",
@@ -67,9 +67,9 @@ export default function OffboardingSayaClient({
     {
       id: "paklaring",
       header: "Paklaring",
-      render: (o) => <span>{o.nomorPaklaring ?? "-"}</span>,
-      sortValue: (o) => o.nomorPaklaring ?? "-",
-      searchValue: (o) => o.nomorPaklaring ?? "",
+      render: (o) => <span>{o.paklaringNumber ?? "-"}</span>,
+      sortValue: (o) => o.paklaringNumber ?? "-",
+      searchValue: (o) => o.paklaringNumber ?? "",
     },
     {
       id: "aksi",
@@ -81,12 +81,12 @@ export default function OffboardingSayaClient({
       render: (o) => (
         <div className="inline-flex gap-2">
           {o.status === "DIAJUKAN" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitOffboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {["DIAJUKAN", "MENUNGGU_APPROVAL"].includes(o.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelOffboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batalkan
             </button>
           ) : (

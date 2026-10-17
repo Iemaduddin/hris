@@ -3,58 +3,58 @@
  * transfer: NO;BANK;NOREK;ATAS_NAMA;NOMINAL;BERITA.
  */
 
-export type BarisDisburse = {
+export type DisbursementRow = {
   bank: string;
-  norek: string;
-  atasNama: string;
-  nominal: number;
-  berita: string;
+  accountNumber: string;
+  accountName: string;
+  amount: number;
+  remark: string;
 };
 
-function selCsv(value: string): string {
+function cellCsv(value: string): string {
   if (/[;"\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
 }
 
-export function buildDisburseCsv(baris: BarisDisburse[]): string {
+export function buildDisbursementCsv(rows: DisbursementRow[]): string {
   const head = "NO;BANK;NOREK;ATAS_NAMA;NOMINAL;BERITA";
-  const lines = baris.map((b, i) =>
+  const lines = rows.map((b, i) =>
     [
       String(i + 1),
-      selCsv(b.bank.trim()),
-      selCsv(b.norek.trim()),
-      selCsv(b.atasNama.trim()),
-      String(Math.max(0, Math.round(b.nominal))),
-      selCsv(b.berita.trim()),
+      cellCsv(b.bank.trim()),
+      cellCsv(b.accountNumber.trim()),
+      cellCsv(b.accountName.trim()),
+      String(Math.max(0, Math.round(b.amount))),
+      cellCsv(b.remark.trim()),
     ].join(";"),
   );
   return [head, ...lines].join("\n");
 }
 
-export type KandidatDisburse = {
-  nama: string;
+export type DisbursementCandidate = {
+  name: string;
   bank: string | null;
-  norek: string | null;
-  atasNama: string | null;
-  nominal: number;
+  accountNumber: string | null;
+  accountName: string | null;
+  amount: number;
 };
 
 /** Pisahkan yang siap transfer vs yang data banknya belum lengkap. */
-export function bagiDisburse(
-  kandidat: KandidatDisburse[],
-  berita: string,
-): { baris: BarisDisburse[]; belumLengkap: string[]; total: number } {
-  const baris: BarisDisburse[] = [];
-  const belumLengkap: string[] = [];
+export function splitDisbursement(
+  candidates: DisbursementCandidate[],
+  remark: string,
+): { rows: DisbursementRow[]; incomplete: string[]; total: number } {
+  const rows: DisbursementRow[] = [];
+  const incomplete: string[] = [];
   let total = 0;
-  for (const k of kandidat) {
-    if (!k.bank?.trim() || !k.norek?.trim() || !k.atasNama?.trim()) {
-      belumLengkap.push(k.nama);
+  for (const k of candidates) {
+    if (!k.bank?.trim() || !k.accountNumber?.trim() || !k.accountName?.trim()) {
+      incomplete.push(k.name);
       continue;
     }
-    if (k.nominal <= 0) continue;
-    baris.push({ bank: k.bank, norek: k.norek, atasNama: k.atasNama, nominal: k.nominal, berita });
-    total += Math.round(k.nominal);
+    if (k.amount <= 0) continue;
+    rows.push({ bank: k.bank, accountNumber: k.accountNumber, accountName: k.accountName, amount: k.amount, remark });
+    total += Math.round(k.amount);
   }
-  return { baris, belumLengkap, total };
+  return { rows, incomplete, total };
 }

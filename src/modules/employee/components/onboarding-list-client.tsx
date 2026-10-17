@@ -7,13 +7,13 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  batalkanOnboarding,
-  buatOnboarding,
-  hapusOnboarding,
-  hapusTemplate,
+  cancelOnboarding,
+  createOnboarding,
+  deleteOnboarding,
+  deleteTemplate,
   saveTemplate,
-  seedTemplateBawaan,
-  tutupOnboarding,
+  seedDefaultTemplates,
+  closeOnboarding,
   type OnboardingItem,
   type TemplateItem,
 } from "../actions/onboarding.actions";
@@ -36,7 +36,7 @@ const JENIS_KONTRAK_OPTIONS = [
   { value: "OUTSOURCING", label: "Outsourcing" },
 ];
 
-type BarisItem = { judul: string; kategori: string; wajib: boolean };
+type BarisItem = { title: string; category: string; required: boolean };
 
 export default function OnboardingListClient({
   userId,
@@ -48,20 +48,20 @@ export default function OnboardingListClient({
   items: OnboardingItem[];
   templates: TemplateItem[];
   options: {
-    karyawan: Array<{ value: string; label: string }>;
+    employees: Array<{ value: string; label: string }>;
     templates: Array<{ value: string; label: string }>;
   };
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [karyawanId, setKaryawanId] = useState("");
+  const [employeeId, setKaryawanId] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [target, setTarget] = useState("");
 
   const [tNama, setTNama] = useState("");
   const [tJenis, setTJenis] = useState("");
-  const [tRows, setTRows] = useState<BarisItem[]>([{ judul: "", kategori: "DOKUMEN", wajib: true }]);
+  const [tRows, setTRows] = useState<BarisItem[]>([{ title: "", category: "DOKUMEN", required: true }]);
 
   function refresh(ok: boolean, message: string) {
     if (!ok) toast.error(message);
@@ -77,45 +77,45 @@ export default function OnboardingListClient({
   }
 
   function handleBuat() {
-    if (!karyawanId || !templateId) {
+    if (!employeeId || !templateId) {
       toast.error("Karyawan dan template wajib dipilih.");
       return;
     }
-    runAction(buatOnboarding({ karyawanId, templateId, targetSelesai: target }, userId));
+    runAction(createOnboarding({ employeeId, templateId, targetDate: target }, userId));
   }
 
   function handleHapusTemplate(id: string) {
     if (!confirm("Hapus template ini?")) return;
-    runAction(hapusTemplate(id));
+    runAction(deleteTemplate(id));
   }
 
   function handleHapus(id: string) {
     if (!confirm("Hapus onboarding ini?")) return;
-    runAction(hapusOnboarding(id, userId));
+    runAction(deleteOnboarding(id, userId));
   }
 
   const kolomTemplate: DataTableColumn<TemplateItem>[] = [
     {
       id: "nama",
       header: "Nama",
-      render: (t) => <span className="font-medium">{t.templateNama}</span>,
-      sortValue: (t) => t.templateNama,
-      searchValue: (t) => t.templateNama,
+      render: (t) => <span className="font-medium">{t.templateName}</span>,
+      sortValue: (t) => t.templateName,
+      searchValue: (t) => t.templateName,
     },
     {
       id: "kontrak",
       header: "Kontrak",
-      render: (t) => <span>{t.jenisKontrak ?? "Umum"}</span>,
-      sortValue: (t) => t.jenisKontrak ?? "Umum",
-      searchValue: (t) => t.jenisKontrak ?? "Umum",
+      render: (t) => <span>{t.contractType ?? "Umum"}</span>,
+      sortValue: (t) => t.contractType ?? "Umum",
+      searchValue: (t) => t.contractType ?? "Umum",
     },
     {
       id: "jumlah",
       header: "Item",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (t) => <span>{t.jumlahItem}</span>,
-      sortValue: (t) => t.jumlahItem,
+      render: (t) => <span>{t.itemCount}</span>,
+      sortValue: (t) => t.itemCount,
       searchable: false,
     },
     {
@@ -139,21 +139,21 @@ export default function OnboardingListClient({
   ];
 
   const kolomOnboarding: DataTableColumn<OnboardingItem>[] = [
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
       id: "template",
       header: "Template",
-      render: (o) => <span>{o.templateNama ?? "-"}</span>,
-      sortValue: (o) => o.templateNama ?? "-",
-      searchValue: (o) => o.templateNama ?? "",
+      render: (o) => <span>{o.templateName ?? "-"}</span>,
+      sortValue: (o) => o.templateName ?? "-",
+      searchValue: (o) => o.templateName ?? "",
     },
     {
       id: "progres",
       header: "Progres",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (o) => <span>{o.persen}% ({o.wajibSelesai} wajib)</span>,
-      sortValue: (o) => o.persen,
+      render: (o) => <span>{o.percent}% ({o.requiredDone} wajib)</span>,
+      sortValue: (o) => o.percent,
       searchable: false,
     },
     {
@@ -177,10 +177,10 @@ export default function OnboardingListClient({
           </Link>
           {o.status === "BERJALAN" ? (
             <>
-              <button type="button" disabled={isPending} onClick={() => runAction(tutupOnboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              <button type="button" disabled={isPending} onClick={() => runAction(closeOnboarding(o.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
                 Tutup
               </button>
-              <button type="button" disabled={isPending} onClick={() => runAction(batalkanOnboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              <button type="button" disabled={isPending} onClick={() => runAction(cancelOnboarding(o.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
                 Batal
               </button>
             </>
@@ -198,10 +198,10 @@ export default function OnboardingListClient({
   function handleSimpanTemplate() {
     runAction(
       saveTemplate({
-        nama: tNama,
-        jenisKontrak: tJenis,
+        name: tNama,
+        contractType: tJenis,
         isActive: true,
-        items: tRows.map((r) => ({ judul: r.judul, deskripsi: "", kategori: r.kategori, wajib: r.wajib })),
+        items: tRows.map((r) => ({ title: r.title, description: "", category: r.category, required: r.required })),
       }),
     );
   }
@@ -213,7 +213,7 @@ export default function OnboardingListClient({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Template Checklist</h2>
           <button
             type="button"
-            onClick={() => runAction(seedTemplateBawaan())}
+            onClick={() => runAction(seedDefaultTemplates())}
             disabled={isPending}
             className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
           >
@@ -236,10 +236,10 @@ export default function OnboardingListClient({
         </div>
         {tRows.map((r, i) => (
           <div key={i} className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
-            <FloatingInput name={`judul-${i}`} label={`Item ${i + 1}`} value={r.judul} onChange={(e) => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, judul: e.currentTarget.value } : x)))} />
-            <FloatingSelect name={`kat-${i}`} label="Kategori" value={r.kategori} onValueChange={(v) => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, kategori: v } : x)))} options={KATEGORI_OPTIONS} searchable={false} />
+            <FloatingInput name={`title-${i}`} label={`Item ${i + 1}`} value={r.title} onChange={(e) => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, title: e.currentTarget.value } : x)))} />
+            <FloatingSelect name={`kat-${i}`} label="Kategori" value={r.category} onValueChange={(v) => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, category: v } : x)))} options={KATEGORI_OPTIONS} searchable={false} />
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={r.wajib} onChange={() => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, wajib: !x.wajib } : x)))} className="h-4 w-4" />
+              <input type="checkbox" checked={r.required} onChange={() => setTRows((prev) => prev.map((x, j) => (j === i ? { ...x, required: !x.required } : x)))} className="h-4 w-4" />
               Wajib
             </label>
             <div className="flex items-end">
@@ -255,7 +255,7 @@ export default function OnboardingListClient({
           </div>
         ))}
         <div className="mt-3 flex justify-between">
-          <button type="button" onClick={() => setTRows((prev) => [...prev, { judul: "", kategori: "LAINNYA", wajib: true }])} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+          <button type="button" onClick={() => setTRows((prev) => [...prev, { title: "", category: "LAINNYA", required: true }])} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
             + Baris
           </button>
           <button type="button" onClick={handleSimpanTemplate} disabled={isPending} className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
@@ -267,7 +267,7 @@ export default function OnboardingListClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Mulai Onboarding</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingSelect name="karyawan" label="Karyawan" value={karyawanId} onValueChange={setKaryawanId} options={options.karyawan} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="karyawan" label="Karyawan" value={employeeId} onValueChange={setKaryawanId} options={options.employees} placeholder="Pilih karyawan" searchable />
           <FloatingSelect name="template" label="Template" value={templateId} onValueChange={setTemplateId} options={options.templates} placeholder="Pilih template" searchable />
           <FloatingInput name="target" label="Target Selesai (opsional)" type="date" value={target} onChange={(e) => setTarget(e.currentTarget.value)} />
         </div>

@@ -7,10 +7,10 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanMutasi,
-  batalkanMutasi,
-  buatMutasi,
-  hapusMutasi,
+  submitMutasi,
+  cancelMutasi,
+  createMutasi,
+  deleteMutasi,
   type MutasiItem,
   type MutasiOption,
 } from "../actions/mutasi.actions";
@@ -67,16 +67,16 @@ export default function MutasiListClient({
       return;
     }
     runAction(
-      buatMutasi(
+      createMutasi(
         {
-          karyawanId,
-          jenis,
-          keUnitId: keUnit,
-          kePosisiId: kePosisi,
-          keLokasiId: keLokasi,
-          keAtasanId: keAtasan,
-          tanggalEfektif: efektif,
-          alasan,
+          employeeId: karyawanId,
+          kind: jenis,
+          toUnitId: keUnit,
+          toPositionId: kePosisi,
+          toWorkLocationId: keLokasi,
+          toSupervisorId: keAtasan,
+          effectiveDate: efektif,
+          reason: alasan,
         },
         userId,
       ),
@@ -85,22 +85,22 @@ export default function MutasiListClient({
 
   const kolomMutasi: DataTableColumn<MutasiItem>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (m) => <span className="font-medium">{m.nomor}</span>,
-      sortValue: (m) => m.nomor,
-      searchValue: (m) => m.nomor,
+      render: (m) => <span className="font-medium">{m.number}</span>,
+      sortValue: (m) => m.number,
+      searchValue: (m) => m.number,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
-    { id: "jenis", header: "Jenis", accessor: "jenisLabel" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "jenis", header: "Jenis", accessor: "kindLabel" },
     {
       id: "rute",
       header: "Dari → Ke",
       sortable: false,
-      searchValue: (m) => `${m.dari} ${m.ke}`,
-      render: (m) => <span className="text-xs">{m.dari} → {m.ke}</span>,
+      searchValue: (m) => `${m.from} ${m.to}`,
+      render: (m) => <span className="text-xs">{m.from} → {m.to}</span>,
     },
-    { id: "efektif", header: "Efektif", accessor: "tanggalEfektif" },
+    { id: "efektif", header: "Efektif", accessor: "effectiveDate" },
     {
       id: "status",
       header: "Status",
@@ -121,17 +121,17 @@ export default function MutasiListClient({
             Buka
           </Link>
           {m.status === "DRAFT" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanMutasi(m.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitMutasi(m.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {["DRAFT", "DIAJUKAN"].includes(m.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanMutasi(m.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelMutasi(m.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batal
             </button>
           ) : null}
           {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(m.status) ? (
-            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(hapusMutasi(m.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(deleteMutasi(m.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
               Hapus
             </button>
           ) : null}

@@ -3,145 +3,145 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
-import { defaultBerlakuSampai, TINGKAT_LABEL, validasiEskalasi } from "@/src/modules/employee/lib/disiplin";
+import { defaultExpiryDate, LEVEL_LABELS, validateEscalation } from "@/src/modules/employee/lib/disiplin";
 
 export type DisiplinActionResult = { success: boolean; message: string; id?: string };
 
 export type DisiplinItem = {
   id: string;
-  nomor: string;
-  karyawanId: string;
-  karyawanNama: string;
-  tingkat: string;
-  tingkatLabel: string;
-  judul: string;
-  tanggalTerbit: string;
-  berlakuSampai: string | null;
-  aktif: boolean;
+  number: string;
+  employeeId: string;
+  employeeName: string;
+  level: string;
+  levelLabel: string;
+  title: string;
+  publishedAt: string;
+  validUntil: string | null;
+  active: boolean;
   status: string;
 };
 
 export type DisiplinDetail = DisiplinItem & {
-  pelanggaran: string;
-  pelanggaranBerat: boolean;
-  tanggalSkorsingMulai: string | null;
-  tanggalSkorsingSelesai: string | null;
-  dokumenUrl: string | null;
-  ttdKaryawanPada: string | null;
-  ttdKaryawanNama: string | null;
-  catatan: string | null;
-  alasanCabut: string | null;
+  violation: string;
+  seriousViolation: boolean;
+  suspensionStart: string | null;
+  suspensionEnd: string | null;
+  documentUrl: string | null;
+  employeeSignedAt: string | null;
+  employeeSignedName: string | null;
+  note: string | null;
+  revokeReason: string | null;
 };
 
-type Penindak = { role: string; karyawanId: string | null };
+type Actor = { role: string; employeeId: string | null };
 
-async function resolvePenindak(userId: string): Promise<Penindak> {
-  if (!userId) return { role: "EMPLOYEE", karyawanId: null };
+async function resolveActor(userId: string): Promise<Actor> {
+  if (!userId) return { role: "EMPLOYEE", employeeId: null };
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  const karyawan = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
-  return { role: user?.role ?? "EMPLOYEE", karyawanId: karyawan?.id ?? null };
+  const employee = await prisma.karyawan.findFirst({ where: { userId }, select: { id: true } });
+  return { role: user?.role ?? "EMPLOYEE", employeeId: employee?.id ?? null };
 }
 
 function isHr(role: string): boolean {
   return role === "SUPER_ADMIN" || role === "ADMIN_HR";
 }
 
-async function bolehKelola(p: Penindak, karyawanId: string): Promise<boolean> {
+async function canManage(p: Actor, employeeId: string): Promise<boolean> {
   if (isHr(p.role)) return true;
-  if (p.role !== "MANAJER" || !p.karyawanId) return false;
-  const bawahan = await prisma.karyawan.findFirst({
-    where: { id: karyawanId, atasanLangsungId: p.karyawanId },
+  if (p.role !== "MANAJER" || !p.employeeId) return false;
+  const subordinate = await prisma.karyawan.findFirst({
+    where: { id: employeeId, atasanLangsungId: p.employeeId },
     select: { id: true },
   });
-  return !!bawahan;
+  return !!subordinate;
 }
 
-function awalHari(): Date {
-  const kini = new Date();
-  return new Date(kini.getFullYear(), kini.getMonth(), kini.getDate());
+function startOfToday(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-function keAktif(r: { status: string; berlakuSampai: Date | null }): boolean {
-  return r.status === "DITERBITKAN" && (!r.berlakuSampai || r.berlakuSampai.getTime() >= awalHari().getTime());
+function isActiveRecord(r: { status: string; berlakuSampai: Date | null }): boolean {
+  return r.status === "DITERBITKAN" && (!r.berlakuSampai || r.berlakuSampai.getTime() >= startOfToday().getTime());
 }
 
 export async function getDisiplinList(userId: string): Promise<DisiplinItem[]> {
-  const p = await resolvePenindak(userId);
+  const p = await resolveActor(userId);
   const rows = await prisma.suratPeringatan.findMany({
-    where: !isHr(p.role) && p.karyawanId ? { karyawan: { atasanLangsungId: p.karyawanId } } : {},
+    where: !isHr(p.role) && p.employeeId ? { karyawan: { atasanLangsungId: p.employeeId } } : {},
     orderBy: { tanggalTerbit: "desc" },
     include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
   });
   return rows.map((r) => ({
     id: r.id,
-    nomor: r.nomor,
-    karyawanId: r.karyawanId,
-    karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-    tingkat: r.tingkat,
-    tingkatLabel: TINGKAT_LABEL[r.tingkat] ?? r.tingkat,
-    judul: r.judul,
-    tanggalTerbit: r.tanggalTerbit.toISOString().slice(0, 10),
-    berlakuSampai: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
-    aktif: keAktif(r),
+    number: r.nomor,
+    employeeId: r.karyawanId,
+    employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+    level: r.tingkat,
+    levelLabel: LEVEL_LABELS[r.tingkat] ?? r.tingkat,
+    title: r.judul,
+    publishedAt: r.tanggalTerbit.toISOString().slice(0, 10),
+    validUntil: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
+    active: isActiveRecord(r),
     status: r.status,
   }));
 }
 
 export async function getDisiplinDetail(id: string, userId: string): Promise<DisiplinDetail | null> {
-  const p = await resolvePenindak(userId);
+  const p = await resolveActor(userId);
   const r = await prisma.suratPeringatan.findUnique({
     where: { id },
     include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true, atasanLangsungId: true } } },
   });
   if (!r) return null;
-  const milikSendiri = p.karyawanId === r.karyawanId;
-  if (!isHr(p.role) && !milikSendiri && r.karyawan.atasanLangsungId !== p.karyawanId) return null;
+  const isOwner = p.employeeId === r.karyawanId;
+  if (!isHr(p.role) && !isOwner && r.karyawan.atasanLangsungId !== p.employeeId) return null;
   return {
     id: r.id,
-    nomor: r.nomor,
-    karyawanId: r.karyawanId,
-    karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-    tingkat: r.tingkat,
-    tingkatLabel: TINGKAT_LABEL[r.tingkat] ?? r.tingkat,
-    judul: r.judul,
-    tanggalTerbit: r.tanggalTerbit.toISOString().slice(0, 10),
-    berlakuSampai: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
-    aktif: keAktif(r),
+    number: r.nomor,
+    employeeId: r.karyawanId,
+    employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+    level: r.tingkat,
+    levelLabel: LEVEL_LABELS[r.tingkat] ?? r.tingkat,
+    title: r.judul,
+    publishedAt: r.tanggalTerbit.toISOString().slice(0, 10),
+    validUntil: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
+    active: isActiveRecord(r),
     status: r.status,
-    pelanggaran: r.pelanggaran,
-    pelanggaranBerat: r.pelanggaranBerat,
-    tanggalSkorsingMulai: r.tanggalSkorsingMulai?.toISOString().slice(0, 10) ?? null,
-    tanggalSkorsingSelesai: r.tanggalSkorsingSelesai?.toISOString().slice(0, 10) ?? null,
-    dokumenUrl: r.dokumenUrl,
-    ttdKaryawanPada: r.ttdKaryawanPada?.toISOString() ?? null,
-    ttdKaryawanNama: r.ttdKaryawanNama,
-    catatan: r.catatan,
-    alasanCabut: r.alasanCabut,
+    violation: r.pelanggaran,
+    seriousViolation: r.pelanggaranBerat,
+    suspensionStart: r.tanggalSkorsingMulai?.toISOString().slice(0, 10) ?? null,
+    suspensionEnd: r.tanggalSkorsingSelesai?.toISOString().slice(0, 10) ?? null,
+    documentUrl: r.dokumenUrl,
+    employeeSignedAt: r.ttdKaryawanPada?.toISOString() ?? null,
+    employeeSignedName: r.ttdKaryawanNama,
+    note: r.catatan,
+    revokeReason: r.alasanCabut,
   };
 }
 
-export async function getDisiplinSaya(karyawanId: string): Promise<DisiplinItem[]> {
+export async function getMyDisiplin(employeeId: string): Promise<DisiplinItem[]> {
   const rows = await prisma.suratPeringatan.findMany({
-    where: { karyawanId, status: { in: ["DITERBITKAN", "DICABUT"] } },
+    where: { karyawanId: employeeId, status: { in: ["DITERBITKAN", "DICABUT"] } },
     orderBy: { tanggalTerbit: "desc" },
     include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
   });
   return rows.map((r) => ({
     id: r.id,
-    nomor: r.nomor,
-    karyawanId: r.karyawanId,
-    karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-    tingkat: r.tingkat,
-    tingkatLabel: TINGKAT_LABEL[r.tingkat] ?? r.tingkat,
-    judul: r.judul,
-    tanggalTerbit: r.tanggalTerbit.toISOString().slice(0, 10),
-    berlakuSampai: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
-    aktif: keAktif(r),
+    number: r.nomor,
+    employeeId: r.karyawanId,
+    employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+    level: r.tingkat,
+    levelLabel: LEVEL_LABELS[r.tingkat] ?? r.tingkat,
+    title: r.judul,
+    publishedAt: r.tanggalTerbit.toISOString().slice(0, 10),
+    validUntil: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
+    active: isActiveRecord(r),
     status: r.status,
   }));
 }
 
-export async function getSPAktif(): Promise<DisiplinItem[]> {
+export async function getActiveWarnings(): Promise<DisiplinItem[]> {
   const rows = await prisma.suratPeringatan.findMany({
     where: { status: "DITERBITKAN" },
     orderBy: { tanggalTerbit: "desc" },
@@ -149,87 +149,87 @@ export async function getSPAktif(): Promise<DisiplinItem[]> {
     include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
   });
   return rows
-    .filter(keAktif)
+    .filter(isActiveRecord)
     .slice(0, 5)
     .map((r) => ({
       id: r.id,
-      nomor: r.nomor,
-      karyawanId: r.karyawanId,
-      karyawanNama: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
-      tingkat: r.tingkat,
-      tingkatLabel: TINGKAT_LABEL[r.tingkat] ?? r.tingkat,
-      judul: r.judul,
-      tanggalTerbit: r.tanggalTerbit.toISOString().slice(0, 10),
-      berlakuSampai: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
-      aktif: true,
+      number: r.nomor,
+      employeeId: r.karyawanId,
+      employeeName: `${r.karyawan.namaLengkap} (${r.karyawan.nomorKaryawan})`,
+      level: r.tingkat,
+      levelLabel: LEVEL_LABELS[r.tingkat] ?? r.tingkat,
+      title: r.judul,
+      publishedAt: r.tanggalTerbit.toISOString().slice(0, 10),
+      validUntil: r.berlakuSampai?.toISOString().slice(0, 10) ?? null,
+      active: true,
       status: r.status,
     }));
 }
 
-export async function buatDisiplin(
+export async function createDisiplin(
   input: {
-    karyawanId: string;
-    tingkat: string;
-    judul: string;
-    pelanggaran: string;
-    pelanggaranBerat: boolean;
-    tanggalTerbit: string;
-    berlakuSampai: string;
-    skorsingMulai: string;
-    skorsingSelesai: string;
-    dokumenUrl: string;
-    catatan: string;
+    employeeId: string;
+    level: string;
+    title: string;
+    violation: string;
+    seriousViolation: boolean;
+    publishedAt: string;
+    validUntil: string;
+    suspensionStart: string;
+    suspensionEnd: string;
+    documentUrl: string;
+    note: string;
   },
   userId: string,
 ): Promise<DisiplinActionResult> {
-  const p = await resolvePenindak(userId);
-  if (!(await bolehKelola(p, input.karyawanId))) {
+  const p = await resolveActor(userId);
+  if (!(await canManage(p, input.employeeId))) {
     return { success: false, message: "Anda hanya bisa mengusulkan untuk bawahan langsung." };
   }
-  const karyawan = await prisma.karyawan.findUnique({ where: { id: input.karyawanId }, select: { status: true } });
-  if (!karyawan || !["AKTIF", "PROBASI"].includes(karyawan.status)) {
+  const employee = await prisma.karyawan.findUnique({ where: { id: input.employeeId }, select: { status: true } });
+  if (!employee || !["AKTIF", "PROBASI"].includes(employee.status)) {
     return { success: false, message: "Karyawan tidak aktif." };
   }
-  if (!(TINGKAT_LABEL as Record<string, string>)[input.tingkat]) {
+  if (!(LEVEL_LABELS as Record<string, string>)[input.level]) {
     return { success: false, message: "Tingkat tidak valid." };
   }
-  if (!input.judul.trim() || !input.pelanggaran.trim()) {
+  if (!input.title.trim() || !input.violation.trim()) {
     return { success: false, message: "Judul dan pelanggaran wajib diisi." };
   }
-  const tgl = toDbDate(input.tanggalTerbit);
-  if (Number.isNaN(tgl.getTime())) return { success: false, message: "Tanggal terbit tidak valid." };
-  let berlaku: Date | null = null;
-  if (input.berlakuSampai.trim()) {
-    berlaku = toDbDate(input.berlakuSampai);
-    if (Number.isNaN(berlaku.getTime())) return { success: false, message: "Berlaku sampai tidak valid." };
+  const date = toDbDate(input.publishedAt);
+  if (Number.isNaN(date.getTime())) return { success: false, message: "Tanggal terbit tidak valid." };
+  let expiry: Date | null = null;
+  if (input.validUntil.trim()) {
+    expiry = toDbDate(input.validUntil);
+    if (Number.isNaN(expiry.getTime())) return { success: false, message: "Berlaku sampai tidak valid." };
   }
-  let skMulai: Date | null = null;
-  let skSelesai: Date | null = null;
-  if (input.tingkat === "SKORSING") {
-    if (!input.skorsingMulai || !input.skorsingSelesai) {
+  let suspStart: Date | null = null;
+  let suspEnd: Date | null = null;
+  if (input.level === "SKORSING") {
+    if (!input.suspensionStart || !input.suspensionEnd) {
       return { success: false, message: "Skorsing wajib ada rentang tanggal." };
     }
-    skMulai = toDbDate(input.skorsingMulai);
-    skSelesai = toDbDate(input.skorsingSelesai);
-    if (Number.isNaN(skMulai.getTime()) || Number.isNaN(skSelesai.getTime()) || skSelesai < skMulai) {
+    suspStart = toDbDate(input.suspensionStart);
+    suspEnd = toDbDate(input.suspensionEnd);
+    if (Number.isNaN(suspStart.getTime()) || Number.isNaN(suspEnd.getTime()) || suspEnd < suspStart) {
       return { success: false, message: "Rentang skorsing tidak valid." };
     }
   }
 
   const created = await prisma.suratPeringatan.create({
     data: {
-      nomor: `SP-${tgl.getUTCFullYear()}-${input.karyawanId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-4)}`,
-      karyawanId: input.karyawanId,
-      tingkat: input.tingkat as never,
-      judul: input.judul.trim(),
-      pelanggaran: input.pelanggaran.trim(),
-      pelanggaranBerat: input.pelanggaranBerat,
-      tanggalTerbit: tgl,
-      berlakuSampai: berlaku,
-      tanggalSkorsingMulai: skMulai,
-      tanggalSkorsingSelesai: skSelesai,
-      dokumenUrl: input.dokumenUrl.trim() || null,
-      catatan: input.catatan.trim() || null,
+      nomor: `SP-${date.getUTCFullYear()}-${input.employeeId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase().slice(-4)}`,
+      karyawanId: input.employeeId,
+      tingkat: input.level as never,
+      judul: input.title.trim(),
+      pelanggaran: input.violation.trim(),
+      pelanggaranBerat: input.seriousViolation,
+      tanggalTerbit: date,
+      berlakuSampai: expiry,
+      tanggalSkorsingMulai: suspStart,
+      tanggalSkorsingSelesai: suspEnd,
+      dokumenUrl: input.documentUrl.trim() || null,
+      catatan: input.note.trim() || null,
       createdById: userId,
     },
     select: { id: true },
@@ -238,27 +238,27 @@ export async function buatDisiplin(
   return { success: true, message: "Draf surat tersimpan.", id: created.id };
 }
 
-async function tingkatAktif(karyawanId: string): Promise<string[]> {
+async function activeLevels(employeeId: string): Promise<string[]> {
   const rows = await prisma.suratPeringatan.findMany({
-    where: { karyawanId, status: "DITERBITKAN" },
+    where: { karyawanId: employeeId, status: "DITERBITKAN" },
     select: { tingkat: true, berlakuSampai: true, status: true },
   });
-  return rows.filter(keAktif).map((r) => r.tingkat);
+  return rows.filter(isActiveRecord).map((r) => r.tingkat);
 }
 
-export async function terbitkanDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
-  const p = await resolvePenindak(userId);
+export async function publishDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa menerbitkan." };
   const row = await prisma.suratPeringatan.findUnique({ where: { id } });
   if (!row) return { success: false, message: "Data tidak ditemukan." };
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa diterbitkan." };
-  const err = validasiEskalasi(row.tingkat, await tingkatAktif(row.karyawanId), row.pelanggaranBerat);
+  const err = validateEscalation(row.tingkat, await activeLevels(row.karyawanId), row.pelanggaranBerat);
   if (err) return { success: false, message: err };
   await prisma.suratPeringatan.update({
     where: { id },
     data: {
       status: "DITERBITKAN",
-      berlakuSampai: row.berlakuSampai ?? defaultBerlakuSampai(row.tanggalTerbit),
+      berlakuSampai: row.berlakuSampai ?? defaultExpiryDate(row.tanggalTerbit),
       diterbitkanOlehId: userId,
       diterbitkanPada: new Date(),
     },
@@ -267,39 +267,39 @@ export async function terbitkanDisiplin(id: string, userId: string): Promise<Dis
   return { success: true, message: `${row.nomor} diterbitkan.` };
 }
 
-export async function cabutDisiplin(id: string, alasan: string, userId: string): Promise<DisiplinActionResult> {
-  const p = await resolvePenindak(userId);
+export async function revokeDisiplin(id: string, reason: string, userId: string): Promise<DisiplinActionResult> {
+  const p = await resolveActor(userId);
   if (!isHr(p.role)) return { success: false, message: "Hanya HR yang bisa mencabut." };
   const row = await prisma.suratPeringatan.findUnique({ where: { id }, select: { status: true } });
   if (!row || row.status !== "DITERBITKAN") return { success: false, message: "Hanya yang terbit yang bisa dicabut." };
-  if (!alasan.trim()) return { success: false, message: "Alasan pencabutan wajib diisi." };
+  if (!reason.trim()) return { success: false, message: "Alasan pencabutan wajib diisi." };
   await prisma.suratPeringatan.update({
     where: { id },
-    data: { status: "DICABUT", alasanCabut: alasan.trim(), dicabutOlehId: userId, dicabutPada: new Date() },
+    data: { status: "DICABUT", alasanCabut: reason.trim(), dicabutOlehId: userId, dicabutPada: new Date() },
   });
   revalidatePath("/employees/disiplin");
   return { success: true, message: "Surat dicabut." };
 }
 
-export async function hapusDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
-  const p = await resolvePenindak(userId);
+export async function deleteDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
+  const p = await resolveActor(userId);
   const row = await prisma.suratPeringatan.findUnique({ where: { id }, select: { karyawanId: true, status: true } });
   if (!row) return { success: false, message: "Data tidak ditemukan." };
-  if (!(await bolehKelola(p, row.karyawanId))) return { success: false, message: "Akses ditolak." };
+  if (!(await canManage(p, row.karyawanId))) return { success: false, message: "Akses ditolak." };
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa dihapus." };
   await prisma.suratPeringatan.delete({ where: { id } });
   revalidatePath("/employees/disiplin");
   return { success: true, message: "Draf dihapus." };
 }
 
-export async function ackDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
-  const p = await resolvePenindak(userId);
+export async function acknowledgeDisiplin(id: string, userId: string): Promise<DisiplinActionResult> {
+  const p = await resolveActor(userId);
   const row = await prisma.suratPeringatan.findUnique({
     where: { id },
     select: { karyawanId: true, status: true, ttdKaryawanPada: true, karyawan: { select: { namaLengkap: true } } },
   });
   if (!row || row.status !== "DITERBITKAN") return { success: false, message: "Surat tidak tersedia." };
-  if (p.karyawanId !== row.karyawanId) return { success: false, message: "Hanya untuk karyawan bersangkutan." };
+  if (p.employeeId !== row.karyawanId) return { success: false, message: "Hanya untuk karyawan bersangkutan." };
   if (row.ttdKaryawanPada) return { success: false, message: "Sudah ditandatangani." };
   await prisma.suratPeringatan.update({
     where: { id },

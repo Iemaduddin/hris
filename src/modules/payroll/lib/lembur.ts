@@ -4,89 +4,89 @@
  * Libur 6-hari: ×2×7j + ×3 + ×4; 5-hari: ×2×8j + ×3 + ×4.
  */
 
-export const KUNCI_LEMBUR_TIERED = "LEMBUR_TIERED";
-export const KUNCI_LEMBUR_DIVISOR = "LEMBUR_DIVISOR";
-export const KUNCI_LEMBUR_MAX_JAM = "LEMBUR_MAX_JAM_PER_BULAN";
+export const OVERTIME_TIERED_KEY = "LEMBUR_TIERED";
+export const OVERTIME_DIVISOR_KEY = "LEMBUR_DIVISOR";
+export const OVERTIME_MAX_HOURS_KEY = "LEMBUR_MAX_JAM_PER_BULAN";
 
-export const LEMBUR_SETTING_DEFAULT: Record<string, string> = {
-  [KUNCI_LEMBUR_TIERED]: "1",
-  [KUNCI_LEMBUR_DIVISOR]: "173",
-  [KUNCI_LEMBUR_MAX_JAM]: "",
+export const OVERTIME_DEFAULT_SETTINGS: Record<string, string> = {
+  [OVERTIME_TIERED_KEY]: "1",
+  [OVERTIME_DIVISOR_KEY]: "173",
+  [OVERTIME_MAX_HOURS_KEY]: "",
 };
 
-export const LEMBUR_SETTING_DESKRIPSI: Record<string, string> = {
-  [KUNCI_LEMBUR_TIERED]: "1 = upah lembur tiered Kepmen 102/2004 (abaikan nilai komponen UPAH_LEMBUR); 0 = flat nilai komponen × jam.",
-  [KUNCI_LEMBUR_DIVISOR]: "Pembagi upah sejam (regulasi 173).",
-  [KUNCI_LEMBUR_MAX_JAM]: "Batas jam lembur per bulan per karyawan saat pengajuan (kosong = tanpa batas).",
+export const OVERTIME_SETTING_DESCRIPTIONS: Record<string, string> = {
+  [OVERTIME_TIERED_KEY]: "1 = upah lembur tiered Kepmen 102/2004 (abaikan nilai komponen UPAH_LEMBUR); 0 = flat nilai komponen × jam.",
+  [OVERTIME_DIVISOR_KEY]: "Pembagi upah sejam (regulasi 173).",
+  [OVERTIME_MAX_HOURS_KEY]: "Batas jam lembur per bulan per karyawan saat pengajuan (kosong = tanpa batas).",
 };
 
-export type KategoriLembur = "KERJA" | "LIBUR_5" | "LIBUR_6";
+export type OvertimeCategory = "KERJA" | "LIBUR_5" | "LIBUR_6";
 
-type LapisLembur = { jam: number | null; pengali: number };
+type OvertimeTierRow = { hours: number | null; multiplier: number };
 
-const TIER: Record<KategoriLembur, LapisLembur[]> = {
+const TIERS: Record<OvertimeCategory, OvertimeTierRow[]> = {
   KERJA: [
-    { jam: 1, pengali: 1.5 },
-    { jam: null, pengali: 2 },
+    { hours: 1, multiplier: 1.5 },
+    { hours: null, multiplier: 2 },
   ],
   LIBUR_6: [
-    { jam: 7, pengali: 2 },
-    { jam: 1, pengali: 3 },
-    { jam: null, pengali: 4 },
+    { hours: 7, multiplier: 2 },
+    { hours: 1, multiplier: 3 },
+    { hours: null, multiplier: 4 },
   ],
   LIBUR_5: [
-    { jam: 8, pengali: 2 },
-    { jam: 1, pengali: 3 },
-    { jam: null, pengali: 4 },
+    { hours: 8, multiplier: 2 },
+    { hours: 1, multiplier: 3 },
+    { hours: null, multiplier: 4 },
   ],
 };
 
-export function hitungUpahSejam(upahSebulan: number, divisor: number): number {
-  if (upahSebulan <= 0 || divisor <= 0) return 0;
-  return upahSebulan / divisor;
+export function calculateHourlyRate(monthlyWage: number, divisor: number): number {
+  if (monthlyWage <= 0 || divisor <= 0) return 0;
+  return monthlyWage / divisor;
 }
 
-export type RincianTier = { pengali: number; jam: number; jumlah: number };
+export type TierBreakdown = { multiplier: number; hours: number; amount: number };
 
 /** Upah lembur untuk satu tanggal: jam dipecah per lapis pengali. */
-export function hitungUpahLemburSehari(
-  jumlahJam: number,
-  upahSejam: number,
-  kategori: KategoriLembur,
-): { jumlah: number; tiers: RincianTier[] } {
-  let sisa = Math.max(0, jumlahJam);
-  const tiers: RincianTier[] = [];
-  for (const lapis of TIER[kategori]) {
-    if (sisa <= 0) break;
-    const ambil = lapis.jam === null ? sisa : Math.min(sisa, lapis.jam);
-    if (ambil > 0) {
-      tiers.push({ pengali: lapis.pengali, jam: Math.round(ambil * 100) / 100, jumlah: ambil * lapis.pengali * upahSejam });
+export function calculateDailyOvertime(
+  totalHours: number,
+  hourlyRate: number,
+  category: OvertimeCategory,
+): { amount: number; tiers: TierBreakdown[] } {
+  let remaining = Math.max(0, totalHours);
+  const tiers: TierBreakdown[] = [];
+  for (const tier of TIERS[category]) {
+    if (remaining <= 0) break;
+    const take = tier.hours === null ? remaining : Math.min(remaining, tier.hours);
+    if (take > 0) {
+      tiers.push({ multiplier: tier.multiplier, hours: Math.round(take * 100) / 100, amount: take * tier.multiplier * hourlyRate });
     }
-    sisa -= ambil;
+    remaining -= take;
   }
-  const jumlah = Math.round(tiers.reduce((acc, t) => acc + t.jumlah, 0));
-  return { jumlah, tiers };
+  const amount = Math.round(tiers.reduce((acc, t) => acc + t.amount, 0));
+  return { amount, tiers };
 }
 
 /** Akumulasi jam per pengali untuk keterangan slip gabungan. */
-export function ringkasTier(tiers: RincianTier[], acc: Map<number, number>): void {
-  for (const t of tiers) acc.set(t.pengali, (acc.get(t.pengali) ?? 0) + t.jam);
+export function summarizeTiers(tiers: TierBreakdown[], acc: Map<number, number>): void {
+  for (const t of tiers) acc.set(t.multiplier, (acc.get(t.multiplier) ?? 0) + t.hours);
 }
 
-export function keteranganTier(acc: Map<number, number>): string {
+export function describeTiers(acc: Map<number, number>): string {
   const parts = [...acc.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([pengali, jam]) => `×${pengali.toLocaleString("id-ID")} ${Math.round(jam * 100) / 100}j`);
+    .map(([multiplier, hours]) => `×${multiplier.toLocaleString("id-ID")} ${Math.round(hours * 100) / 100}j`);
   return parts.join(" + ");
 }
 
 /** Validasi cap jam/bulan saat pengajuan (murni). */
-export function cekCapLembur(jamBerjalan: number, jamBaru: number, maxJam: number | null): boolean {
-  if (maxJam === null || maxJam < 0) return true;
-  return jamBerjalan + jamBaru <= maxJam + 1e-9;
+export function checkOvertimeCap(runningHours: number, newHours: number, maxHours: number | null): boolean {
+  if (maxHours === null || maxHours < 0) return true;
+  return runningHours + newHours <= maxHours + 1e-9;
 }
 
-export function parseMaxJam(value: string | null | undefined): number | null {
+export function parseMaxHours(value: string | null | undefined): number | null {
   const s = (value ?? "").trim();
   if (!s) return null;
   const n = Number(s);

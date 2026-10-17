@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { buatSalaryRun, hapusRun, type SalaryRunItem } from "../actions/payroll.actions";
+import { createSalaryRun, deleteRun, type SalaryRunItem } from "../actions/payroll.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
@@ -22,7 +22,7 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 
 	function handleBuat() {
 		startTransition(async () => {
-			const result = await buatSalaryRun(periode);
+			const result = await createSalaryRun(periode);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -35,7 +35,7 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 	function handleHapus(id: string) {
 		if (!confirm("Hapus run ini?")) return;
 		startTransition(async () => {
-			const result = await hapusRun(id);
+			const result = await deleteRun(id);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -61,21 +61,21 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 			searchValue: (r) => r.status.replaceAll("_", " "),
 		},
 		{
-			id: "jumlahKaryawan",
+			id: "employeeCount",
 			header: "Karyawan",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (r) => <span>{r.jumlahKaryawan}</span>,
-			sortValue: (r) => r.jumlahKaryawan,
+			render: (r) => <span>{r.employeeCount}</span>,
+			sortValue: (r) => r.employeeCount,
 			searchable: false,
 		},
 		{
-			id: "totalBersih",
+			id: "totalNet",
 			header: "Total Bersih",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (r) => <span>{rupiah.format(Number(r.totalBersih))}</span>,
-			sortValue: (r) => Number(r.totalBersih),
+			render: (r) => <span>{rupiah.format(Number(r.totalNet))}</span>,
+			sortValue: (r) => Number(r.totalNet),
 			searchable: false,
 		},
 		{

@@ -1,6 +1,6 @@
 /** Offboarding: checklist bawaan + cek kelengkapan murni. */
 
-export type ItemClearanceBawaan = {
+export type DefaultClearanceItem = {
   kategori: "DOKUMEN" | "AKUN" | "ASET" | "KEUANGAN" | "LAINNYA";
   judul: string;
   picRole: "HR" | "FINANCE" | "IT" | "ATASAN";
@@ -8,7 +8,7 @@ export type ItemClearanceBawaan = {
   otomatis: boolean;
 };
 
-export const CLEARANCE_BAWAAN: ItemClearanceBawaan[] = [
+export const DEFAULT_CLEARANCE: DefaultClearanceItem[] = [
   { kategori: "DOKUMEN", judul: "Serah terima pekerjaan ke pengganti/atasan", picRole: "ATASAN", wajib: true, otomatis: false },
   { kategori: "DOKUMEN", judul: "Dokumen kepegawaian dikembalikan/diarsipkan", picRole: "HR", wajib: true, otomatis: false },
   { kategori: "KEUANGAN", judul: "Kasbon/pinjaman dilunasi", picRole: "FINANCE", wajib: true, otomatis: true },
@@ -16,7 +16,7 @@ export const CLEARANCE_BAWAAN: ItemClearanceBawaan[] = [
   { kategori: "AKUN", judul: "Akun sistem dinonaktifkan", picRole: "IT", wajib: true, otomatis: false },
 ];
 
-export function semuaWajibSelesai(items: Array<{ wajib: boolean; status: string }>): boolean {
-  const wajib = items.filter((i) => i.wajib);
-  return wajib.length > 0 && wajib.every((i) => i.status === "SELESAI");
+export function areAllRequiredDone(items: Array<{ wajib: boolean; status: string }>): boolean {
+  const required = items.filter((i) => i.wajib);
+  return required.length > 0 && required.every((i) => i.status === "SELESAI");
 }

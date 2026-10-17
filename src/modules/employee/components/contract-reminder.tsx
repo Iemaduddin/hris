@@ -3,10 +3,10 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { sinkronStatusKontrak, type KontrakMasaBerakhirItem } from "../actions/employee.actions";
+import { syncContractStatus, type ExpiringContractItem } from "../actions/employee.actions";
 
 type KontrakReminderProps = {
-	items: KontrakMasaBerakhirItem[];
+	items: ExpiringContractItem[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" });
@@ -17,7 +17,7 @@ export default function KontrakReminder({ items }: KontrakReminderProps) {
 
 	function handleSync() {
 		startTransition(async () => {
-			const result = await sinkronStatusKontrak(30);
+			const result = await syncContractStatus(30);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -58,14 +58,14 @@ export default function KontrakReminder({ items }: KontrakReminderProps) {
 					>
 						<div>
 							<p className="font-medium text-slate-900 dark:text-slate-100">
-								{item.karyawanNama} <span className="font-normal text-slate-500">({item.nomorKaryawan})</span>
+								{item.employeeName} <span className="font-normal text-slate-500">({item.employeeNumber})</span>
 							</p>
 							<p className="text-xs text-slate-500 dark:text-slate-400">
-								{item.nomorKontrak} • Berakhir {dateFormatter.format(new Date(item.tanggalSelesai))}
+								{item.contractNumber} • Berakhir {dateFormatter.format(new Date(item.endDate))}
 							</p>
 						</div>
 						<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-							H-{item.sisaHari}
+							H-{item.remainingDays}
 						</span>
 					</li>
 				))}

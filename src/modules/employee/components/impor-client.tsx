@@ -4,16 +4,16 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { CONTOH_KARYAWAN, CONTOH_RIWAYAT } from "@/src/modules/employee/lib/impor";
+import { SAMPLE_EMPLOYEE_CSV, SAMPLE_HISTORY_CSV } from "@/src/modules/employee/lib/impor";
 import {
-	eksekusiImporKaryawan,
-	eksekusiImporRiwayat,
-	eksporKaryawan,
-	eksporRiwayat,
-	validasiImporKaryawan,
-	validasiImporRiwayat,
-	type HasilValidasiImpor,
-	type MasalahKualitas,
+	executeEmployeeImport,
+	executeHistoryImport,
+	exportEmployees,
+	exportHistory,
+	validateEmployeeImport,
+	validateHistoryImport,
+	type ImportValidationResult,
+	type QualityIssue,
 } from "@/src/modules/employee/actions/impor.actions";
 
 type Tab = "karyawan" | "riwayat" | "ekspor" | "kualitas";
@@ -37,15 +37,15 @@ function bacaFile(file: File): Promise<string> {
 	});
 }
 
-const kolomHasil: DataTableColumn<{ noBaris: number; ringkasan: string; galat: string[] }>[] = [
-	{ id: "noBaris", header: "Baris", accessor: "noBaris" },
-	{ id: "ringkasan", header: "Ringkasan", accessor: "ringkasan" },
+const kolomHasil: DataTableColumn<{ rowNumber: number; summary: string; errors: string[] }>[] = [
+	{ id: "rowNumber", header: "Baris", accessor: "rowNumber" },
+	{ id: "summary", header: "Ringkasan", accessor: "summary" },
 	{
-		id: "galat",
+		id: "errors",
 		header: "Masalah",
-		render: (r) => <span className="text-red-600">{r.galat.length === 0 ? "OK" : r.galat.join("; ")}</span>,
+		render: (r) => <span className="text-red-600">{r.errors.length === 0 ? "OK" : r.errors.join("; ")}</span>,
 		sortable: false,
-		searchValue: (r) => r.galat.join("; "),
+		searchValue: (r) => r.errors.join("; "),
 	},
 ];
 
@@ -54,13 +54,13 @@ export default function ImporClient({
 	kualitas,
 }: {
 	userId: string;
-	kualitas: MasalahKualitas[];
+	kualitas: QualityIssue[];
 }) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [tab, setTab] = useState<Tab>("karyawan");
 	const [csv, setCsv] = useState("");
-	const [hasil, setHasil] = useState<HasilValidasiImpor | null>(null);
+	const [hasil, setHasil] = useState<ImportValidationResult | null>(null);
 	const [hanyaGagal, setHanyaGagal] = useState(true);
 	const [masalahAktif, setMasalahAktif] = useState<string | null>(null);
 
@@ -93,24 +93,24 @@ export default function ImporClient({
 			return;
 		}
 		setHanyaGagal(true);
-		runAction(tab === "karyawan" ? validasiImporKaryawan(csv) : validasiImporRiwayat(csv), (r) => {
+		runAction(tab === "karyawan" ? validateEmployeeImport(csv) : validateHistoryImport(csv), (r) => {
 			if (!r.success) {
 				toast.error(r.message);
 				return;
 			}
 			setHasil(r);
-			toast[r.jumlahGagal > 0 ? "warning" : "success"](r.message);
+			toast[r.invalidCount > 0 ? "warning" : "success"](r.message);
 		});
 	}
 
 	function handleEksekusi() {
-		if (!hasil || hasil.jumlahGagal > 0) {
+		if (!hasil || hasil.invalidCount > 0) {
 			toast.error("Perbaiki semua baris bermasalah dulu.");
 			return;
 		}
-		if (!confirm(`Impor ${hasil.jumlahValid} baris?`)) return;
+		if (!confirm(`Impor ${hasil.validCount} rows?`)) return;
 		runAction(
-			tab === "karyawan" ? eksekusiImporKaryawan(csv, userId) : eksekusiImporRiwayat(csv, userId),
+			tab === "karyawan" ? executeEmployeeImport(csv, userId) : executeHistoryImport(csv, userId),
 			(r) => {
 				if (!r.success) toast.error(r.message);
 				else {
@@ -123,7 +123,7 @@ export default function ImporClient({
 	}
 
 	function handleEkspor(jenis: "karyawan" | "riwayat") {
-		runAction(jenis === "karyawan" ? eksporKaryawan() : eksporRiwayat(), (r) => {
+		runAction(jenis === "karyawan" ? exportEmployees() : exportHistory(), (r) => {
 			if (!r.success || !r.csv) {
 				toast.error(r.message);
 				return;
@@ -133,9 +133,9 @@ export default function ImporClient({
 		});
 	}
 
-	const contoh = tab === "karyawan" ? CONTOH_KARYAWAN : CONTOH_RIWAYAT;
-	const tampil = hasil ? (hanyaGagal ? hasil.baris.filter((b) => b.galat.length > 0) : hasil.baris) : [];
-	const masalah = kualitas.find((m) => m.kunci === masalahAktif);
+	const samples = tab === "karyawan" ? SAMPLE_EMPLOYEE_CSV : SAMPLE_HISTORY_CSV;
+	const tampil = hasil ? (hanyaGagal ? hasil.rows.filter((b) => b.errors.length > 0) : hasil.rows) : [];
+	const masalah = kualitas.find((m) => m.key === masalahAktif);
 
 	return (
 		<div className="space-y-5">
@@ -171,13 +171,13 @@ export default function ImporClient({
 						</h2>
 						<p className="mt-1 text-xs text-slate-500">
 							{tab === "karyawan"
-								? "Nomor kosong = auto-generate. NIK ganda (di file / di DB) ditolak. Maks 500 baris."
-								: "Baris ditambahkan (append), data lama tak dihapus. Karyawan dicocokkan via nomorKaryawan."}
+								? "Nomor kosong = auto-generate. NIK ganda (di file / di DB) ditolak. Maks 500 rows."
+								: "rows ditambahkan (append), data lama tak dihapus. Karyawan dicocokkan via nomorKaryawan."}
 						</p>
 						<div className="mt-4 flex flex-wrap gap-2">
 							<button
 								type="button"
-								onClick={() => unduhCsv(`template-${tab}.csv`, contoh)}
+								onClick={() => unduhCsv(`template-${tab}.csv`, samples)}
 								className="rounded-lg border border-blue-200 px-3 py-2 text-sm hover:bg-blue-50"
 							>
 								Unduh Template
@@ -199,14 +199,14 @@ export default function ImporClient({
 							>
 								{isPending ? "Memproses..." : "Validasi"}
 							</button>
-							{hasil && hasil.jumlahGagal === 0 && hasil.total > 0 && (
+							{hasil && hasil.invalidCount === 0 && hasil.total > 0 && (
 								<button
 									type="button"
 									disabled={isPending}
 									onClick={handleEksekusi}
 									className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
 								>
-									Eksekusi ({hasil.jumlahValid})
+									Eksekusi ({hasil.validCount})
 								</button>
 							)}
 						</div>
@@ -214,7 +214,7 @@ export default function ImporClient({
 							<div className="mt-4">
 								<div className="mb-2 flex items-center justify-between">
 									<p className="text-sm text-slate-600 dark:text-slate-300">
-										{hasil.jumlahValid} valid • {hasil.jumlahGagal} bermasalah dari {hasil.total}
+										{hasil.validCount} valid • {hasil.invalidCount} bermasalah dari {hasil.total}
 									</p>
 									<label className="flex items-center gap-2 text-xs">
 										<input type="checkbox" checked={hanyaGagal} onChange={(e) => setHanyaGagal(e.currentTarget.checked)} />
@@ -224,8 +224,8 @@ export default function ImporClient({
 								<DataTable
 									data={tampil}
 									columns={kolomHasil}
-									getRowId={(r) => String(r.noBaris)}
-									emptyMessage={hanyaGagal ? "Semua baris valid — siap eksekusi." : "Tidak ada baris."}
+									getRowId={(r) => String(r.rowNumber)}
+									emptyMessage={hanyaGagal ? "Semua rows valid — siap eksekusi." : "Tidak ada rows."}
 								/>
 							</div>
 						)}
@@ -264,12 +264,12 @@ export default function ImporClient({
 					<div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
 						{kualitas.map((m) => (
 							<button
-								key={m.kunci}
+								key={m.key}
 								type="button"
-								onClick={() => setMasalahAktif(masalahAktif === m.kunci ? null : m.kunci)}
-								className={`rounded-xl border p-3 text-left ${masalahAktif === m.kunci ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30" : "border-slate-200 hover:bg-slate-50 dark:border-slate-700"}`}
+								onClick={() => setMasalahAktif(masalahAktif === m.key ? null : m.key)}
+								className={`rounded-xl border p-3 text-left ${masalahAktif === m.key ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30" : "border-slate-200 hover:bg-slate-50 dark:border-slate-700"}`}
 							>
-								<p className={`text-2xl font-bold ${m.jumlah > 0 ? "text-amber-600" : "text-emerald-600"}`}>{m.jumlah}</p>
+								<p className={`text-2xl font-bold ${m.count > 0 ? "text-amber-600" : "text-emerald-600"}`}>{m.count}</p>
 								<p className="text-xs text-slate-600 dark:text-slate-300">{m.label}</p>
 							</button>
 						))}
@@ -279,7 +279,7 @@ export default function ImporClient({
 							<h3 className="text-sm font-semibold">{masalah.label} (maks 100)</h3>
 							<div className="mt-2">
 								<DataTable
-									data={masalah.contoh}
+									data={masalah.samples}
 									columns={[
 										{ id: "nomor", header: "Nomor", accessor: "nomorKaryawan" },
 										{ id: "nama", header: "Nama", accessor: "namaLengkap" },

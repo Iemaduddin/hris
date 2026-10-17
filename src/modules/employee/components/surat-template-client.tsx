@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
-import { hapusTemplate, saveTemplate, seedTemplateBawaan } from "@/src/modules/employee/actions/surat.actions";
+import { deleteTemplate, saveTemplate, seedDefaultTemplates } from "@/src/modules/employee/actions/surat.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
-type SuratTemplateRow = { id: string; kode: string; nama: string; judul: string; isActive: boolean };
+type SuratTemplateRow = { id: string; code: string; name: string; title: string; isActive: boolean };
 
 export default function SuratTemplateClient({
   userId,
@@ -20,7 +20,7 @@ export default function SuratTemplateClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editId, setEditId] = useState("");
-  const [kode, setKode] = useState("");
+  const [code, setKode] = useState("");
   const [nama, setNama] = useState("");
   const [judul, setJudul] = useState("");
   const [badan, setBadan] = useState("");
@@ -42,7 +42,7 @@ export default function SuratTemplateClient({
       return;
     }
     const body = (await res.json()) as {
-      template?: { id: string; kode: string; nama: string; judul: string; badan: string; isActive: boolean };
+      template?: { id: string; code: string; name: string; title: string; body: string; isActive: boolean };
     };
     if (!body.template) {
       toast.error("Template tidak ditemukan.");
@@ -50,10 +50,10 @@ export default function SuratTemplateClient({
     }
     const t = body.template;
     setEditId(t.id);
-    setKode(t.kode);
-    setNama(t.nama);
-    setJudul(t.judul);
-    setBadan(t.badan);
+    setKode(t.code);
+    setNama(t.name);
+    setJudul(t.title);
+    setBadan(t.body);
     setAktif(t.isActive);
   }
 
@@ -68,18 +68,18 @@ export default function SuratTemplateClient({
 
   function handleHapus(id: string) {
     if (!confirm("Hapus template ini?")) return;
-    runAction(hapusTemplate(id, userId));
+    runAction(deleteTemplate(id, userId));
   }
 
   const kolomTemplate: DataTableColumn<SuratTemplateRow>[] = [
     {
-      id: "kode",
+      id: "code",
       header: "Kode",
-      render: (t) => <span className="font-medium">{t.kode}</span>,
-      sortValue: (t) => t.kode,
-      searchValue: (t) => `${t.kode} ${t.nama}`,
+      render: (t) => <span className="font-medium">{t.code}</span>,
+      sortValue: (t) => t.code,
+      searchValue: (t) => `${t.code} ${t.name}`,
     },
-    { id: "nama", header: "Nama", accessor: "nama" },
+    { id: "nama", header: "Nama", accessor: "name" },
     {
       id: "status",
       header: "Status",
@@ -119,7 +119,7 @@ export default function SuratTemplateClient({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Template Aktif</h2>
           <button
             type="button"
-            onClick={() => runAction(seedTemplateBawaan(userId))}
+            onClick={() => runAction(seedDefaultTemplates(userId))}
             disabled={isPending}
             className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
           >
@@ -142,7 +142,7 @@ export default function SuratTemplateClient({
         </h2>
         <p className="mt-1 text-xs text-slate-500">Gunakan {"{{nama}}"} untuk variabel (nama, tanggal, dsb).</p>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingInput name="kode" label="Kode (huruf/angka/_)" value={kode} onChange={(e) => setKode(e.currentTarget.value.toUpperCase())} disabled={!!editId} />
+          <FloatingInput name="code" label="Kode (huruf/angka/_)" value={code} onChange={(e) => setKode(e.currentTarget.value.toUpperCase())} disabled={!!editId} />
           <FloatingInput name="nama" label="Nama" value={nama} onChange={(e) => setNama(e.currentTarget.value)} />
           <FloatingInput name="judul" label="Judul Surat" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
         </div>
@@ -162,7 +162,7 @@ export default function SuratTemplateClient({
             ) : null}
             <button
               type="button"
-              onClick={() => runAction(saveTemplate({ id: editId || undefined, kode, nama, judul, badan, isActive: aktif }, userId).then((r) => { if (r.success) reset(); return r; }))}
+              onClick={() => runAction(saveTemplate({ id: editId || undefined, code, name: nama, title: judul, body: badan, isActive: aktif }, userId).then((r) => { if (r.success) reset(); return r; }))}
               disabled={isPending}
               className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70"
             >

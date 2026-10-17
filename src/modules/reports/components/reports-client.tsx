@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import { getLaporan, type LaporanHasil } from "../actions/reports.actions";
+import { getReports, type ReportResult } from "../actions/reports.actions";
 
 const JENIS_OPTIONS = [
 	{ value: "kehadiran", label: "Kehadiran" },
@@ -35,12 +35,12 @@ export default function LaporanClient() {
 	const [jenis, setJenis] = useState("kehadiran");
 	const [mulai, setMulai] = useState(filterAwal.mulai);
 	const [selesai, setSelesai] = useState(filterAwal.selesai);
-	const [hasil, setHasil] = useState<LaporanHasil | null>(null);
+	const [hasil, setHasil] = useState<ReportResult | null>(null);
 	const [memuatAwal, setMemuatAwal] = useState(true);
 
 	useEffect(() => {
 		let batal = false;
-		getLaporan("kehadiran", filterAwal.mulai, filterAwal.selesai).then((data) => {
+		getReports("kehadiran", filterAwal.mulai, filterAwal.selesai).then((data) => {
 			if (!batal) {
 				setHasil(data);
 				setMemuatAwal(false);
@@ -53,7 +53,7 @@ export default function LaporanClient() {
 
 	function handleTampilkan() {
 		startTransition(async () => {
-			setHasil(await getLaporan(jenis, mulai, selesai));
+			setHasil(await getReports(jenis, mulai, selesai));
 		});
 	}
 

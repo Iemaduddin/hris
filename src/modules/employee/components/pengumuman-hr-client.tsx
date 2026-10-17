@@ -7,11 +7,11 @@ import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 import {
-	arsipkanPengumuman,
-	buatPengumuman,
-	hapusPengumuman,
-	terbitkanPengumuman,
-	type PengumumanItem,
+	archiveAnnouncement,
+	createAnnouncement,
+	deleteAnnouncement,
+	publishAnnouncement,
+	type AnnouncementItem,
 } from "@/src/modules/employee/actions/pengumuman.actions";
 
 export default function PengumumanHrClient({
@@ -20,13 +20,13 @@ export default function PengumumanHrClient({
 	unitOptions,
 }: {
 	userId: string;
-	initial: PengumumanItem[];
+	initial: AnnouncementItem[];
 	unitOptions: Array<{ value: string; label: string }>;
 }) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
-	const [judul, setJudul] = useState("");
-	const [isi, setIsi] = useState("");
+	const [title, setJudul] = useState("");
+	const [body, setIsi] = useState("");
 	const [unitId, setUnitId] = useState("");
 	const [selesai, setSelesai] = useState("");
 
@@ -45,14 +45,14 @@ export default function PengumumanHrClient({
 		});
 	}
 
-	const kolom: DataTableColumn<PengumumanItem>[] = [
-		{ id: "judul", header: "Judul", accessor: "judul" },
+	const kolom: DataTableColumn<AnnouncementItem>[] = [
+		{ id: "title", header: "Judul", accessor: "title" },
 		{
 			id: "target",
 			header: "Target",
-			render: (r) => <span>{r.unitNama ?? "Semua"}</span>,
-			sortValue: (r) => r.unitNama ?? "Semua",
-			searchValue: (r) => r.unitNama ?? "Semua",
+			render: (r) => <span>{r.unitName ?? "Semua"}</span>,
+			sortValue: (r) => r.unitName ?? "Semua",
+			searchValue: (r) => r.unitName ?? "Semua",
 		},
 		{
 			id: "status",
@@ -74,7 +74,7 @@ export default function PengumumanHrClient({
 						<button
 							type="button"
 							disabled={isPending}
-							onClick={() => runAction(terbitkanPengumuman(r.id))}
+							onClick={() => runAction(publishAnnouncement(r.id))}
 							className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
 						>
 							Terbitkan
@@ -84,7 +84,7 @@ export default function PengumumanHrClient({
 						<button
 							type="button"
 							disabled={isPending}
-							onClick={() => runAction(arsipkanPengumuman(r.id))}
+							onClick={() => runAction(archiveAnnouncement(r.id))}
 							className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60"
 						>
 							Arsip
@@ -94,7 +94,7 @@ export default function PengumumanHrClient({
 						<button
 							type="button"
 							disabled={isPending}
-							onClick={() => runAction(hapusPengumuman(r.id))}
+							onClick={() => runAction(deleteAnnouncement(r.id))}
 							className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
 						>
 							Hapus
@@ -113,7 +113,7 @@ export default function PengumumanHrClient({
 					Terbit = broadcast in-app + push + email ke target (semua / satu unit).
 				</p>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-					<FloatingInput name="judul" label="Judul" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
+					<FloatingInput name="title" label="Judul" value={title} onChange={(e) => setJudul(e.currentTarget.value)} />
 					<FloatingSelect
 						name="unit"
 						label="Target (kosong = semua)"
@@ -124,10 +124,10 @@ export default function PengumumanHrClient({
 					<FloatingInput name="selesai" label="Tayang sampai (opsional)" type="date" value={selesai} onChange={(e) => setSelesai(e.currentTarget.value)} />
 				</div>
 				<div className="mt-4">
-					<label className="mb-1 block text-xs text-slate-500" htmlFor="isi-pengumuman">Isi</label>
+					<label className="mb-1 block text-xs text-slate-500" htmlFor="body-pengumuman">Isi</label>
 					<textarea
-						id="isi-pengumuman"
-						value={isi}
+						id="body-pengumuman"
+						value={body}
 						onChange={(e) => setIsi(e.currentTarget.value)}
 						rows={4}
 						className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
@@ -138,13 +138,13 @@ export default function PengumumanHrClient({
 						type="button"
 						disabled={isPending}
 						onClick={() => {
-							if (!judul.trim() || !isi.trim()) {
+							if (!title.trim() || !body.trim()) {
 								toast.error("Judul dan isi wajib diisi.");
 								return;
 							}
 							runAction(
-								buatPengumuman(
-									{ judul, isi, unitOrganisasiId: unitId || undefined, tayangSelesai: selesai || undefined },
+								createAnnouncement(
+									{ title, body, orgUnitId: unitId || undefined, endsAt: selesai || undefined },
 									userId,
 								),
 							);

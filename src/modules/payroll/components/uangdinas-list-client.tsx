@@ -7,14 +7,14 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanUangDinas,
-  batalkanUangDinas,
-  buatUangDinas,
-  catatKembali,
-  catatSerah,
-  hapusUangDinas,
-  verifikasiLpj,
-  type UangDinasItem,
+  submitUangDinas,
+  cancelUangDinas,
+  createUangDinas,
+  recordRefund,
+  recordHandover,
+  deleteUangDinas,
+  verifyLpj,
+  type TravelAdvanceItem,
 } from "../actions/uangdinas.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
@@ -27,16 +27,16 @@ export default function UangDinasListClient({
   karyawanOptions,
 }: {
   userId: string;
-  items: UangDinasItem[];
+  items: TravelAdvanceItem[];
   dinasOptions: Array<{ value: string; label: string }>;
   karyawanOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [dinasId, setDinasId] = useState("");
-  const [karyawanId, setKaryawanId] = useState("");
+  const [dutyId, setDinasId] = useState("");
+  const [employeeId, setKaryawanId] = useState("");
   const [nominal, setNominal] = useState("");
-  const [keperluan, setKeperluan] = useState("");
+  const [purpose, setKeperluan] = useState("");
   const [pilihan, setPilihan] = useState<Record<string, string>>({});
 
   function runAction(action: Promise<{ success: boolean; message: string; id?: string }>) {
@@ -51,34 +51,34 @@ export default function UangDinasListClient({
   function handleTolakLpj(id: string) {
     const c = prompt("Alasan tolak LPJ:") ?? "";
     if (!c) return;
-    runAction(verifikasiLpj(id, { setuju: false, catatan: c, pilihanSisa: "TUNAI" }, userId));
+    runAction(verifyLpj(id, { approve: false, note: c, remainderChoice: "TUNAI" }, userId));
   }
 
-  const kolomUangDinas: DataTableColumn<UangDinasItem>[] = [
+  const kolomUangDinas: DataTableColumn<TravelAdvanceItem>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (u) => <span><span className="font-medium">{u.nomor}</span><br /><span className="text-xs text-slate-500">{u.dinasNomor}</span></span>,
-      sortValue: (u) => u.nomor,
-      searchValue: (u) => `${u.nomor} ${u.dinasNomor}`,
+      render: (u) => <span><span className="font-medium">{u.number}</span><br /><span className="text-xs text-slate-500">{u.dutyNumber}</span></span>,
+      sortValue: (u) => u.number,
+      searchValue: (u) => `${u.number} ${u.dutyNumber}`,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
       id: "muka",
       header: "Muka",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span>{rupiah.format(Number(u.nominalMuka))}</span>,
-      sortValue: (u) => Number(u.nominalMuka),
+      render: (u) => <span>{rupiah.format(Number(u.advanceAmount))}</span>,
+      sortValue: (u) => Number(u.advanceAmount),
       searchable: false,
     },
     {
-      id: "selisih",
+      id: "difference",
       header: "Selisih",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span>{u.selisih !== null ? rupiah.format(Number(u.selisih)) : "-"}</span>,
-      sortValue: (u) => (u.selisih !== null ? Number(u.selisih) : 0),
+      render: (u) => <span>{u.difference !== null ? rupiah.format(Number(u.difference)) : "-"}</span>,
+      sortValue: (u) => (u.difference !== null ? Number(u.difference) : 0),
       searchable: false,
     },
     {
@@ -101,12 +101,12 @@ export default function UangDinasListClient({
             Buka
           </Link>
           {u.status === "DIAJUKAN" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(ajukanUangDinas(u.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(submitUangDinas(u.id, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {u.status === "DISETUJUI" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(catatSerah(u.id, userId))} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(recordHandover(u.id, userId))} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
               Catat Serah
             </button>
           ) : null}
@@ -120,7 +120,7 @@ export default function UangDinasListClient({
                 <option value="TUNAI">Sisa tunai</option>
                 <option value="POTONG_GAJI">Sisa potong gaji</option>
               </select>
-              <button type="button" disabled={isPending} onClick={() => runAction(verifikasiLpj(u.id, { setuju: true, catatan: "", pilihanSisa: pilihan[u.id] ?? "TUNAI" }, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              <button type="button" disabled={isPending} onClick={() => runAction(verifyLpj(u.id, { approve: true, note: "", remainderChoice: pilihan[u.id] ?? "TUNAI" }, userId))} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
                 Verifikasi
               </button>
               <button type="button" disabled={isPending} onClick={() => handleTolakLpj(u.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
@@ -129,17 +129,17 @@ export default function UangDinasListClient({
             </>
           ) : null}
           {u.status === "SELESAI" ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(catatKembali(u.id, userId))} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(recordRefund(u.id, userId))} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
               Kembali
             </button>
           ) : null}
           {["DRAFT", "DIAJUKAN"].includes(u.status) ? (
-            <button type="button" disabled={isPending} onClick={() => runAction(batalkanUangDinas(u.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => runAction(cancelUangDinas(u.id, userId))} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batal
             </button>
           ) : null}
           {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(u.status) ? (
-            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus?")) return; runAction(hapusUangDinas(u.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus?")) return; runAction(deleteUangDinas(u.id, userId)); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
               Hapus
             </button>
           ) : null}
@@ -153,20 +153,20 @@ export default function UangDinasListClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Buat Uang Muka (dari dinas disetujui)</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <FloatingSelect name="dinas" label="Dinas" value={dinasId} onValueChange={setDinasId} options={dinasOptions} placeholder="Pilih dinas" searchable />
-          <FloatingSelect name="karyawan" label="Karyawan (HR)" value={karyawanId} onValueChange={setKaryawanId} options={karyawanOptions} placeholder="Otomatis" searchable />
+          <FloatingSelect name="dinas" label="Dinas" value={dutyId} onValueChange={setDinasId} options={dinasOptions} placeholder="Pilih dinas" searchable />
+          <FloatingSelect name="karyawan" label="Karyawan (HR)" value={employeeId} onValueChange={setKaryawanId} options={karyawanOptions} placeholder="Otomatis" searchable />
           <FloatingInput name="nominal" label="Nominal Muka (Rp)" type="number" value={nominal} onChange={(e) => setNominal(e.currentTarget.value)} />
-          <FloatingInput name="keperluan" label="Keperluan" value={keperluan} onChange={(e) => setKeperluan(e.currentTarget.value)} />
+          <FloatingInput name="purpose" label="Keperluan" value={purpose} onChange={(e) => setKeperluan(e.currentTarget.value)} />
         </div>
         <div className="mt-4 flex justify-end">
           <button
             type="button"
             onClick={() => {
-              if (!dinasId || !nominal) {
+              if (!dutyId || !nominal) {
                 toast.error("Dinas dan nominal wajib diisi.");
                 return;
               }
-              runAction(buatUangDinas({ dinasId, karyawanId, nominalMuka: Number(nominal), keperluan }, userId));
+              runAction(createUangDinas({ dutyId, employeeId, advanceAmount: Number(nominal), purpose }, userId));
             }}
             disabled={isPending}
             className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70"

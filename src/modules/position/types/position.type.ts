@@ -29,7 +29,7 @@ export type PositionActionResult = {
 export type PositionOption = {
 	id: string;
 	unitOrganisasiId: string | null;
-	unitOrganisasiNama: string | null;
+	orgUnitName: string | null;
 	golonganPosisiId: string | null;
 	golonganPosisiNama: string | null;
 	nama: string;

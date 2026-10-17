@@ -6,12 +6,12 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-	deleteKomponen,
-	saveKomponen,
-	seedKomponenDefault,
-	simpanGajiKaryawan,
-	type GajiKaryawanItem,
-	type KomponenItem,
+	deleteComponent,
+	saveComponent,
+	seedDefaultComponents,
+	saveEmployeeSalaries,
+	type EmployeeSalaryItem,
+	type ComponentItem,
 } from "../actions/payroll.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
@@ -42,18 +42,18 @@ export default function KomponenClient({
 	items,
 	assignMap,
 }: {
-	items: KomponenItem[];
-	assignMap: GajiKaryawanItem[];
+	items: ComponentItem[];
+	assignMap: EmployeeSalaryItem[];
 }) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [selectedId, setSelectedId] = useState("");
-	const [kode, setKode] = useState("");
-	const [nama, setNama] = useState("");
-	const [kelompok, setKelompok] = useState("TUNJANGAN");
-	const [tipe, setTipe] = useState("NOMINAL");
-	const [nilai, setNilai] = useState("");
-	const [batasAtas, setBatasAtas] = useState("");
+	const [code, setKode] = useState("");
+	const [name, setNama] = useState("");
+	const [group, setKelompok] = useState("TUNJANGAN");
+	const [type, setTipe] = useState("NOMINAL");
+	const [value, setNilai] = useState("");
+	const [upperLimit, setBatasAtas] = useState("");
 	const [isActive, setIsActive] = useState("true");
 
 	const [assignKaryawan, setAssignKaryawan] = useState("");
@@ -63,12 +63,12 @@ export default function KomponenClient({
 		setSelectedId(id);
 		const next = items.find((i) => i.id === id);
 		if (next) {
-			setKode(next.kode);
-			setNama(next.nama);
-			setKelompok(next.kelompok);
-			setTipe(next.tipe);
-			setNilai(next.nilai);
-			setBatasAtas(next.batasAtas ?? "");
+			setKode(next.code);
+			setNama(next.name);
+			setKelompok(next.group);
+			setTipe(next.type);
+			setNilai(next.value);
+			setBatasAtas(next.upperLimit ?? "");
 			setIsActive(next.isActive ? "true" : "false");
 		} else {
 			setKode("");
@@ -80,21 +80,21 @@ export default function KomponenClient({
 	}
 
 	function handleSave() {
-		if (!kode || !nama) {
+		if (!code || !name) {
 			toast.error("Kode dan nama wajib diisi.");
 			return;
 		}
 		const fd = new FormData();
 		if (selectedId) fd.set("id", selectedId);
-		fd.set("kode", kode);
-		fd.set("nama", nama);
-		fd.set("kelompok", kelompok);
-		fd.set("tipe", tipe);
-		fd.set("nilai", nilai || "0");
-		fd.set("batasAtas", batasAtas);
+		fd.set("code", code);
+		fd.set("name", name);
+		fd.set("group", group);
+		fd.set("type", type);
+		fd.set("value", value || "0");
+		fd.set("upperLimit", upperLimit);
 		fd.set("isActive", isActive);
 		startTransition(async () => {
-			const result = await saveKomponen(fd);
+			const result = await saveComponent(fd);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -107,7 +107,7 @@ export default function KomponenClient({
 
 	function handleSeed() {
 		startTransition(async () => {
-			const result = await seedKomponenDefault();
+			const result = await seedDefaultComponents();
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -120,7 +120,7 @@ export default function KomponenClient({
 	function handleHapusKomponen(id: string) {
 		if (!confirm("Hapus komponen ini?")) return;
 		startTransition(async () => {
-			const result = await deleteKomponen(id);
+			const result = await deleteComponent(id);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -130,30 +130,30 @@ export default function KomponenClient({
 		});
 	}
 
-	const kolomKomponen: DataTableColumn<KomponenItem>[] = [
+	const kolomKomponen: DataTableColumn<ComponentItem>[] = [
 		{
-			id: "kode",
+			id: "code",
 			header: "Kode",
-			render: (item) => <span className="font-medium">{item.kode}</span>,
-			sortValue: (item) => item.kode,
-			searchValue: (item) => `${item.kode} ${item.nama}`,
+			render: (item) => <span className="font-medium">{item.code}</span>,
+			sortValue: (item) => item.code,
+			searchValue: (item) => `${item.code} ${item.name}`,
 		},
-		{ id: "nama", header: "Nama", accessor: "nama" },
-		{ id: "kelompok", header: "Kelompok", accessor: "kelompok" },
+		{ id: "name", header: "Nama", accessor: "name" },
+		{ id: "group", header: "Kelompok", accessor: "group" },
 		{
-			id: "tipe",
+			id: "type",
 			header: "Tipe",
-			render: (item) => <span>{item.tipe.replaceAll("_", " ")}</span>,
-			sortValue: (item) => item.tipe,
-			searchValue: (item) => item.tipe.replaceAll("_", " "),
+			render: (item) => <span>{item.type.replaceAll("_", " ")}</span>,
+			sortValue: (item) => item.type,
+			searchValue: (item) => item.type.replaceAll("_", " "),
 		},
 		{
-			id: "nilai",
+			id: "value",
 			header: "Nilai",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
-			render: (item) => <span>{item.tipe === "PERSEN" ? `${item.nilai}%` : rupiah.format(Number(item.nilai))}</span>,
-			sortValue: (item) => Number(item.nilai),
+			render: (item) => <span>{item.type === "PERSEN" ? `${item.value}%` : rupiah.format(Number(item.value))}</span>,
+			sortValue: (item) => Number(item.value),
 			searchable: false,
 		},
 		{
@@ -183,8 +183,8 @@ export default function KomponenClient({
 
 	function pickAssignKaryawan(id: string) {
 		setAssignKaryawan(id);
-		const found = assignMap.find((a) => a.karyawanId === id);
-		setAssignChecked(found ? found.komponenIds : []);
+		const found = assignMap.find((a) => a.employeeId === id);
+		setAssignChecked(found ? found.componentIds : []);
 	}
 
 	function handleSaveAssign() {
@@ -193,7 +193,7 @@ export default function KomponenClient({
 			return;
 		}
 		startTransition(async () => {
-			const result = await simpanGajiKaryawan(assignKaryawan, assignChecked);
+			const result = await saveEmployeeSalaries(assignKaryawan, assignChecked);
 			if (!result.success) {
 				toast.error(result.message);
 				return;
@@ -215,12 +215,12 @@ export default function KomponenClient({
 					</button>
 				</div>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-					<FloatingInput name="kode" label="Kode" value={kode} onChange={(e) => setKode(e.currentTarget.value.toUpperCase())} />
-					<FloatingInput name="nama" label="Nama" value={nama} onChange={(e) => setNama(e.currentTarget.value)} />
-					<FloatingSelect name="kelompok" label="Kelompok" value={kelompok} onValueChange={setKelompok} options={KELOMPOK_OPTIONS} />
-					<FloatingSelect name="tipe" label="Tipe Hitung" value={tipe} onValueChange={setTipe} options={TIPE_OPTIONS} />
-					<FloatingInput name="nilai" label="Nilai" type="number" value={nilai} onChange={(e) => setNilai(e.currentTarget.value)} />
-					<FloatingInput name="batasAtas" label="Batas Atas (opsional)" type="number" value={batasAtas} onChange={(e) => setBatasAtas(e.currentTarget.value)} />
+					<FloatingInput name="code" label="Kode" value={code} onChange={(e) => setKode(e.currentTarget.value.toUpperCase())} />
+					<FloatingInput name="name" label="Nama" value={name} onChange={(e) => setNama(e.currentTarget.value)} />
+					<FloatingSelect name="group" label="Kelompok" value={group} onValueChange={setKelompok} options={KELOMPOK_OPTIONS} />
+					<FloatingSelect name="type" label="Tipe Hitung" value={type} onValueChange={setTipe} options={TIPE_OPTIONS} />
+					<FloatingInput name="value" label="Nilai" type="number" value={value} onChange={(e) => setNilai(e.currentTarget.value)} />
+					<FloatingInput name="upperLimit" label="Batas Atas (opsional)" type="number" value={upperLimit} onChange={(e) => setBatasAtas(e.currentTarget.value)} />
 					<FloatingSelect name="isActive" label="Aktif" value={isActive} onValueChange={setIsActive} options={BOOL_OPTIONS} />
 				</div>
 				<div className="mt-4 flex justify-end gap-2">
@@ -251,7 +251,7 @@ export default function KomponenClient({
 						label="Karyawan"
 						value={assignKaryawan}
 						onValueChange={pickAssignKaryawan}
-						options={assignMap.map((a) => ({ value: a.karyawanId, label: a.karyawanNama }))}
+						options={assignMap.map((a) => ({ value: a.employeeId, label: a.employeeName }))}
 						placeholder="Pilih karyawan"
 						searchable
 					/>
@@ -270,7 +270,7 @@ export default function KomponenClient({
 										className="h-4 w-4"
 									/>
 									<span>
-										{item.kode} — {item.nama}
+										{item.code} — {item.name}
 									</span>
 								</label>
 							))}

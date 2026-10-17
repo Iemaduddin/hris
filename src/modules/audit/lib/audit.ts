@@ -10,41 +10,41 @@ export type AuditInput = {
 	sesudah?: unknown;
 };
 
-function keJson(value: unknown): never | undefined {
-	if (value === undefined) return undefined;
-	try {
-		return JSON.parse(JSON.stringify(value)) as never;
-	} catch {
-		return undefined;
-	}
+function toJson(value: unknown): never | undefined {
+  if (value === undefined) return undefined;
+  try {
+    return JSON.parse(JSON.stringify(value)) as never;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Tulis jejak audit. Best-effort: kegagalan tidak menggagalkan aksi utama. */
-export async function catatAudit(input: AuditInput): Promise<void> {
-	try {
-		let actorNama: string | null = null;
-		let actorRole: string | null = null;
-		if (input.actorUserId) {
-			const user = await prisma.user.findUnique({
-				where: { id: input.actorUserId },
-				select: { name: true, role: true },
-			});
-			actorNama = user?.name ?? null;
-			actorRole = user?.role ?? null;
-		}
-		await prisma.auditLog.create({
-			data: {
-				actorUserId: input.actorUserId ?? null,
-				actorNama,
-				actorRole,
-				aksi: input.aksi,
-				entityType: input.entityType,
-				entityId: input.entityId ?? null,
-				sebelum: keJson(input.sebelum),
-				sesudah: keJson(input.sesudah),
-				alasan: input.alasan ?? null,
-			},
-		});
+export async function recordAudit(input: AuditInput): Promise<void> {
+  try {
+    let actorName: string | null = null;
+    let actorRole: string | null = null;
+    if (input.actorUserId) {
+      const user = await prisma.user.findUnique({
+        where: { id: input.actorUserId },
+        select: { name: true, role: true },
+      });
+      actorName = user?.name ?? null;
+      actorRole = user?.role ?? null;
+    }
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: input.actorUserId ?? null,
+        actorNama: actorName,
+        actorRole,
+        aksi: input.aksi,
+        entityType: input.entityType,
+        entityId: input.entityId ?? null,
+        sebelum: toJson(input.sebelum),
+        sesudah: toJson(input.sesudah),
+        alasan: input.alasan ?? null,
+      },
+    });
 	} catch {
 		// abaikan — audit pelengkap, aksi utama lebih prioritas
 	}

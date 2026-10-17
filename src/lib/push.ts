@@ -5,7 +5,7 @@ import prisma from "@/src/lib/prisma";
  * alur bisnis — error ditangkap dan dicatat, tak dilempar ke pemanggil.
  */
 
-export type PesanPush = {
+export type PushMessage = {
 	to: string;
 	title: string;
 	body: string;
@@ -27,7 +27,7 @@ type PushTicket = {
 type PushResponse = { data?: PushTicket | PushTicket[]; errors?: { message?: string }[] };
 
 /** Kirim satu batch pesan (maks. 100 per request sesuai batas Expo). */
-export async function kirimPush(messages: PesanPush[]): Promise<void> {
+export async function sendPush(messages: PushMessage[]): Promise<void> {
 	if (messages.length === 0) return;
 
 	const controller = new AbortController();
@@ -51,24 +51,24 @@ export async function kirimPush(messages: PesanPush[]): Promise<void> {
 		const payload = (await response.json()) as PushResponse;
 		const tickets = Array.isArray(payload.data) ? payload.data : payload.data ? [payload.data] : [];
 
-		// Token kedaluwarsa (DeviceNotRegistered) → berhenti mengirim ke sana.
-		const kedaluwarsa = tickets
-			.map((ticket, index) =>
-				ticket?.details?.error === "DeviceNotRegistered" ? messages[index]?.to : null,
-			)
-			.filter((token): token is string => Boolean(token));
+    // Token kedaluwarsa (DeviceNotRegistered) → berhenti mengirim ke sana.
+    const expired = tickets
+      .map((ticket, index) =>
+        ticket?.details?.error === "DeviceNotRegistered" ? messages[index]?.to : null,
+      )
+      .filter((token): token is string => Boolean(token));
 
-		if (kedaluwarsa.length > 0) {
-			await prisma.perangkatKaryawan.updateMany({
-				where: { pushToken: { in: kedaluwarsa } },
-				data: { pushToken: null },
-			});
-		}
+    if (expired.length > 0) {
+      await prisma.perangkatKaryawan.updateMany({
+        where: { pushToken: { in: expired } },
+        data: { pushToken: null },
+      });
+    }
 
-		const galatTicket = tickets.find((ticket) => ticket?.status === "error");
-		if (galatTicket) {
-			console.warn(`[push] Ditolak Expo: ${galatTicket.message ?? "tanpa pesan"}`);
-		}
+    const failedTicket = tickets.find((ticket) => ticket?.status === "error");
+    if (failedTicket) {
+      console.warn(`[push] Ditolak Expo: ${failedTicket.message ?? "tanpa pesan"}`);
+    }
 	} catch (error) {
 		console.warn(
 			"[push] Gagal menghubungi Expo Push Service:",

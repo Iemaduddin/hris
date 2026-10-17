@@ -5,34 +5,34 @@
  */
 
 /** Bulan kalender inklusif masuk→raya; 0 bila masuk sesudah hari raya. */
-export function hitungMasaKerjaBulan(tanggalMasuk: Date, tanggalHariRaya: Date): number {
-  const mY = tanggalMasuk.getFullYear();
-  const mM = tanggalMasuk.getMonth();
-  const rY = tanggalHariRaya.getFullYear();
-  const rM = tanggalHariRaya.getMonth();
-  const diff = (rY - mY) * 12 + (rM - mM) + 1;
+export function calculateTenureMonths(joinDate: Date, holidayDate: Date): number {
+  const joinYear = joinDate.getFullYear();
+  const joinMonth = joinDate.getMonth();
+  const holidayYear = holidayDate.getFullYear();
+  const holidayMonth = holidayDate.getMonth();
+  const diff = (holidayYear - joinYear) * 12 + (holidayMonth - joinMonth) + 1;
   if (diff <= 0) return 0;
   // Masuk setelah tanggal hari raya di bulan yang sama → belum 1 bulan.
-  if (diff === 1 && tanggalMasuk.getDate() > tanggalHariRaya.getDate()) return 0;
+  if (diff === 1 && joinDate.getDate() > holidayDate.getDate()) return 0;
   return diff;
 }
 
 /** Nominal THR bruto dari upah sebulan + masa kerja (bulan). */
-export function hitungNominalThr(upahSebulan: number, masaKerjaBulan: number): number {
-  const upah = Math.max(0, Math.round(upahSebulan));
-  const masa = Math.max(0, Math.floor(masaKerjaBulan));
-  if (upah === 0 || masa < 1) return 0;
-  if (masa >= 12) return upah;
-  return Math.round((upah * masa) / 12);
+export function calculateThrAmount(monthlyWage: number, tenureMonths: number): number {
+  const wage = Math.max(0, Math.round(monthlyWage));
+  const tenure = Math.max(0, Math.floor(tenureMonths));
+  if (wage === 0 || tenure < 1) return 0;
+  if (tenure >= 12) return wage;
+  return Math.round((wage * tenure) / 12);
 }
 
 /** Batas bayar normatif H-7 sebelum hari raya (untuk badge peringatan). */
-export function batasBayarHMin7(tanggalHariRaya: Date): Date {
-  const b = new Date(tanggalHariRaya);
-  b.setDate(b.getDate() - 7);
-  return b;
+export function hMinus7Deadline(holidayDate: Date): Date {
+  const deadline = new Date(holidayDate);
+  deadline.setDate(deadline.getDate() - 7);
+  return deadline;
 }
 
-export function terlambatBayarThr(tanggalBayar: Date, tanggalHariRaya: Date): boolean {
-  return tanggalBayar.getTime() > batasBayarHMin7(tanggalHariRaya).getTime();
+export function isThrLate(payDate: Date, holidayDate: Date): boolean {
+  return payDate.getTime() > hMinus7Deadline(holidayDate).getTime();
 }

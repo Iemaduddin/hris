@@ -6,13 +6,13 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  ajukanKasbon,
-  batalkanKasbon,
-  buatKasbon,
-  hapusKasbon,
-  setujuiKasbon,
-  tolakKasbon,
-  type KasbonItem,
+  submitSalaryAdvance,
+  cancelSalaryAdvance,
+  createSalaryAdvance,
+  deleteSalaryAdvance,
+  approveSalaryAdvance,
+  rejectSalaryAdvance,
+  type SalaryAdvanceItem,
 } from "../actions/kasbon.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
@@ -22,13 +22,13 @@ export default function KasbonListClient({
   items,
   karyawanOptions,
 }: {
-  items: KasbonItem[];
+  items: SalaryAdvanceItem[];
   karyawanOptions: Array<{ value: string; label: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [karyawanId, setKaryawanId] = useState("");
-  const [nominal, setNominal] = useState("");
+  const [employeeId, setKaryawanId] = useState("");
+  const [amount, setNominal] = useState("");
   const [tenor, setTenor] = useState("10");
   const [mulai, setMulai] = useState("");
   const [alasan, setAlasan] = useState("");
@@ -42,17 +42,17 @@ export default function KasbonListClient({
   }
 
   function handleBuat() {
-    if (!karyawanId || !nominal || !tenor || !mulai || !alasan.trim()) {
+    if (!employeeId || !amount || !tenor || !mulai || !alasan.trim()) {
       toast.error("Karyawan, nominal, tenor, mulai potong, dan alasan wajib diisi.");
       return;
     }
     startTransition(async () => {
-      const result = await buatKasbon({
-        karyawanId,
-        nominal: Number(nominal),
-        tenorBulan: Number(tenor),
-        mulaiPotong: mulai,
-        alasan,
+      const result = await createSalaryAdvance({
+        employeeId,
+        amount: Number(amount),
+        tenorMonths: Number(tenor),
+        deductionStart: mulai,
+        reason: alasan,
       });
       refresh(result.success, result.message);
       if (result.success) {
@@ -65,29 +65,29 @@ export default function KasbonListClient({
   function handleTolak() {
     if (!tolakId) return;
     startTransition(async () => {
-      const result = await tolakKasbon(tolakId, tolakCatatan);
+      const result = await rejectSalaryAdvance(tolakId, tolakCatatan);
       refresh(result.success, result.message);
       setTolakId("");
       setTolakCatatan("");
     });
   }
 
-  const kolomKasbon: DataTableColumn<KasbonItem>[] = [
+  const kolomKasbon: DataTableColumn<SalaryAdvanceItem>[] = [
     {
-      id: "nomor",
+      id: "number",
       header: "Nomor",
-      render: (k) => <span className="font-medium">{k.nomor}</span>,
-      sortValue: (k) => k.nomor,
-      searchValue: (k) => k.nomor,
+      render: (k) => <span className="font-medium">{k.number}</span>,
+      sortValue: (k) => k.number,
+      searchValue: (k) => k.number,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
-      id: "nominal",
+      id: "amount",
       header: "Nominal",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (k) => <span>{rupiah.format(Number(k.nominal))}</span>,
-      sortValue: (k) => Number(k.nominal),
+      render: (k) => <span>{rupiah.format(Number(k.amount))}</span>,
+      sortValue: (k) => Number(k.amount),
       searchable: false,
     },
     {
@@ -97,21 +97,21 @@ export default function KasbonListClient({
       cellClassName: "text-right",
       sortable: false,
       searchable: false,
-      render: (k) => <span>{rupiah.format(Number(k.angsuranPerBulan))} × {k.tenorBulan}</span>,
+      render: (k) => <span>{rupiah.format(Number(k.monthlyInstallment))} × {k.tenorMonths}</span>,
     },
     {
       id: "sisa",
       header: "Sisa",
       headerClassName: "text-right",
       cellClassName: "text-right font-semibold",
-      render: (k) => <span>{rupiah.format(Number(k.sisaHutang))}</span>,
-      sortValue: (k) => Number(k.sisaHutang),
+      render: (k) => <span>{rupiah.format(Number(k.remainingDebt))}</span>,
+      sortValue: (k) => Number(k.remainingDebt),
       searchable: false,
     },
     {
       id: "status",
       header: "Status",
-      render: (k) => <span>{k.status.replaceAll("_", " ")}{k.angsuranKe > 0 ? ` (${k.angsuranKe}x cicil)` : ""}</span>,
+      render: (k) => <span>{k.status.replaceAll("_", " ")}{k.installmentNo > 0 ? ` (${k.installmentNo}x cicil)` : ""}</span>,
       sortValue: (k) => k.status,
       searchValue: (k) => k.status.replaceAll("_", " "),
     },
@@ -125,13 +125,13 @@ export default function KasbonListClient({
       render: (k) => (
         <div className="inline-flex flex-wrap justify-end gap-2">
           {k.status === "DRAFT" ? (
-            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await ajukanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await submitSalaryAdvance(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50 disabled:opacity-60">
               Ajukan
             </button>
           ) : null}
           {k.status === "DIAJUKAN" ? (
             <>
-              <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await setujuiKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await approveSalaryAdvance(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
                 Setujui
               </button>
               <button type="button" disabled={isPending} onClick={() => setTolakId(k.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
@@ -140,12 +140,12 @@ export default function KasbonListClient({
             </>
           ) : null}
           {["DRAFT", "DIAJUKAN"].includes(k.status) ? (
-            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await batalkanKasbon(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await cancelSalaryAdvance(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-amber-200 px-3 py-1 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60">
               Batal
             </button>
           ) : null}
           {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(k.status) ? (
-            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus kasbon ini?")) return; startTransition(async () => { const r = await hapusKasbon(k.id); refresh(r.success, r.message); }); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
+            <button type="button" disabled={isPending} onClick={() => { if (!confirm("Hapus kasbon ini?")) return; startTransition(async () => { const r = await deleteSalaryAdvance(k.id); refresh(r.success, r.message); }); }} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">
               Hapus
             </button>
           ) : null}
@@ -162,13 +162,13 @@ export default function KasbonListClient({
           <FloatingSelect
             name="karyawan"
             label="Karyawan"
-            value={karyawanId}
+            value={employeeId}
             onValueChange={setKaryawanId}
             options={karyawanOptions}
             placeholder="Pilih karyawan"
             searchable
           />
-          <FloatingInput name="nominal" label="Nominal (Rp)" type="number" value={nominal} onChange={(e) => setNominal(e.currentTarget.value)} />
+          <FloatingInput name="amount" label="Nominal (Rp)" type="number" value={amount} onChange={(e) => setNominal(e.currentTarget.value)} />
           <FloatingInput name="tenor" label="Tenor (bulan)" type="number" value={tenor} onChange={(e) => setTenor(e.currentTarget.value)} />
           <FloatingInput name="mulai" label="Mulai Potong" type="date" value={mulai} onChange={(e) => setMulai(e.currentTarget.value)} />
           <FloatingInput name="alasan" label="Alasan" value={alasan} onChange={(e) => setAlasan(e.currentTarget.value)} />

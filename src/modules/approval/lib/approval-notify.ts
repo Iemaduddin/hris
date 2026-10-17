@@ -1,61 +1,61 @@
 import prisma from "@/src/lib/prisma";
-import { getRingkasanPengajuan, type ReferensiType } from "./approval-engine";
-import { kirimNotifikasi } from "@/src/modules/notifikasi/lib/notify";
+import { getRequestSummary, type ReferensiType } from "./approval-engine";
+import { sendNotification } from "@/src/modules/notifikasi/lib/notify";
 
 /** Beritahu pemohon saat pengajuan disetujui/ditolak (best-effort). */
 
-const SLUG_JENIS: Record<ReferensiType, string> = {
-	CUTI: "cuti",
-	LEMBUR: "lembur",
-	DINAS: "dinas",
-	MUTASI: "mutasi",
-	RESIGN: "resign",
-	PROBATION: "probation",
-	TUKAR_SHIFT: "tukar",
-	KOREKSI: "koreksi",
-	UPDATE_DATA: "updatedata",
-	REIMBURSE: "reimburse",
-	UANGDINAS: "uangdinas",
+const KIND_SLUGS: Record<ReferensiType, string> = {
+  CUTI: "leave",
+  LEMBUR: "overtime",
+  DINAS: "duty",
+  MUTASI: "mutasi",
+  RESIGN: "resign",
+  PROBATION: "probation",
+  TUKAR_SHIFT: "tukar",
+  KOREKSI: "koreksi",
+  UPDATE_DATA: "updatedata",
+  REIMBURSE: "reimburse",
+  UANGDINAS: "uangdinas",
 };
 
-export type StatusKeputusan = "DISETUJUI" | "DITOLAK";
+export type DecisionStatus = "DISETUJUI" | "DITOLAK";
 
-export async function notifikasiKeputusanPengajuan(
-	type: ReferensiType,
-	id: string,
-	status: StatusKeputusan,
+export async function notifyRequestDecision(
+  type: ReferensiType,
+  id: string,
+  status: DecisionStatus,
 ): Promise<void> {
-	try {
-		const detail = await getRingkasanPengajuan(type, id);
-		if (!detail) return;
+  try {
+    const detail = await getRequestSummary(type, id);
+    if (!detail) return;
 
-		const karyawan = await prisma.karyawan.findUnique({
-			where: { id: detail.karyawanId },
-			select: { userId: true },
-		});
-		if (!karyawan?.userId) return;
+    const employee = await prisma.karyawan.findUnique({
+      where: { id: detail.employeeId },
+      select: { userId: true },
+    });
+    if (!employee?.userId) return;
 
-		const disetujui = status === "DISETUJUI";
-		const slug = SLUG_JENIS[type];
-		await kirimNotifikasi({
-			userId: karyawan.userId,
-			judul: disetujui ? "Pengajuan Disetujui" : "Pengajuan Ditolak",
-			isi: `${detail.nomor} • ${detail.ringkasan} — ${disetujui ? "disetujui" : "ditolak"}.`,
-			jenis: "KEPUTUSAN",
-			referensiType: type,
-			referensiId: id,
-			url: "/account/requests",
-			pushData: {
-				url: `/requests/detail?id=${encodeURIComponent(detail.id)}&jenis=${slug}`,
-				jenis: slug,
-				id: detail.id,
-				status,
-			},
-		});
-	} catch (error) {
-		console.warn(
-			"[approval-notify] Gagal mengirim notifikasi:",
-			error instanceof Error ? error.message : error,
-		);
-	}
+    const approved = status === "DISETUJUI";
+    const slug = KIND_SLUGS[type];
+    await sendNotification({
+      userId: employee.userId,
+      title: approved ? "Pengajuan Disetujui" : "Pengajuan Ditolak",
+      body: `${detail.number} • ${detail.summary} — ${approved ? "disetujui" : "ditolak"}.`,
+      kind: "KEPUTUSAN",
+      referenceType: type,
+      referenceId: id,
+      url: "/account/requests",
+      pushData: {
+        url: `/requests/detail?id=${encodeURIComponent(detail.id)}&kind=${slug}`,
+        kind: slug,
+        id: detail.id,
+        status,
+      },
+    });
+  } catch (error) {
+    console.warn(
+      "[approval-notify] Gagal mengirim notifikasi:",
+      error instanceof Error ? error.message : error,
+    );
+  }
 }

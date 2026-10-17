@@ -6,8 +6,8 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
-import { perpanjangKontrakBatch } from "../actions/kontrak.actions";
-import type { KontrakMasaBerakhirItem } from "../actions/employee.actions";
+import { extendContractsBatch } from "../actions/kontrak.actions";
+import type { ExpiringContractItem } from "../actions/employee.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const JENIS_OPTIONS = [
@@ -23,7 +23,7 @@ export default function KontrakListClient({
   items,
 }: {
   userId: string;
-  items: KontrakMasaBerakhirItem[];
+  items: ExpiringContractItem[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -45,8 +45,8 @@ export default function KontrakListClient({
     }
     if (!confirm(`Perpanjang ${checked.length} kontrak? Kontrak lama BERAKHIR, kontrak baru AKTIF bernomor otomatis.`)) return;
     startTransition(async () => {
-      const result = await perpanjangKontrakBatch(
-        { kontrakIds: checked, tanggalSelesai: selesai, jenisKontrak: jenis, gajiPokok: gapok, catatan },
+      const result = await extendContractsBatch(
+        { contractIds: checked, endDate: selesai, contractType: jenis, baseSalary: gapok, note: catatan },
         userId,
       );
       if (!result.success) toast.error(result.message);
@@ -59,20 +59,20 @@ export default function KontrakListClient({
     });
   }
 
-  const kolomKontrak: DataTableColumn<KontrakMasaBerakhirItem>[] = [
+  const kolomKontrak: DataTableColumn<ExpiringContractItem>[] = [
     {
       id: "nomor",
       header: "Kontrak",
-      render: (k) => <span className="font-medium">{k.nomorKontrak} <span className="text-xs font-normal text-slate-500">({k.jenisKontrak})</span></span>,
-      sortValue: (k) => k.nomorKontrak,
-      searchValue: (k) => `${k.nomorKontrak} ${k.jenisKontrak}`,
+      render: (k) => <span className="font-medium">{k.contractNumber} <span className="text-xs font-normal text-slate-500">({k.contractType})</span></span>,
+      sortValue: (k) => k.contractNumber,
+      searchValue: (k) => `${k.contractNumber} ${k.contractType}`,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "karyawanNama" },
+    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
     {
       id: "selesai",
       header: "Selesai",
-      render: (k) => <span>{k.tanggalSelesai.slice(0, 10)}</span>,
-      sortValue: (k) => k.tanggalSelesai,
+      render: (k) => <span>{k.endDate.slice(0, 10)}</span>,
+      sortValue: (k) => k.endDate,
       searchable: false,
     },
     {
@@ -80,8 +80,8 @@ export default function KontrakListClient({
       header: "Sisa",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (k) => <span>H-{k.sisaHari}</span>,
-      sortValue: (k) => k.sisaHari,
+      render: (k) => <span>H-{k.remainingDays}</span>,
+      sortValue: (k) => k.remainingDays,
       searchable: false,
     },
     {

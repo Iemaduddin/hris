@@ -2,10 +2,10 @@
  * PPh 21 TER (PP 58/2023 + PMK 168/2023).
  * Bulanan: PPh = bruto × tarif kategori A/B/C. Desember: koreksi tahunan
  * Pasal 17 dikurangi akumulasi Jan–Nov. Bruto = totalPendapatan.
- * Tabel TER_*_LAPIS = salinan lampiran PP 58/2023 (fallback bila tabel DB kosong).
+ * Tabel TER_*_BRACKETS = salinan lampiran PP 58/2023 (fallback bila tabel DB kosong).
  */
 
-export type KategoriTer = "A" | "B" | "C";
+export type TerCategory = "A" | "B" | "C";
 export type StatusPtkpInput =
   | "TK_0"
   | "TK_1"
@@ -16,15 +16,15 @@ export type StatusPtkpInput =
   | "K_2"
   | "K_3";
 
-export type LapisTer = { batasAtas: number | null; tarif: number };
+export type TerBracket = { batasAtas: number | null; tarif: number };
 
-export function kategoriTerDariPtkp(ptkp: StatusPtkpInput): KategoriTer {
+export function terCategoryFromPtkp(ptkp: StatusPtkpInput): TerCategory {
   if (ptkp === "K_3") return "C";
   if (ptkp === "TK_2" || ptkp === "TK_3" || ptkp === "K_1" || ptkp === "K_2") return "B";
   return "A";
 }
 
-export function labelPtkp(ptkp: StatusPtkpInput): string {
+export function getPtkpLabel(ptkp: StatusPtkpInput): string {
   return ptkp.replace("_", "/");
 }
 
@@ -40,7 +40,7 @@ export const PTKP_TAHUNAN: Record<StatusPtkpInput, number> = {
 };
 
 /** Tarif Pasal 17 ayat (1) huruf a — untuk koreksi Desember. */
-const PASAL17_LAPIS: Array<{ batasAtas: number | null; tarif: number }> = [
+const ARTICLE17_BRACKETS: TerBracket[] = [
   { batasAtas: 60_000_000, tarif: 0.05 },
   { batasAtas: 250_000_000, tarif: 0.15 },
   { batasAtas: 500_000_000, tarif: 0.25 },
@@ -48,27 +48,27 @@ const PASAL17_LAPIS: Array<{ batasAtas: number | null; tarif: number }> = [
   { batasAtas: null, tarif: 0.35 },
 ];
 
-export function hitungPPhPasal17Setahun(pkp: number): number {
-  if (pkp <= 0) return 0;
-  let sisa = pkp;
-  let bawah = 0;
-  let pajak = 0;
-  for (const lapis of PASAL17_LAPIS) {
-    const atas = lapis.batasAtas ?? Number.POSITIVE_INFINITY;
-    const kena = Math.min(sisa, atas - bawah);
-    if (kena <= 0) break;
-    pajak += kena * lapis.tarif;
-    sisa -= kena;
-    bawah = atas;
+export function calculateAnnualArticle17Tax(taxableIncome: number): number {
+  if (taxableIncome <= 0) return 0;
+  let remaining = taxableIncome;
+  let lower = 0;
+  let tax = 0;
+  for (const bracket of ARTICLE17_BRACKETS) {
+    const upper = bracket.batasAtas ?? Number.POSITIVE_INFINITY;
+    const taxable = Math.min(remaining, upper - lower);
+    if (taxable <= 0) break;
+    tax += taxable * bracket.tarif;
+    remaining -= taxable;
+    lower = upper;
   }
-  return Math.round(pajak);
+  return Math.round(tax);
 }
 
 // ---------------------------------------------------------------------------
 // Tabel TER lampiran PP 58/2023 (fallback bila DB kosong)
 // ---------------------------------------------------------------------------
 
-export const TER_A_LAPIS: LapisTer[] = [
+export const TER_A_BRACKETS: TerBracket[] = [
   { batasAtas: 5_400_000, tarif: 0 },
   { batasAtas: 5_650_000, tarif: 0.0025 },
   { batasAtas: 5_950_000, tarif: 0.005 },
@@ -115,7 +115,7 @@ export const TER_A_LAPIS: LapisTer[] = [
   { batasAtas: null, tarif: 0.34 },
 ];
 
-export const TER_B_LAPIS: LapisTer[] = [
+export const TER_B_BRACKETS: TerBracket[] = [
   { batasAtas: 6_200_000, tarif: 0 },
   { batasAtas: 6_500_000, tarif: 0.0025 },
   { batasAtas: 6_850_000, tarif: 0.005 },
@@ -158,7 +158,7 @@ export const TER_B_LAPIS: LapisTer[] = [
   { batasAtas: null, tarif: 0.34 },
 ];
 
-export const TER_C_LAPIS: LapisTer[] = [
+export const TER_C_BRACKETS: TerBracket[] = [
   { batasAtas: 6_600_000, tarif: 0 },
   { batasAtas: 6_950_000, tarif: 0.0025 },
   { batasAtas: 7_350_000, tarif: 0.005 },
@@ -202,43 +202,43 @@ export const TER_C_LAPIS: LapisTer[] = [
   { batasAtas: null, tarif: 0.34 },
 ];
 
-export const TER_FALLBACK: Record<KategoriTer, LapisTer[]> = {
-  A: TER_A_LAPIS,
-  B: TER_B_LAPIS,
-  C: TER_C_LAPIS,
+export const TER_FALLBACK: Record<TerCategory, TerBracket[]> = {
+  A: TER_A_BRACKETS,
+  B: TER_B_BRACKETS,
+  C: TER_C_BRACKETS,
 };
 
 // ---------------------------------------------------------------------------
 
-export function cariTarifTer(lapis: LapisTer[], bruto: number): number {
-  for (const l of lapis) {
-    if (l.batasAtas === null || bruto <= l.batasAtas) return l.tarif;
+export function findTerRate(brackets: TerBracket[], gross: number): number {
+  for (const b of brackets) {
+    if (b.batasAtas === null || gross <= b.batasAtas) return b.tarif;
   }
-  return lapis[lapis.length - 1]?.tarif ?? 0;
+  return brackets[brackets.length - 1]?.tarif ?? 0;
 }
 
-export type HasilPPhTer = {
-  kategori: KategoriTer;
-  tarif: number;
+export type TerPphResult = {
+  category: TerCategory;
+  rate: number;
   pph: number;
-  keterangan: string;
+  note: string;
 };
 
 /** Hitung PPh bulanan TER dari bruto + status PTKP. Pure, tanpa DB. */
-export function hitungPPhTerBulanan(
-  bruto: number,
+export function calculateMonthlyTerPph(
+  gross: number,
   ptkp: StatusPtkpInput,
-  lapisOverride?: LapisTer[],
-): HasilPPhTer {
-  const kategori = kategoriTerDariPtkp(ptkp);
-  const lapis = lapisOverride ?? TER_FALLBACK[kategori];
-  const tarif = cariTarifTer(lapis, Math.max(0, Math.round(bruto)));
-  const pph = Math.round(Math.max(0, bruto) * tarif);
+  bracketOverride?: TerBracket[],
+): TerPphResult {
+  const category = terCategoryFromPtkp(ptkp);
+  const brackets = bracketOverride ?? TER_FALLBACK[category];
+  const rate = findTerRate(brackets, Math.max(0, Math.round(gross)));
+  const pph = Math.round(Math.max(0, gross) * rate);
   return {
-    kategori,
-    tarif,
+    category,
+    rate,
     pph,
-    keterangan: `TER ${kategori} ${labelPtkp(ptkp)} ${(tarif * 100).toLocaleString("id-ID")}% x ${Math.round(bruto).toLocaleString("id-ID")}`,
+    note: `TER ${category} ${getPtkpLabel(ptkp)} ${(rate * 100).toLocaleString("id-ID")}% x ${Math.round(gross).toLocaleString("id-ID")}`,
   };
 }
 
@@ -248,68 +248,68 @@ export function hitungPPhTerBulanan(
  * PPh = TER(brutoAcuan + tambahan) − TER(brutoAcuan).
  * Bila tidak ada acuan gaji (0) hasilnya = TER atas tambahan saja.
  */
-export function hitungPPhMarginalTer(
-  brutoAcuan: number,
-  tambahan: number,
+export function calculateMarginalTerPph(
+  referenceGross: number,
+  extra: number,
   ptkp: StatusPtkpInput,
-  lapisOverride?: LapisTer[],
-): HasilPPhTer & { brutoGabungan: number } {
-  const acuan = Math.max(0, Math.round(brutoAcuan));
-  const tmb = Math.max(0, Math.round(tambahan));
-  const gabungan = acuan + tmb;
-  const kategori = kategoriTerDariPtkp(ptkp);
-  const lapis = lapisOverride ?? TER_FALLBACK[kategori];
-  const pphGabungan = Math.round(gabungan * cariTarifTer(lapis, gabungan));
-  const pphAcuan = Math.round(acuan * cariTarifTer(lapis, acuan));
-  const tarif = cariTarifTer(lapis, gabungan);
+  bracketOverride?: TerBracket[],
+): TerPphResult & { combinedGross: number } {
+  const reference = Math.max(0, Math.round(referenceGross));
+  const extraAmount = Math.max(0, Math.round(extra));
+  const combined = reference + extraAmount;
+  const category = terCategoryFromPtkp(ptkp);
+  const brackets = bracketOverride ?? TER_FALLBACK[category];
+  const combinedPph = Math.round(combined * findTerRate(brackets, combined));
+  const referencePph = Math.round(reference * findTerRate(brackets, reference));
+  const rate = findTerRate(brackets, combined);
   return {
-    kategori,
-    tarif,
-    pph: Math.max(0, pphGabungan - pphAcuan),
-    brutoGabungan: gabungan,
-    keterangan:
-      acuan > 0
-        ? `Marginal TER ${kategori}: (${gabungan.toLocaleString("id-ID")} − ${acuan.toLocaleString("id-ID")})`
-        : `TER ${kategori} ${labelPtkp(ptkp)} atas THR saja (tanpa acuan gaji bulan bayar)`,
+    category,
+    rate,
+    pph: Math.max(0, combinedPph - referencePph),
+    combinedGross: combined,
+    note:
+      reference > 0
+        ? `Marginal TER ${category}: (${combined.toLocaleString("id-ID")} − ${reference.toLocaleString("id-ID")})`
+        : `TER ${category} ${getPtkpLabel(ptkp)} atas THR saja (tanpa acuan gaji bulan bayar)`,
   };
 }
 
-export type KoreksiDesemberInput = {
+export type DecemberCorrectionInput = {
   ptkp: StatusPtkpInput;
   /** Total bruto Jan–Des (termasuk bulan Des berjalan). */
-  brutoSetahun: number;
+  annualGross: number;
   /** Total iuran setahun yang menjadi pengurang (JHT+JP karyawan). */
-  iuranSetahun: number;
+  annualDeductions: number;
   /** Jumlah bulan bekerja dalam tahun berjalan (1–12, untuk prorata biaya jabatan). */
-  bulanKerja: number;
+  monthsWorked: number;
   /** Akumulasi PPh TER Jan–Nov yang sudah dipotong. */
-  pphJanNov: number;
+  pphPaidJanNov: number;
   /** Tanpa NPWP → tarif Pasal 17 × 120% (UU HPP). Berlaku untuk koreksi tahunan. */
-  punyaNpwp: boolean;
+  hasNpwp: boolean;
 };
 
 /**
  * Koreksi Desember (PMK 168/2023): PPh setahun progresif − akumulasi Jan–Nov.
  * Biaya jabatan 5% bruto, max 500rb/bulan × bulanKerja. Tidak pernah negatif.
  */
-export function hitungPPhDesemberKoreksi(input: KoreksiDesemberInput): {
-  pphDesember: number;
-  pphSetahun: number;
-  pkp: number;
-  keterangan: string;
+export function calculateDecemberPphCorrection(input: DecemberCorrectionInput): {
+  decemberPph: number;
+  annualPph: number;
+  taxableIncome: number;
+  note: string;
 } {
-  const bruto = Math.max(0, Math.round(input.brutoSetahun));
-  const bulan = Math.min(12, Math.max(1, Math.round(input.bulanKerja)));
-  const biayaJabatan = Math.min(Math.round(bruto * 0.05), 500_000 * bulan);
-  const neto = Math.max(0, bruto - biayaJabatan - Math.max(0, Math.round(input.iuranSetahun)));
-  const pkp = Math.max(0, Math.floor((neto - PTKP_TAHUNAN[input.ptkp]) / 1000) * 1000);
-  let pphSetahun = hitungPPhPasal17Setahun(pkp);
-  if (!input.punyaNpwp) pphSetahun = Math.round(pphSetahun * 1.2);
-  const pphDesember = Math.max(0, pphSetahun - Math.max(0, Math.round(input.pphJanNov)));
+  const gross = Math.max(0, Math.round(input.annualGross));
+  const months = Math.min(12, Math.max(1, Math.round(input.monthsWorked)));
+  const occupationalExpense = Math.min(Math.round(gross * 0.05), 500_000 * months);
+  const net = Math.max(0, gross - occupationalExpense - Math.max(0, Math.round(input.annualDeductions)));
+  const taxableIncome = Math.max(0, Math.floor((net - PTKP_TAHUNAN[input.ptkp]) / 1000) * 1000);
+  let annualPph = calculateAnnualArticle17Tax(taxableIncome);
+  if (!input.hasNpwp) annualPph = Math.round(annualPph * 1.2);
+  const decemberPph = Math.max(0, annualPph - Math.max(0, Math.round(input.pphPaidJanNov)));
   return {
-    pphDesember,
-    pphSetahun,
-    pkp,
-    keterangan: `Koreksi Des: setahun ${pphSetahun.toLocaleString("id-ID")} − Jan–Nov ${Math.round(input.pphJanNov).toLocaleString("id-ID")}`,
+    decemberPph,
+    annualPph,
+    taxableIncome,
+    note: `Koreksi Des: setahun ${annualPph.toLocaleString("id-ID")} − Jan–Nov ${Math.round(input.pphPaidJanNov).toLocaleString("id-ID")}`,
   };
 }

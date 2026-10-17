@@ -1,6 +1,6 @@
 /** Uang keluar: plafon reimbursement + selisih LPJ murni. */
 
-export const KATEGORI_REIMBURSE = [
+export const REIMBURSE_CATEGORIES = [
   "TRANSPORT",
   "KONSUMSI",
   "PARKIR",
@@ -11,17 +11,17 @@ export const KATEGORI_REIMBURSE = [
   "LAINNYA",
 ] as const;
 
-export const kunciPlafon = (kategori: string) => `REIMBURSE_MAX_${kategori}`;
+export const limitKey = (category: string) => `REIMBURSE_MAX_${category}`;
 
-export function cekPlafon(nominal: number, plafon: number | null): string | null {
-  if (!Number.isFinite(nominal) || nominal <= 0) return "Nominal harus lebih dari 0.";
-  if (plafon !== null && Math.round(nominal) > plafon) {
-    return `Melebihi plafon Rp${plafon.toLocaleString("id-ID")}.`;
+export function checkLimit(amount: number, limit: number | null): string | null {
+  if (!Number.isFinite(amount) || amount <= 0) return "Nominal harus lebih dari 0.";
+  if (limit !== null && Math.round(amount) > limit) {
+    return `Melebihi plafon Rp${limit.toLocaleString("id-ID")}.`;
   }
   return null;
 }
 
-export function parsePlafon(value: string | null | undefined): number | null {
+export function parseLimit(value: string | null | undefined): number | null {
   const s = (value ?? "").trim();
   if (!s) return null;
   const n = Math.floor(Number(s));
@@ -29,6 +29,6 @@ export function parsePlafon(value: string | null | undefined): number | null {
 }
 
 /** selisih = muka − realisasi. Positif = sisa (kembali/potong gaji), negatif = kurang (reimburse). */
-export function hitungSelisihLpj(nominalMuka: number, totalRealisasi: number): number {
-  return Math.round(nominalMuka) - Math.round(totalRealisasi);
+export function calculateLpjDifference(advanceAmount: number, actualTotal: number): number {
+  return Math.round(advanceAmount) - Math.round(actualTotal);
 }

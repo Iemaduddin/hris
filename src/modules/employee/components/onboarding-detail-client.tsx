@@ -6,12 +6,12 @@ import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
-  batalkanOnboarding,
-  centangItem,
-  hapusOnboarding,
-  tambahItem,
-  tutupOnboarding,
-  verifikasiItem,
+  cancelOnboarding,
+  toggleChecklistItem,
+  deleteOnboarding,
+  addItem,
+  closeOnboarding,
+  verifyItem,
   type OnboardingDetail,
 } from "../actions/onboarding.actions";
 
@@ -42,9 +42,9 @@ export default function OnboardingDetailClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [judul, setJudul] = useState("");
-  const [kategori, setKategori] = useState("LAINNYA");
-  const [wajib, setWajib] = useState(true);
+  const [title, setJudul] = useState("");
+  const [category, setKategori] = useState("LAINNYA");
+  const [required, setWajib] = useState(true);
 
   function runAction(action: Promise<{ success: boolean; message: string }>) {
     startTransition(async () => {
@@ -63,31 +63,31 @@ export default function OnboardingDetailClient({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {detail.karyawanNama} • {detail.persen}%
+              {detail.employeeName} • {detail.percent}%
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {detail.templateNama ?? "Kustom"} • {detail.status.replaceAll("_", " ")}
-              {detail.targetSelesai ? ` • target ${detail.targetSelesai}` : ""}
+              {detail.templateName ?? "Kustom"} • {detail.status.replaceAll("_", " ")}
+              {detail.targetDate ? ` • target ${detail.targetDate}` : ""}
             </p>
           </div>
           {bolehKelolaHr && berjalan ? (
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => runAction(tutupOnboarding(detail.id, userId))} disabled={isPending || !detail.bisaSelesai} title={detail.bisaSelesai ? "" : "Semua item wajib harus terverifikasi"} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+              <button type="button" onClick={() => runAction(closeOnboarding(detail.id, userId))} disabled={isPending || !detail.canComplete} title={detail.canComplete ? "" : "Semua item required harus terverifikasi"} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
                 Tutup
               </button>
-              <button type="button" onClick={() => runAction(batalkanOnboarding(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-amber-200 px-3 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              <button type="button" onClick={() => runAction(cancelOnboarding(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-amber-200 px-3 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60">
                 Batalkan
               </button>
             </div>
           ) : null}
           {bolehKelolaHr && detail.status === "DIBATALKAN" ? (
-            <button type="button" onClick={() => { if (!confirm("Hapus onboarding ini?")) return; runAction(hapusOnboarding(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
+            <button type="button" onClick={() => { if (!confirm("Hapus onboarding ini?")) return; runAction(deleteOnboarding(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
               Hapus
             </button>
           ) : null}
         </div>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div className="h-full rounded-full bg-blue-600" style={{ width: `${detail.persen}%` }} />
+          <div className="h-full rounded-full bg-blue-600" style={{ width: `${detail.percent}%` }} />
         </div>
       </div>
 
@@ -99,13 +99,13 @@ export default function OnboardingDetailClient({
                 type="checkbox"
                 checked={it.status !== "BELUM"}
                 disabled={isPending || !berjalan || (it.status === "TERVERIFIKASI" && !bolehKelolaHr)}
-                onChange={(e) => runAction(centangItem(it.id, e.currentTarget.checked, userId))}
+                onChange={(e) => runAction(toggleChecklistItem(it.id, e.currentTarget.checked, userId))}
                 className="h-5 w-5"
-                title={it.status === "TERVERIFIKASI" && !bolehKelolaHr ? "Sudah terverifikasi" : it.judul}
+                title={it.status === "TERVERIFIKASI" && !bolehKelolaHr ? "Sudah terverifikasi" : it.title}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{it.judul} {it.wajib ? <span className="text-red-500">*</span> : null}</p>
-                <p className="text-xs text-slate-500">{it.kategori}{it.catatan ? ` • ${it.catatan}` : ""}</p>
+                <p className="text-sm font-medium">{it.title} {it.required ? <span className="text-red-500">*</span> : null}</p>
+                <p className="text-xs text-slate-500">{it.category}{it.note ? ` • ${it.note}` : ""}</p>
               </div>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_WARNA[it.status] ?? STATUS_WARNA.BELUM}`}>
                 {it.status}
@@ -114,7 +114,7 @@ export default function OnboardingDetailClient({
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={() => runAction(verifikasiItem(it.id, userId))}
+                  onClick={() => runAction(verifyItem(it.id, userId))}
                   className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                 >
                   Verifikasi
@@ -125,17 +125,17 @@ export default function OnboardingDetailClient({
         </ul>
         {bolehKelolaHr && berjalan ? (
           <div className="mt-4 grid grid-cols-1 gap-4 border-t border-blue-100 pt-4 md:grid-cols-4 dark:border-blue-900/60">
-            <FloatingInput name="judul" label="Item tambahan" value={judul} onChange={(e) => setJudul(e.currentTarget.value)} />
-            <FloatingSelect name="kategori" label="Kategori" value={kategori} onValueChange={setKategori} options={KATEGORI_OPTIONS} searchable={false} />
+            <FloatingInput name="title" label="Item tambahan" value={title} onChange={(e) => setJudul(e.currentTarget.value)} />
+            <FloatingSelect name="category" label="Kategori" value={category} onValueChange={setKategori} options={KATEGORI_OPTIONS} searchable={false} />
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={wajib} onChange={() => setWajib((v) => !v)} className="h-4 w-4" />
-              Wajib
+              <input type="checkbox" checked={required} onChange={() => setWajib((v) => !v)} className="h-4 w-4" />
+              required
             </label>
             <div className="flex items-end">
               <button
                 type="button"
-                disabled={isPending || !judul.trim()}
-                onClick={() => runAction(tambahItem(detail.id, { judul, kategori, wajib }, userId).then((r) => { if (r.success) { setJudul(""); } return r; }))}
+                disabled={isPending || !title.trim()}
+                onClick={() => runAction(addItem(detail.id, { title, category, required }, userId).then((r) => { if (r.success) { setJudul(""); } return r; }))}
                 className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 Tambah

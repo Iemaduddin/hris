@@ -27,7 +27,7 @@ export async function getPositionOptions(): Promise<PositionOption[]> {
 	return positions.map((item) => ({
 		id: item.id,
 		unitOrganisasiId: item.unitOrganisasiId,
-		unitOrganisasiNama: item.unitOrganisasi?.nama ?? null,
+		orgUnitName: item.unitOrganisasi?.nama ?? null,
 		golonganPosisiId: item.golonganPosisiId,
 		golonganPosisiNama: item.golonganPosisi?.nama ?? null,
 		nama: item.nama,

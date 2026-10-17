@@ -125,9 +125,9 @@ export default function PositionForm({ positions, formOptions }: PositionFormPro
 		{
 			id: "unit",
 			header: "Unit",
-			render: (position) => <span>{position.unitOrganisasiNama ?? "-"}</span>,
-			sortValue: (position) => position.unitOrganisasiNama ?? "-",
-			searchValue: (position) => position.unitOrganisasiNama ?? "",
+			render: (position) => <span>{position.orgUnitName ?? "-"}</span>,
+			sortValue: (position) => position.orgUnitName ?? "-",
+			searchValue: (position) => position.orgUnitName ?? "",
 		},
 		{
 			id: "grade",

@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
-import { ajukanMutasi, batalkanMutasi, hapusMutasi, terapkanMutasi, type MutasiDetail } from "../actions/mutasi.actions";
+import { submitMutasi, cancelMutasi, deleteMutasi, applyMutasi, type MutasiDetail } from "../actions/mutasi.actions";
 
 function Baris({ kiri, kanan }: { kiri: string; kanan: string }) {
   return (
@@ -42,30 +42,30 @@ export default function MutasiDetailClient({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {detail.jenisLabel} • {detail.nomor}
+              {detail.kindLabel} • {detail.number}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {detail.karyawanNama} • Efektif {detail.tanggalEfektif} • {detail.status.replaceAll("_", " ")}
+              {detail.employeeName} • Efektif {detail.effectiveDate} • {detail.status.replaceAll("_", " ")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {detail.status === "DRAFT" ? (
-              <button type="button" onClick={() => runAction(ajukanMutasi(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
+              <button type="button" onClick={() => runAction(submitMutasi(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70">
                 Ajukan
               </button>
             ) : null}
             {detail.status === "DISETUJUI" && bolehTerapkan ? (
-              <button type="button" onClick={() => { if (!confirm("Terapkan ke penempatan sekarang?")) return; runAction(terapkanMutasi(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70">
+              <button type="button" onClick={() => { if (!confirm("Terapkan ke penempatan sekarang?")) return; runAction(applyMutasi(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70">
                 Terapkan
               </button>
             ) : null}
             {["DRAFT", "DIAJUKAN"].includes(detail.status) ? (
-              <button type="button" onClick={() => runAction(batalkanMutasi(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-amber-200 px-3 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60">
+              <button type="button" onClick={() => runAction(cancelMutasi(detail.id, userId))} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-amber-200 px-3 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60">
                 Batalkan
               </button>
             ) : null}
             {["DRAFT", "DITOLAK", "DIBATALKAN"].includes(detail.status) ? (
-              <button type="button" onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(hapusMutasi(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
+              <button type="button" onClick={() => { if (!confirm("Hapus usulan ini?")) return; runAction(deleteMutasi(detail.id, userId)); }} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-red-200 px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
                 Hapus
               </button>
             ) : null}
@@ -82,12 +82,12 @@ export default function MutasiDetailClient({
         <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
           <h3 className="font-semibold">Dari → Ke</h3>
           <ul className="mt-2">
-            <Baris kiri="Dari" kanan={detail.dari} />
-            <Baris kiri="Ke" kanan={detail.ke} />
-            <Baris kiri="Atasan baru" kanan={detail.keAtasanNama ?? "(tetap)"} />
-            <Baris kiri="Alasan" kanan={detail.alasan} />
-            <Baris kiri="Diajukan" kanan={detail.diajukanPada ?? "-"} />
-            <Baris kiri="Diterapkan" kanan={detail.diterapkanPada ?? "-"} />
+            <Baris kiri="Dari" kanan={detail.from} />
+            <Baris kiri="Ke" kanan={detail.to} />
+            <Baris kiri="Atasan baru" kanan={detail.toSupervisorName ?? "(tetap)"} />
+            <Baris kiri="Alasan" kanan={detail.reason} />
+            <Baris kiri="Diajukan" kanan={detail.submittedAt ?? "-"} />
+            <Baris kiri="Diterapkan" kanan={detail.appliedAt ?? "-"} />
           </ul>
         </div>
         <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
@@ -98,9 +98,9 @@ export default function MutasiDetailClient({
             <ul className="mt-2">
               {detail.steps.map((s) => (
                 <Baris
-                  key={s.tahap}
-                  kiri={`Tahap ${s.tahap}${s.catatan ? ` — ${s.catatan}` : ""}`}
-                  kanan={`${s.status}${s.diprosesPada ? ` • ${new Date(s.diprosesPada).toLocaleString("id-ID")}` : ""}`}
+                  key={s.stage}
+                  kiri={`Tahap ${s.stage}${s.note ? ` — ${s.note}` : ""}`}
+                  kanan={`${s.status}${s.processedAt ? ` • ${new Date(s.processedAt).toLocaleString("id-ID")}` : ""}`}
                 />
               ))}
             </ul>
