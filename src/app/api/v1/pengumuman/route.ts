@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 	if (!ctx) return fail("Unauthorized.", 401);
 	if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
-	const [items, peristiwa] = await Promise.all([
+	const [items, events] = await Promise.all([
 		getMyAnnouncementsCore(ctx.karyawanId),
 		getThisWeekEvents(),
 	]);
@@ -21,6 +21,6 @@ export async function GET(request: NextRequest) {
 			startsAt: p.startsAt,
 			endsAt: p.endsAt,
 		})),
-		peristiwa,
+		events,
 	});
 }
