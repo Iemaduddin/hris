@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ajukanKasbon, batalkanKasbon, buatKasbon, getKasbonSaya } from "@/src/modules/payroll/actions/kasbon.actions";
+import { cancelSalaryAdvance, createSalaryAdvance, getMySalaryAdvances, submitSalaryAdvance } from "@/src/modules/payroll/actions/kasbon.actions";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
 
 function num(value: unknown): number {
@@ -8,15 +8,15 @@ function num(value: unknown): number {
 }
 
 /**
- * GET: kasbon sendiri. POST: draf {nominal, tenorBulan, mulaiPotong, alasan}.
- * PUT: {id, aksi: "ajukan" | "batal"}.
+ * GET: kasbon sendiri. POST: draf {amount, tenorMonths, deductionStart, reason}.
+ * PUT: {id, action: "submit" | "cancel"}.
  */
 export async function GET(request: NextRequest) {
   const ctx = await requireApiSession(request);
   if (!ctx) return fail("Unauthorized.", 401);
   if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
-  const items = await getKasbonSaya(ctx.karyawanId);
+  const items = await getMySalaryAdvances(ctx.karyawanId);
   return ok({ items });
 }
 
@@ -26,12 +26,12 @@ export async function POST(request: NextRequest) {
   if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
   const body = await readJson(request);
-  const result = await buatKasbon({
-    karyawanId: ctx.karyawanId,
-    nominal: num(body?.["nominal"]),
-    tenorBulan: Math.floor(num(body?.["tenorBulan"])),
-    mulaiPotong: str(body?.["mulaiPotong"]),
-    alasan: str(body?.["alasan"]),
+  const result = await createSalaryAdvance({
+    employeeId: ctx.karyawanId,
+    amount: num(body?.["amount"]),
+    tenorMonths: Math.floor(num(body?.["tenorMonths"])),
+    deductionStart: str(body?.["deductionStart"]),
+    reason: str(body?.["reason"]),
   });
 
   if (!result.success) return fail(result.message, 422);
@@ -45,18 +45,18 @@ export async function PUT(request: NextRequest) {
 
   const body = await readJson(request);
   const id = str(body?.["id"]);
-  const aksi = str(body?.["aksi"]);
+  const action = str(body?.["action"]);
   if (!id) return fail("id wajib diisi.", 422);
 
-  if (aksi === "ajukan") {
-    const result = await ajukanKasbon(id, ctx.karyawanId);
+  if (action === "submit") {
+    const result = await submitSalaryAdvance(id, ctx.karyawanId);
     if (!result.success) return fail(result.message, 422);
     return ok({ message: result.message });
   }
-  if (aksi === "batal") {
-    const result = await batalkanKasbon(id, ctx.karyawanId);
+  if (action === "cancel") {
+    const result = await cancelSalaryAdvance(id, ctx.karyawanId);
     if (!result.success) return fail(result.message, 422);
     return ok({ message: result.message });
   }
-  return fail('Aksi tidak valid. Pilihan: "ajukan", "batal".', 422);
+  return fail('Aksi tidak valid. Pilihan: "submit", "cancel".', 422);
 }

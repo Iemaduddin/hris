@@ -1,17 +1,17 @@
 import { NextRequest } from "next/server";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
-import { ajukanKoreksi, batalkanKoreksi, buatKoreksi, getKoreksiSaya } from "@/src/modules/attendance/actions/koreksi.actions";
+import { cancelCorrection, createCorrection, getMyCorrections, submitCorrection } from "@/src/modules/attendance/actions/koreksi.actions";
 
 /**
- * GET: koreksi milik sendiri. POST: draf {tanggal, tipe, jam, alasan, lampiranUrl}.
- * PUT: {id, aksi: "ajukan" | "batal"}.
+ * GET: koreksi milik sendiri. POST: draf {date, eventType, time, reason, attachmentUrl}.
+ * PUT: {id, action: "submit" | "cancel"}.
  */
 export async function GET(request: NextRequest) {
   const ctx = await requireApiSession(request);
   if (!ctx) return fail("Unauthorized.", 401);
   if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
-  const items = await getKoreksiSaya(ctx.userId);
+  const items = await getMyCorrections(ctx.userId);
   return ok({ items });
 }
 
@@ -21,13 +21,13 @@ export async function POST(request: NextRequest) {
   if (!ctx.karyawanId) return fail("Akun belum tertaut ke data karyawan.", 403);
 
   const body = await readJson(request);
-  const result = await buatKoreksi(
+  const result = await createCorrection(
     {
-      tanggal: str(body?.["tanggal"]),
-      tipe: str(body?.["tipe"]).toUpperCase(),
-      jam: str(body?.["jam"]),
-      alasan: str(body?.["alasan"]),
-      lampiranUrl: str(body?.["lampiranUrl"]),
+      date: str(body?.["date"]),
+      eventType: str(body?.["eventType"]).toUpperCase(),
+      time: str(body?.["time"]),
+      reason: str(body?.["reason"]),
+      attachmentUrl: str(body?.["attachmentUrl"]),
     },
     ctx.userId,
   );
@@ -43,13 +43,13 @@ export async function PUT(request: NextRequest) {
 
   const body = await readJson(request);
   const id = str(body?.["id"]);
-  const aksi = str(body?.["aksi"]);
+  const action = str(body?.["action"]);
   if (!id) return fail("id wajib diisi.", 422);
 
-  if (aksi === "ajukan" || aksi === "batal") {
-    const result = aksi === "ajukan" ? await ajukanKoreksi(id, ctx.userId) : await batalkanKoreksi(id, ctx.userId);
+  if (action === "submit" || action === "cancel") {
+    const result = action === "submit" ? await submitCorrection(id, ctx.userId) : await cancelCorrection(id, ctx.userId);
     if (!result.success) return fail(result.message, 422);
     return ok({ message: result.message });
   }
-  return fail('Aksi tidak valid. Pilihan: "ajukan", "batal".', 422);
+  return fail('Aksi tidak valid. Pilihan: "submit", "cancel".', 422);
 }
