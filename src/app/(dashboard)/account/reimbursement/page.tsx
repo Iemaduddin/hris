@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getReimburseSaya } from "@/src/modules/payroll/actions/reimbursement.actions";
+import { getMyReimbursements } from "@/src/modules/payroll/actions/reimbursement.actions";
 import ReimbursementSayaClient from "@/src/modules/payroll/components/reimbursement-saya-client";
 
 export default async function ReimbursementSayaPage() {
@@ -21,7 +21,7 @@ export default async function ReimbursementSayaPage() {
     );
   }
 
-  const items = await getReimburseSaya(karyawan.id);
+  const items = await getMyReimbursements(karyawan.id);
 
   return (
     <>
@@ -31,7 +31,7 @@ export default async function ReimbursementSayaPage() {
       </div>
 
       <div className="mt-5">
-        <ReimbursementSayaClient userId={session.user.id} karyawanId={karyawan.id} items={items} />
+        <ReimbursementSayaClient userId={session.user.id} employeeId={karyawan.id} items={items} />
       </div>
     </>
   );

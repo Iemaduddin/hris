@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getOffboardingSaya } from "@/src/modules/employee/actions/offboarding.actions";
+import { getMyOffboarding } from "@/src/modules/employee/actions/offboarding.actions";
 import OffboardingSayaClient from "@/src/modules/employee/components/offboarding-saya-client";
 
 export default async function OffboardingSayaPage() {
@@ -21,7 +21,7 @@ export default async function OffboardingSayaPage() {
     );
   }
 
-  const items = await getOffboardingSaya(karyawan.id);
+  const items = await getMyOffboarding(karyawan.id);
 
   return (
     <>
@@ -31,7 +31,7 @@ export default async function OffboardingSayaPage() {
       </div>
 
       <div className="mt-5">
-        <OffboardingSayaClient userId={session.user.id} karyawanId={karyawan.id} items={items} />
+        <OffboardingSayaClient userId={session.user.id} employeeId={karyawan.id} items={items} />
       </div>
     </>
   );

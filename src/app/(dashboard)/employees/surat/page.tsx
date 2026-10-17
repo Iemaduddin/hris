@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getSuratList, getTerbitOptions } from "@/src/modules/employee/actions/surat.actions";
+import { listLetters, getPublishOptions } from "@/src/modules/employee/actions/surat.actions";
 import SuratTerbitClient from "@/src/modules/employee/components/surat-terbit-client";
 
 export default async function SuratPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  const [items, options] = await Promise.all([getSuratList(), getTerbitOptions()]);
+  const [items, options] = await Promise.all([listLetters(), getPublishOptions()]);
 
   return (
     <>
@@ -23,7 +23,7 @@ export default async function SuratPage() {
           userId={session.user.id}
           items={items}
           refs={options.refs}
-          karyawans={options.karyawans}
+          employees={options.employees}
           templates={options.templates}
         />
       </div>

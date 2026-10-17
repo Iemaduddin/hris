@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getPlafonList, getReimburseList } from "@/src/modules/payroll/actions/reimbursement.actions";
+import { listLimits, listReimbursements } from "@/src/modules/payroll/actions/reimbursement.actions";
 import ReimbursementListClient from "@/src/modules/payroll/components/reimbursement-list-client";
 
 export default async function ReimbursementPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  const [items, plafon] = await Promise.all([getReimburseList(), getPlafonList()]);
+  const [items, plafon] = await Promise.all([listReimbursements(), listLimits()]);
 
   return (
     <>

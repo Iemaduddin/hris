@@ -17,22 +17,22 @@ export default async function UangDinasSayaDetailPage({ params }: { params: Prom
 
   const { id } = await params;
   const d = await getUangDinasDetail(id, session.user.id);
-  if (!d || d.karyawanId !== karyawan.id) notFound();
+  if (!d || d.employeeId !== karyawan.id) notFound();
 
   return (
     <>
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{d.nomor}</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{d.number}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          {d.dinasNomor} • {d.status.replaceAll("_", " ")}
+          {d.dutyNumber} • {d.status.replaceAll("_", " ")}
         </p>
       </div>
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <ul className="space-y-1 text-sm">
-          <li className="flex justify-between gap-4"><span className="text-slate-500">Uang muka</span><span className="font-medium">{rupiah.format(Number(d.nominalMuka))}</span></li>
-          <li className="flex justify-between gap-4"><span className="text-slate-500">Realisasi</span><span className="font-medium">{d.totalRealisasi ? rupiah.format(Number(d.totalRealisasi)) : "-"}</span></li>
-          <li className="flex justify-between gap-4"><span className="text-slate-500">Selisih</span><span className="font-medium">{d.selisih !== null ? rupiah.format(Number(d.selisih)) : "-"}</span></li>
+          <li className="flex justify-between gap-4"><span className="text-slate-500">Uang muka</span><span className="font-medium">{rupiah.format(Number(d.advanceAmount))}</span></li>
+          <li className="flex justify-between gap-4"><span className="text-slate-500">Realisasi</span><span className="font-medium">{d.actualTotal ? rupiah.format(Number(d.actualTotal)) : "-"}</span></li>
+          <li className="flex justify-between gap-4"><span className="text-slate-500">Selisih</span><span className="font-medium">{d.difference !== null ? rupiah.format(Number(d.difference)) : "-"}</span></li>
         </ul>
       </div>
     </>

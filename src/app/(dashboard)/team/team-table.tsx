@@ -1,19 +1,19 @@
 "use client";
 
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { AnggotaTimHari } from "@/src/modules/employee/actions/team.actions";
+import type { TeamDayMember } from "@/src/modules/employee/actions/team.actions";
 
-const kolomTim: DataTableColumn<AnggotaTimHari>[] = [
+const teamColumns: DataTableColumn<TeamDayMember>[] = [
   {
     id: "nama",
     header: "Nama",
     render: (a) => (
       <span>
-        {a.nama} <span className="text-xs text-slate-500">({a.nomorKaryawan})</span>
+        {a.name} <span className="text-xs text-slate-500">({a.employeeNumber})</span>
       </span>
     ),
-    sortValue: (a) => a.nama,
-    searchValue: (a) => `${a.nama} ${a.nomorKaryawan}`,
+    sortValue: (a) => a.name,
+    searchValue: (a) => `${a.name} ${a.employeeNumber}`,
   },
   { id: "status", header: "Status", accessor: "status" },
   {
@@ -32,12 +32,12 @@ const kolomTim: DataTableColumn<AnggotaTimHari>[] = [
   },
 ];
 
-export default function TeamTable({ anggota }: { anggota: AnggotaTimHari[] }) {
+export default function TeamTable({ members }: { members: TeamDayMember[] }) {
   return (
     <DataTable
-      data={anggota}
-      columns={kolomTim}
-      getRowId={(a) => a.karyawanId}
+      data={members}
+      columns={teamColumns}
+      getRowId={(a) => a.employeeId}
       emptyMessage="Belum ada anggota tim."
     />
   );

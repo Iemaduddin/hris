@@ -12,18 +12,18 @@ export default async function ThrRunDetailPage({ params }: { params: Promise<{ i
   return (
     <>
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">THR {run.namaHariRaya} {run.tahun}</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">THR {run.holidayName} {run.year}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           Detail perhitungan per karyawan (upah = gapok + tunjangan tetap).
         </p>
       </div>
 
-      {disburse && disburse.belum.length > 0 ? (
+      {disburse && disburse.incomplete.length > 0 ? (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-            {disburse.belum.length} karyawan tanpa data bank lengkap — tidak ikut file CSV transfer:
+            {disburse.incomplete.length} karyawan tanpa data bank lengkap — tidak ikut file CSV transfer:
           </p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{disburse.belum.join("; ")}</p>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{disburse.incomplete.join("; ")}</p>
         </div>
       ) : null}
 

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getDisiplinSaya } from "@/src/modules/employee/actions/disiplin.actions";
+import { getMyDisiplin } from "@/src/modules/employee/actions/disiplin.actions";
 import DisiplinSayaClient from "@/src/modules/employee/components/disiplin-saya-client";
 
 export default async function DisiplinSayaPage() {
@@ -21,7 +21,7 @@ export default async function DisiplinSayaPage() {
     );
   }
 
-  const items = await getDisiplinSaya(karyawan.id);
+  const items = await getMyDisiplin(karyawan.id);
 
   return (
     <>

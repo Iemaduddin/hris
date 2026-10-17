@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getKontrakMasaBerakhir } from "@/src/modules/employee/actions/employee.actions";
+import { getExpiringContracts } from "@/src/modules/employee/actions/employee.actions";
 import KontrakListClient from "@/src/modules/employee/components/kontrak-list-client";
 
 export default async function KontrakPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  const items = await getKontrakMasaBerakhir(60);
+  const items = await getExpiringContracts(60);
 
   return (
     <>

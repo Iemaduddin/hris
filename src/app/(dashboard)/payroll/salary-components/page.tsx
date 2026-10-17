@@ -1,10 +1,10 @@
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getGajiKaryawanMap, getKomponenList } from "@/src/modules/payroll/actions/payroll.actions";
+import { getEmployeeSalaryMap, listComponents } from "@/src/modules/payroll/actions/payroll.actions";
 import KomponenClient from "@/src/modules/payroll/components/salary-components-client";
 
 export default async function KomponenPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
-	const [items, assignMap] = await Promise.all([getKomponenList(), getGajiKaryawanMap()]);
+	const [items, assignMap] = await Promise.all([listComponents(), getEmployeeSalaryMap()]);
 
 	return (
 		<>

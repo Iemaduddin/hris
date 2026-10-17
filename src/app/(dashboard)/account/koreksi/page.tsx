@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
-import { getKoreksiSaya } from "@/src/modules/attendance/actions/koreksi.actions";
+import { getMyCorrections } from "@/src/modules/attendance/actions/koreksi.actions";
 import KoreksiListClient from "@/src/modules/attendance/components/koreksi-list-client";
 
 export default async function KoreksiPage() {
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  const items = await getKoreksiSaya(session.user.id);
+  const items = await getMyCorrections(session.user.id);
 
   return (
     <>

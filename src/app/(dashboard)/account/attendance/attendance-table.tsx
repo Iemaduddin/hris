@@ -1,17 +1,17 @@
 "use client";
 
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { RekapBulananItem } from "@/src/modules/recap/actions/recap.actions";
+import type { MonthlyRecapItem } from "@/src/modules/recap/actions/recap.actions";
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short" });
 
-const kolomRekap: DataTableColumn<RekapBulananItem>[] = [
+const kolomRekap: DataTableColumn<MonthlyRecapItem>[] = [
   {
-    id: "tanggal",
+    id: "date",
     header: "Tanggal",
-    render: (item) => <span>{dateFormatter.format(new Date(item.tanggal))}</span>,
-    sortValue: (item) => item.tanggal,
-    searchValue: (item) => dateFormatter.format(new Date(item.tanggal)),
+    render: (item) => <span>{dateFormatter.format(new Date(item.date))}</span>,
+    sortValue: (item) => item.date,
+    searchValue: (item) => dateFormatter.format(new Date(item.date)),
   },
   {
     id: "status",
@@ -25,8 +25,8 @@ const kolomRekap: DataTableColumn<RekapBulananItem>[] = [
     header: "Telat",
     headerClassName: "text-right",
     cellClassName: "text-right",
-    render: (item) => <span>{item.telatMenit}&prime;</span>,
-    sortValue: (item) => item.telatMenit,
+    render: (item) => <span>{item.lateMinutes}&prime;</span>,
+    sortValue: (item) => item.lateMinutes,
     searchable: false,
   },
   {
@@ -34,13 +34,13 @@ const kolomRekap: DataTableColumn<RekapBulananItem>[] = [
     header: "Lembur",
     headerClassName: "text-right",
     cellClassName: "text-right",
-    render: (item) => <span>{item.lemburMenit}&prime;</span>,
-    sortValue: (item) => item.lemburMenit,
+    render: (item) => <span>{item.overtimeMinutes}&prime;</span>,
+    sortValue: (item) => item.overtimeMinutes,
     searchable: false,
   },
 ];
 
-export default function AttendanceTable({ items }: { items: RekapBulananItem[] }) {
+export default function AttendanceTable({ items }: { items: MonthlyRecapItem[] }) {
   return (
     <DataTable
       data={items}

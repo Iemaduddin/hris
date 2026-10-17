@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getSlipSaya } from "@/src/modules/payroll/actions/payroll.actions";
-import { getThrSaya } from "@/src/modules/payroll/actions/thr.actions";
+import { getMySlip } from "@/src/modules/payroll/actions/payroll.actions";
+import { getMyThr } from "@/src/modules/payroll/actions/thr.actions";
 import { SlipTable, ThrSlipTable } from "./slip-tables";
 
 export default async function SlipSayaPage() {
@@ -23,8 +23,8 @@ export default async function SlipSayaPage() {
 		);
 	}
 
-	const slips = await getSlipSaya(karyawan.id);
-	const thrSlips = await getThrSaya(karyawan.id);
+	const slips = await getMySlip(karyawan.id);
+	const thrSlips = await getMyThr(karyawan.id);
 
 	return (
 		<>

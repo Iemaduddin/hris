@@ -17,9 +17,9 @@ import { authClient } from "@/src/lib/auth-client";
 import { toast } from "react-toastify";
 import { useMounted } from "@/src/hooks/use-mounted";
 import {
-  getRingkasanNotifikasi,
-  tandaiNotifikasi,
-  type NotifikasiItem,
+  getNotificationSummary,
+  markNotifications,
+  type NotificationItem,
 } from "@/src/modules/notifikasi/actions/notifikasi.actions";
 
 type OpenMenu = "notification" | "avatar" | null;
@@ -80,48 +80,48 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
     setOpenMenu((prev) => (prev === menu ? null : menu));
   };
 
-  const [belumDibaca, setBelumDibaca] = useState(0);
-  const [terbaru, setTerbaru] = useState<NotifikasiItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [latest, setLatest] = useState<NotificationItem[]>([]);
 
-  async function muatNotifikasi() {
+  async function loadNotifications() {
     try {
-      const ringkas = await getRingkasanNotifikasi();
-      setBelumDibaca(ringkas.belumDibaca);
-      setTerbaru(ringkas.terbaru);
+      const summary = await getNotificationSummary();
+      setUnreadCount(summary.unreadCount);
+      setLatest(summary.latest);
     } catch {
       // abaikan — badge pelengkap
     }
   }
 
   useEffect(() => {
-    let aktif = true;
-    const segarkan = () => {
-      getRingkasanNotifikasi()
-        .then((ringkas) => {
-          if (!aktif) return;
-          setBelumDibaca(ringkas.belumDibaca);
-          setTerbaru(ringkas.terbaru);
+    let active = true;
+    const refresh = () => {
+      getNotificationSummary()
+        .then((summary) => {
+          if (!active) return;
+          setUnreadCount(summary.unreadCount);
+          setLatest(summary.latest);
         })
         .catch(() => {
           // abaikan — badge pelengkap
         });
     };
-    segarkan();
-    const timer = setInterval(segarkan, 60_000);
+    refresh();
+    const timer = setInterval(refresh, 60_000);
     return () => {
-      aktif = false;
+      active = false;
       clearInterval(timer);
     };
   }, []);
 
-  async function handleBukaNotifikasi() {
+  async function handleOpenNotifications() {
     toggleMenu("notification");
-    await muatNotifikasi();
+    await loadNotifications();
   }
 
-  async function handleTandaiSemua() {
-    await tandaiNotifikasi("semua");
-    await muatNotifikasi();
+  async function handleMarkAll() {
+    await markNotifications("all");
+    await loadNotifications();
   }
   const iconTriggerClass =
     "inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition hover:bg-blue-100  dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-800/60";
@@ -179,13 +179,13 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
           <button
             type="button"
             className={iconTriggerClass}
-            onClick={handleBukaNotifikasi}
+            onClick={handleOpenNotifications}
             aria-label="Open notifications"
           >
             <LuBell className="h-4 w-4" />
-            {belumDibaca > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                {belumDibaca > 99 ? "99+" : belumDibaca}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </button>
@@ -193,26 +193,26 @@ export default function Topbar({ user, isSidebarOpen, onToggleSidebar }: TopbarP
             <div className="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-blue-100 bg-white p-3 shadow-lg dark:border-blue-900/60 dark:bg-slate-900">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Notifikasi</p>
-                {belumDibaca > 0 && (
-                  <button type="button" onClick={handleTandaiSemua} className="text-xs text-blue-600 hover:underline">
+                {unreadCount > 0 && (
+                  <button type="button" onClick={handleMarkAll} className="text-xs text-blue-600 hover:underline">
                     Tandai semua dibaca
                   </button>
                 )}
               </div>
-              {terbaru.length === 0 ? (
+              {latest.length === 0 ? (
                 <p className="text-sm text-slate-600 dark:text-slate-300">No new notifications</p>
               ) : (
                 <ul className="space-y-2">
-                  {terbaru.map((n) => (
-                    <li key={n.id} className={`rounded-xl p-2 text-sm ${n.dibaca ? "text-slate-500" : "bg-blue-50 font-medium text-slate-900 dark:bg-blue-900/30 dark:text-slate-100"}`}>
+                  {latest.map((n) => (
+                    <li key={n.id} className={`rounded-xl p-2 text-sm ${n.isRead ? "text-slate-500" : "bg-blue-50 font-medium text-slate-900 dark:bg-blue-900/30 dark:text-slate-100"}`}>
                       {n.url ? (
                         <Link href={n.url} onClick={() => setOpenMenu(null)}>
-                          {n.judul}
+                          {n.title}
                         </Link>
                       ) : (
-                        <span>{n.judul}</span>
+                        <span>{n.title}</span>
                       )}
-                      <p className="truncate text-xs font-normal text-slate-500">{n.isi}</p>
+                      <p className="truncate text-xs font-normal text-slate-500">{n.body}</p>
                     </li>
                   ))}
                 </ul>

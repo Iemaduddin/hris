@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getAntrianSaya, getRiwayatApprovalSaya } from "@/src/modules/approval/actions/approval.actions";
+import { getMyQueue, getMyApprovalHistory } from "@/src/modules/approval/actions/approval.actions";
 import ApprovalClient from "@/src/modules/approval/components/approval-client";
 
 export default async function ApprovalPage() {
@@ -8,10 +8,10 @@ export default async function ApprovalPage() {
 	const session = await getCurrentSession();
 	if (!session) redirect("/login");
 
-	const [antrian, riwayat] = await Promise.all([
-		getAntrianSaya(session.user.id),
-		getRiwayatApprovalSaya(session.user.id),
-	]);
+  const [queue, history] = await Promise.all([
+    getMyQueue(session.user.id),
+    getMyApprovalHistory(session.user.id),
+  ]);
 
 	return (
 		<>
@@ -23,7 +23,7 @@ export default async function ApprovalPage() {
 			</div>
 
 			<div className="mt-5">
-				<ApprovalClient userId={session.user.id} antrian={antrian} riwayat={riwayat} />
+        <ApprovalClient userId={session.user.id} queue={queue} history={history} />
 			</div>
 		</>
 	);

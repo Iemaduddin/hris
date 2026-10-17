@@ -1,11 +1,11 @@
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getLemburList } from "@/src/modules/overtime/actions/overtime.actions";
-import { getKaryawanAktifOptions } from "@/src/modules/recap/actions/recap.actions";
+import { listOvertime } from "@/src/modules/overtime/actions/overtime.actions";
+import { getActiveEmployeeOptions } from "@/src/modules/recap/actions/recap.actions";
 import LemburClient from "@/src/modules/overtime/components/overtime-client";
 
 export default async function LemburPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
-	const [items, karyawanOptions] = await Promise.all([getLemburList(), getKaryawanAktifOptions()]);
+  const [items, employeeOptions] = await Promise.all([listOvertime(), getActiveEmployeeOptions()]);
 
 	return (
 		<>
@@ -17,7 +17,7 @@ export default async function LemburPage() {
 			</div>
 
 			<div className="mt-5">
-				<LemburClient items={items} karyawanOptions={karyawanOptions} />
+        <LemburClient items={items} employeeOptions={employeeOptions} />
 			</div>
 		</>
 	);

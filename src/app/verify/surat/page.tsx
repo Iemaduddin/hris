@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getVerifikasiSurat } from "@/src/modules/employee/actions/surat.actions";
+import { verifyLetter } from "@/src/modules/employee/actions/surat.actions";
 
 export default async function VerifySuratPage({
   searchParams,
@@ -7,7 +7,7 @@ export default async function VerifySuratPage({
   searchParams: Promise<{ kode?: string }>;
 }) {
   const { kode } = await searchParams;
-  const hasil = await getVerifikasiSurat(kode ?? "");
+  const hasil = await verifyLetter(kode ?? "");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-5 p-6">
@@ -18,9 +18,9 @@ export default async function VerifySuratPage({
             <p className="mt-3 inline-block rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
               VALID — surat asli
             </p>
-            <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-slate-100">{hasil.nomor}</h1>
+            <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-slate-100">{hasil.number}</h1>
             <p className="mt-2 text-sm text-slate-500">
-              {hasil.jenis} • {hasil.karyawanNama ?? "-"} • {hasil.tanggal}
+              {hasil.kind} • {hasil.employeeName ?? "-"} • {hasil.date}
             </p>
           </>
         ) : (

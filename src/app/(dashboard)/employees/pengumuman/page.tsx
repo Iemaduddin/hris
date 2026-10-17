@@ -1,13 +1,13 @@
 import { requireUserRole, getCurrentSession } from "@/src/lib/auth-guard";
 import { redirect } from "next/navigation";
-import { getPengumumanHr, getUnitOptions } from "@/src/modules/employee/actions/pengumuman.actions";
+import { listHrAnnouncements, getUnitOptions } from "@/src/modules/employee/actions/pengumuman.actions";
 import PengumumanHrClient from "@/src/modules/employee/components/pengumuman-hr-client";
 
 export default async function PengumumanHrPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const session = await getCurrentSession();
 	if (!session) redirect("/login");
-	const [rows, units] = await Promise.all([getPengumumanHr(), getUnitOptions()]);
+	const [rows, units] = await Promise.all([listHrAnnouncements(), getUnitOptions()]);
 
 	return (
 		<>

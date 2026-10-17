@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { getSlipSaya } from "@/src/modules/payroll/actions/payroll.actions";
-import type { getThrSaya } from "@/src/modules/payroll/actions/thr.actions";
+import type { getMySlip } from "@/src/modules/payroll/actions/payroll.actions";
+import type { getMyThr } from "@/src/modules/payroll/actions/thr.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
-type SlipRow = Awaited<ReturnType<typeof getSlipSaya>>[number];
-type ThrSlipRow = Awaited<ReturnType<typeof getThrSaya>>[number];
+type SlipRow = Awaited<ReturnType<typeof getMySlip>>[number];
+type ThrSlipRow = Awaited<ReturnType<typeof getMyThr>>[number];
 
 const kolomSlip: DataTableColumn<SlipRow>[] = [
   {
@@ -16,16 +16,16 @@ const kolomSlip: DataTableColumn<SlipRow>[] = [
     header: "Periode",
     render: (s) => <span className="font-medium">{s.periode}</span>,
     sortValue: (s) => s.periode,
-    searchValue: (s) => `${s.periode} ${s.nomor}`,
+    searchValue: (s) => `${s.periode} ${s.number}`,
   },
-  { id: "nomor", header: "Nomor", accessor: "nomor" },
+  { id: "number", header: "Nomor", accessor: "number" },
   {
-    id: "bersih",
-    header: "Gaji Bersih",
+    id: "net",
+    header: "Gaji net",
     headerClassName: "text-right",
     cellClassName: "text-right font-semibold",
-    render: (s) => <span>{rupiah.format(Number(s.gajiBersih))}</span>,
-    sortValue: (s) => Number(s.gajiBersih),
+    render: (s) => <span>{rupiah.format(Number(s.netPay))}</span>,
+    sortValue: (s) => Number(s.netPay),
     searchable: false,
   },
   {
@@ -36,7 +36,7 @@ const kolomSlip: DataTableColumn<SlipRow>[] = [
     sortable: false,
     searchable: false,
     render: (s) => (
-      <Link href={`/account/payslip/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+      <Link href={`/account/payslip/${encodeURIComponent(s.number)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
         Lihat
       </Link>
     ),
@@ -47,18 +47,18 @@ const kolomThr: DataTableColumn<ThrSlipRow>[] = [
   {
     id: "thr",
     header: "THR",
-    render: (s) => <span className="font-medium">{s.namaHariRaya} {s.tahun}</span>,
-    sortValue: (s) => `${s.tahun} ${s.namaHariRaya}`,
-    searchValue: (s) => `${s.namaHariRaya} ${s.tahun} ${s.nomor}`,
+    render: (s) => <span className="font-medium">{s.holidayName} {s.year}</span>,
+    sortValue: (s) => `${s.year} ${s.holidayName}`,
+    searchValue: (s) => `${s.holidayName} ${s.year} ${s.number}`,
   },
-  { id: "nomor", header: "Nomor", accessor: "nomor" },
+  { id: "number", header: "Nomor", accessor: "number" },
   {
-    id: "bersih",
-    header: "Bersih",
+    id: "net",
+    header: "net",
     headerClassName: "text-right",
     cellClassName: "text-right font-semibold",
-    render: (s) => <span>{rupiah.format(Number(s.bersih))}</span>,
-    sortValue: (s) => Number(s.bersih),
+    render: (s) => <span>{rupiah.format(Number(s.net))}</span>,
+    sortValue: (s) => Number(s.net),
     searchable: false,
   },
   {
@@ -69,7 +69,7 @@ const kolomThr: DataTableColumn<ThrSlipRow>[] = [
     sortable: false,
     searchable: false,
     render: (s) => (
-      <Link href={`/account/thr/${encodeURIComponent(s.nomor)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+      <Link href={`/account/thr/${encodeURIComponent(s.number)}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
         Lihat
       </Link>
     ),
@@ -81,7 +81,7 @@ export function SlipTable({ slips }: { slips: SlipRow[] }) {
     <DataTable
       data={slips}
       columns={kolomSlip}
-      getRowId={(s) => s.nomor}
+      getRowId={(s) => s.number}
       emptyMessage="Belum ada slip gaji yang diterbitkan."
     />
   );
@@ -92,7 +92,7 @@ export function ThrSlipTable({ slips }: { slips: ThrSlipRow[] }) {
     <DataTable
       data={slips}
       columns={kolomThr}
-      getRowId={(s) => s.nomor}
+      getRowId={(s) => s.number}
       emptyMessage="Belum ada slip THR yang diterbitkan."
     />
   );

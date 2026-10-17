@@ -1,10 +1,10 @@
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getJenisCutiList } from "@/src/modules/leave/actions/leave.actions";
-import JenisCutiForm from "@/src/modules/leave/components/leave-type-form";
+import { listLeaveTypes } from "@/src/modules/leave/actions/leave.actions";
+import LeaveTypeForm from "@/src/modules/leave/components/leave-type-form";
 
-export default async function JenisKetidakhadiranPage() {
-	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
-	const items = await getJenisCutiList();
+export default async function LeaveTypePage() {
+  await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
+  const items = await listLeaveTypes();
 
 	return (
 		<>
@@ -16,7 +16,7 @@ export default async function JenisKetidakhadiranPage() {
 			</div>
 
 			<div className="mt-5">
-				<JenisCutiForm items={items} tahunAktif={new Date().getFullYear()} />
+        <LeaveTypeForm items={items} activeYear={new Date().getFullYear()} />
 			</div>
 		</>
 	);

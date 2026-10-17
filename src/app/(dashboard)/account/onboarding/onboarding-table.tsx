@@ -2,25 +2,25 @@
 
 import Link from "next/link";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { getOnboardingSaya } from "@/src/modules/employee/actions/onboarding.actions";
+import type { getMyOnboarding } from "@/src/modules/employee/actions/onboarding.actions";
 
-type OnboardingSayaRow = Awaited<ReturnType<typeof getOnboardingSaya>>[number];
+type OnboardingSayaRow = Awaited<ReturnType<typeof getMyOnboarding>>[number];
 
 const kolomOnboarding: DataTableColumn<OnboardingSayaRow>[] = [
   {
     id: "checklist",
     header: "Checklist",
-    render: (o) => <span className="font-medium">{o.templateNama ?? "Kustom"}</span>,
-    sortValue: (o) => o.templateNama ?? "Kustom",
-    searchValue: (o) => o.templateNama ?? "Kustom",
+    render: (o) => <span className="font-medium">{o.templateName ?? "Kustom"}</span>,
+    sortValue: (o) => o.templateName ?? "Kustom",
+    searchValue: (o) => o.templateName ?? "Kustom",
   },
   {
     id: "progres",
     header: "Progres",
     headerClassName: "text-right",
     cellClassName: "text-right",
-    render: (o) => <span>{o.persen}% ({o.wajibSelesai} wajib)</span>,
-    sortValue: (o) => o.persen,
+    render: (o) => <span>{o.percent}% ({o.requiredDone} wajib)</span>,
+    sortValue: (o) => o.percent,
     searchable: false,
   },
   {

@@ -1,10 +1,10 @@
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getPayrollSettings } from "@/src/modules/payroll/actions/payroll.actions";
+import { listPayrollSettings } from "@/src/modules/payroll/actions/payroll.actions";
 import PayrollSettingsClient from "@/src/modules/payroll/components/payroll-settings-client";
 
 export default async function PayrollSettingsPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
-  const items = await getPayrollSettings();
+  const items = await listPayrollSettings();
 
   return (
     <>

@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getKualitasData } from "@/src/modules/employee/actions/impor.actions";
+import { getDataQuality } from "@/src/modules/employee/actions/impor.actions";
 import ImporClient from "@/src/modules/employee/components/impor-client";
 
 export default async function ImporPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const session = await getCurrentSession();
 	if (!session) redirect("/login");
-	const hasil = await getKualitasData();
+	const hasil = await getDataQuality();
 
 	return (
 		<>
@@ -19,7 +19,7 @@ export default async function ImporPage() {
 			</div>
 
 			<div className="mt-5">
-				<ImporClient userId={session.user.id} kualitas={hasil.masalah ?? []} />
+				<ImporClient userId={session.user.id} kualitas={hasil.issues ?? []} />
 			</div>
 		</>
 	);

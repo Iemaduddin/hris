@@ -18,12 +18,12 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
 				</p>
 			</div>
 
-			{disburse && disburse.belum.length > 0 ? (
+			{disburse && disburse.incomplete.length > 0 ? (
 				<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
 					<p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-						{disburse.belum.length} karyawan tanpa data bank lengkap — tidak ikut file CSV transfer:
+						{disburse.incomplete.length} karyawan tanpa data bank lengkap — tidak ikut file CSV transfer:
 					</p>
-					<p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{disburse.belum.join("; ")}</p>
+					<p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{disburse.incomplete.join("; ")}</p>
 				</div>
 			) : null}
 

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getOnboardingSaya } from "@/src/modules/employee/actions/onboarding.actions";
+import { getMyOnboarding } from "@/src/modules/employee/actions/onboarding.actions";
 import OnboardingTable from "./onboarding-table";
 
 export default async function OnboardingSayaPage() {
@@ -21,7 +21,7 @@ export default async function OnboardingSayaPage() {
     );
   }
 
-  const items = await getOnboardingSaya(karyawan.id);
+  const items = await getMyOnboarding(karyawan.id);
 
   return (
     <>

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getRekapBulanan } from "@/src/modules/recap/actions/recap.actions";
-import { hitungRekapHarian } from "@/src/modules/recap/lib/recap-engine";
+import { getMonthlyRecap } from "@/src/modules/recap/actions/recap.actions";
+import { calculateDailyRecap } from "@/src/modules/recap/lib/recap-engine";
 import AttendanceTable from "./attendance-table";
 
 export default async function PresensiSayaPage({
@@ -39,8 +39,8 @@ export default async function PresensiSayaPage({
 	}
 
 	const [items, hariIni] = await Promise.all([
-		getRekapBulanan(tahun, bulan, karyawan.id),
-		hitungRekapHarian(karyawan.id, new Date()),
+		getMonthlyRecap(tahun, bulan, karyawan.id),
+		calculateDailyRecap(karyawan.id, new Date()),
 	]);
 
 	return (

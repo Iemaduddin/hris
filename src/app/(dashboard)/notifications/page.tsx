@@ -1,10 +1,10 @@
 import { requireAuthenticatedUser } from "@/src/lib/auth-guard";
-import { getNotifikasiSaya, getPreferensiSaya } from "@/src/modules/notifikasi/actions/notifikasi.actions";
-import NotifikasiClient from "@/src/modules/notifikasi/components/notifikasi-client";
+import { getMyNotifications, getMyPreferences } from "@/src/modules/notifikasi/actions/notifikasi.actions";
+import NotificationClient from "@/src/modules/notifikasi/components/notifikasi-client";
 
 export default async function NotificationsPage() {
-	await requireAuthenticatedUser();
-	const [items, preferensi] = await Promise.all([getNotifikasiSaya(), getPreferensiSaya()]);
+  await requireAuthenticatedUser();
+  const [items, preferences] = await Promise.all([getMyNotifications(), getMyPreferences()]);
 
 	return (
 		<>
@@ -16,7 +16,7 @@ export default async function NotificationsPage() {
 			</div>
 
 			<div className="mt-5">
-				<NotifikasiClient initial={items} preferensi={preferensi} />
+        <NotificationClient initial={items} preferences={preferences} />
 			</div>
 		</>
 	);

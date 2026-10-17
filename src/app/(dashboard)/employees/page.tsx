@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getEmployeeWizardBootstrapData, getEmployeesList, getKontrakMasaBerakhir } from "@/src/modules/employee/actions/employee.actions";
+import { getEmployeeWizardBootstrapData, getEmployeesList, getExpiringContracts } from "@/src/modules/employee/actions/employee.actions";
 import EmployeesClient from "@/src/modules/employee/components/employees-client";
 import KontrakReminder from "@/src/modules/employee/components/contract-reminder";
 
@@ -13,7 +13,7 @@ export default async function EmployeesPage() {
 	const [{ summaries, referenceOptions }, employees, kontrakHampirBerakhir] = await Promise.all([
 		getEmployeeWizardBootstrapData(),
 		getEmployeesList(),
-		getKontrakMasaBerakhir(30),
+		getExpiringContracts(30),
 	]);
 
 	return (

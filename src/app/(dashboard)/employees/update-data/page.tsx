@@ -1,13 +1,13 @@
 import { requireUserRole, getCurrentSession } from "@/src/lib/auth-guard";
 import { redirect } from "next/navigation";
-import { getUpdateDataSemua } from "@/src/modules/employee/actions/updatedata.actions";
+import { getAllDataUpdates } from "@/src/modules/employee/actions/updatedata.actions";
 import UpdateDataHrClient from "@/src/modules/employee/components/updatedata-hr-client";
 
 export default async function UpdateDataHrPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
 	const session = await getCurrentSession();
 	if (!session) redirect("/login");
-	const rows = await getUpdateDataSemua();
+	const rows = await getAllDataUpdates();
 
 	return (
 		<>

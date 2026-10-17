@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getDinasApprovedOptions, getUangDinasSaya } from "@/src/modules/payroll/actions/uangdinas.actions";
+import { getApprovedDutyOptions, getMyUangDinas } from "@/src/modules/payroll/actions/uangdinas.actions";
 import UangDinasSayaClient from "@/src/modules/payroll/components/uangdinas-saya-client";
 
 export default async function UangDinasSayaPage() {
@@ -22,8 +22,8 @@ export default async function UangDinasSayaPage() {
   }
 
   const [items, dinasOptions] = await Promise.all([
-    getUangDinasSaya(karyawan.id),
-    getDinasApprovedOptions(karyawan.id),
+    getMyUangDinas(karyawan.id),
+    getApprovedDutyOptions(karyawan.id),
   ]);
 
   return (
@@ -34,7 +34,7 @@ export default async function UangDinasSayaPage() {
       </div>
 
       <div className="mt-5">
-        <UangDinasSayaClient userId={session.user.id} karyawanId={karyawan.id} items={items} dinasOptions={dinasOptions} />
+        <UangDinasSayaClient userId={session.user.id} employeeId={karyawan.id} items={items} dinasOptions={dinasOptions} />
       </div>
     </>
   );

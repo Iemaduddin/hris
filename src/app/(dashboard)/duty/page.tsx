@@ -1,11 +1,11 @@
 import { requireUserRole } from "@/src/lib/auth-guard";
-import { getDinasList } from "@/src/modules/duty/actions/duty.actions";
-import { getKaryawanAktifOptions } from "@/src/modules/recap/actions/recap.actions";
+import { listDuties } from "@/src/modules/duty/actions/duty.actions";
+import { getActiveEmployeeOptions } from "@/src/modules/recap/actions/recap.actions";
 import DinasClient from "@/src/modules/duty/components/duty-client";
 
 export default async function DinasPage() {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);
-	const [items, karyawanOptions] = await Promise.all([getDinasList(), getKaryawanAktifOptions()]);
+  const [items, employeeOptions] = await Promise.all([listDuties(), getActiveEmployeeOptions()]);
 
 	return (
 		<>
@@ -17,7 +17,7 @@ export default async function DinasPage() {
 			</div>
 
 			<div className="mt-5">
-				<DinasClient items={items} karyawanOptions={karyawanOptions} />
+        <DinasClient items={items} employeeOptions={employeeOptions} />
 			</div>
 		</>
 	);

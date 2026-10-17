@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getUpdateDataSaya } from "@/src/modules/employee/actions/updatedata.actions";
+import { getMyDataUpdates } from "@/src/modules/employee/actions/updatedata.actions";
 import UpdateDataClient from "@/src/modules/employee/components/updatedata-client";
 
 export default async function UpdateDataSayaPage() {
@@ -20,7 +20,7 @@ export default async function UpdateDataSayaPage() {
 	});
 	if (!karyawan) redirect("/");
 
-	const items = await getUpdateDataSaya(session.user.id);
+	const items = await getMyDataUpdates(session.user.id);
 
 	return (
 		<>

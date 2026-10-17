@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getPasanganOptions, getTukarSaya } from "@/src/modules/roster/actions/tukar.actions";
+import { getPartnerOptions, getMySwaps } from "@/src/modules/roster/actions/tukar.actions";
 import TukarListClient from "@/src/modules/roster/components/tukar-list-client";
 
 export default async function TukarPage() {
@@ -21,9 +21,9 @@ export default async function TukarPage() {
     );
   }
 
-  const [{ keluar, masuk }, pasanganOptions] = await Promise.all([
-    getTukarSaya(session.user.id),
-    getPasanganOptions(karyawan.id),
+  const [{ outgoing, incoming }, pasanganOptions] = await Promise.all([
+    getMySwaps(session.user.id),
+    getPartnerOptions(karyawan.id),
   ]);
 
   return (
@@ -34,7 +34,7 @@ export default async function TukarPage() {
       </div>
 
       <div className="mt-5">
-        <TukarListClient userId={session.user.id} keluar={keluar} masuk={masuk} pasanganOptions={pasanganOptions} />
+        <TukarListClient userId={session.user.id} outgoing={outgoing} incoming={incoming} pasanganOptions={pasanganOptions} />
       </div>
     </>
   );

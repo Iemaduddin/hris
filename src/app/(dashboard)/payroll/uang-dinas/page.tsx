@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getDinasApprovedOptions, getUangDinasList } from "@/src/modules/payroll/actions/uangdinas.actions";
+import { getApprovedDutyOptions, listUangDinas } from "@/src/modules/payroll/actions/uangdinas.actions";
 import prisma from "@/src/lib/prisma";
 import UangDinasListClient from "@/src/modules/payroll/components/uangdinas-list-client";
 
@@ -9,8 +9,8 @@ export default async function UangDinasPage() {
   const session = await getCurrentSession();
   if (!session) redirect("/login");
   const [items, dinasOptions, karyawan] = await Promise.all([
-    getUangDinasList(),
-    getDinasApprovedOptions(),
+    listUangDinas(),
+    getApprovedDutyOptions(),
     prisma.karyawan.findMany({
       where: { status: { in: ["AKTIF", "PROBASI"] } },
       orderBy: { namaLengkap: "asc" },

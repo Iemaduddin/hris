@@ -1,19 +1,19 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getPengumumanSayaInti, getPeristiwaMingguIni } from "@/src/modules/employee/actions/pengumuman.actions";
+import { getMyAnnouncementsCore, getThisWeekEvents } from "@/src/modules/employee/actions/pengumuman.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { PengumumanItem } from "@/src/modules/employee/actions/pengumuman.actions";
+import type { AnnouncementItem } from "@/src/modules/employee/actions/pengumuman.actions";
 
-const kolom: DataTableColumn<PengumumanItem>[] = [
-	{ id: "judul", header: "Judul", accessor: "judul" },
+const kolom: DataTableColumn<AnnouncementItem>[] = [
+	{ id: "title", header: "Judul", accessor: "title" },
 	{
 		id: "target",
 		header: "Target",
-		render: (r) => <span>{r.unitNama ?? "Semua"}</span>,
-		sortValue: (r) => r.unitNama ?? "Semua",
+		render: (r) => <span>{r.unitName ?? "Semua"}</span>,
+		sortValue: (r) => r.unitName ?? "Semua",
 	},
-	{ id: "isi", header: "Isi", accessor: "isi" },
+	{ id: "body", header: "Isi", accessor: "body" },
 ];
 
 export default async function PengumumanSayaPage() {
@@ -26,8 +26,8 @@ export default async function PengumumanSayaPage() {
 	if (!karyawan) redirect("/");
 
 	const [items, peristiwa] = await Promise.all([
-		getPengumumanSayaInti(karyawan.id),
-		getPeristiwaMingguIni(),
+		getMyAnnouncementsCore(karyawan.id),
+		getThisWeekEvents(),
 	]);
 
 	return (
@@ -44,8 +44,8 @@ export default async function PengumumanSayaPage() {
 					<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Minggu Ini 🎉</h2>
 					<ul className="mt-2 space-y-1 text-sm">
 						{peristiwa.map((p) => (
-							<li key={`${p.jenis}-${p.nomorKaryawan}`}>
-								{p.jenis === "ULTAH" ? "🎂" : "🏅"} {p.namaLengkap} — {p.info} ({p.tanggal})
+							<li key={`${p.kind}-${p.employeeNumber}`}>
+								{p.kind === "ULTAH" ? "🎂" : "🏅"} {p.fullName} — {p.info} ({p.date})
 							</li>
 						))}
 					</ul>

@@ -4,13 +4,13 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
-import { getAntrianSaya } from "@/src/modules/approval/actions/approval.actions";
-import { getKontrakMasaBerakhir } from "@/src/modules/employee/actions/employee.actions";
-import { getSisaSaldoSaya } from "@/src/modules/leave/actions/leave.actions";
-import { getSlipSaya } from "@/src/modules/payroll/actions/payroll.actions";
-import { getProbationMendekati } from "@/src/modules/employee/actions/probation.actions";
-import { getSPAktif } from "@/src/modules/employee/actions/disiplin.actions";
-import { hitungRekapHarian } from "@/src/modules/recap/lib/recap-engine";
+import { getMyQueue } from "@/src/modules/approval/actions/approval.actions";
+import { getExpiringContracts } from "@/src/modules/employee/actions/employee.actions";
+import { getMyRemainingBalance } from "@/src/modules/leave/actions/leave.actions";
+import { getMySlip } from "@/src/modules/payroll/actions/payroll.actions";
+import { getUpcomingProbation } from "@/src/modules/employee/actions/probation.actions";
+import { getActiveWarnings } from "@/src/modules/employee/actions/disiplin.actions";
+import { calculateDailyRecap } from "@/src/modules/recap/lib/recap-engine";
 import { Baris, Kosong, Panel } from "@/src/components/dashboard/panel";
 import KehadiranChart, { type IrisanKehadiran } from "@/src/components/dashboard/kehadiran-chart";
 import TrenChart, { type TrenItem } from "@/src/components/dashboard/tren-chart";
@@ -101,13 +101,13 @@ export default async function DashboardPage() {
 	const rentangHari = { gte: awalHari, lte: akhirHari };
 
 	if (role === "SUPER_ADMIN" || role === "ADMIN_HR") {
-		const [headcount, kontrak, antrian] = await Promise.all([
-			prisma.karyawan.count({ where: { status: { in: ["AKTIF", "PROBASI"] } } }),
-			getKontrakMasaBerakhir(30),
-			getAntrianSaya(session.user.id),
-		]);
-		const probasi = await getProbationMendekati(30);
-		const spAktif = await getSPAktif();
+    const [headcount, kontrak, queue] = await Promise.all([
+      prisma.karyawan.count({ where: { status: { in: ["AKTIF", "PROBASI"] } } }),
+      getExpiringContracts(30),
+      getMyQueue(session.user.id),
+    ]);
+    const probationList = await getUpcomingProbation(30);
+    const activeWarnings = await getActiveWarnings();
 		const weekAgo = new Date();
 		weekAgo.setDate(weekAgo.getDate() - 7);
 		const [
@@ -181,27 +181,27 @@ export default async function DashboardPage() {
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
 					<Card title="Karyawan Aktif" value={String(headcount)} href="/employees" linkText="Kelola" />
 					<Card title="Kontrak H-30" value={String(kontrak.length)} href="/employees" linkText="Lihat" />
-					<Card title="Approval Menunggu" value={String(antrian.length)} href="/approval" linkText="Proses" />
+          <Card title="Approval Menunggu" value={String(queue.length)} href="/approval" linkText="Proses" />
 					<Card title="Keterlambatan 7 Hari" value={String(telat)} href="/recap" linkText="Rekap" />
 				</div>
 
 				<div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
 					<Panel title="Perlu Perhatian" href="/approval" linkText="Approval Center">
-						{antrian.length === 0 && kontrak.length === 0 && alpaHariIni.length === 0 && probasi.length === 0 && spAktif.length === 0 ? (
+						{queue.length === 0 && kontrak.length === 0 && alpaHariIni.length === 0 && probationList.length === 0 && activeWarnings.length === 0 ? (
 							<Kosong teks="Semua aman. Tidak ada yang menunggu." />
 						) : (
 							<ul>
-								{antrian.slice(0, 5).map((a) => (
-									<Baris key={`${a.type}-${a.id}`} kiri={`${a.nomor} · ${a.karyawanNama} — ${a.ringkasan}`} kanan={`Tahap ${a.tahap}`} />
-								))}
-								{kontrak.slice(0, 5).map((k) => (
-									<Baris key={k.id} kiri={`Kontrak ${k.karyawanNama} berakhir ${tanggalId(new Date(k.tanggalSelesai))}`} kanan={`H-${k.sisaHari}`} />
-								))}
-								{probasi.slice(0, 5).map((r) => (
-									<Baris key={r.id} kiri={`Probasi ${r.karyawanNama} berakhir ${r.tanggalSelesai}`} kanan={r.sisaHari < 0 ? `lewat ${-r.sisaHari} hari` : `H-${r.sisaHari}`} />
-								))}
-								{spAktif.map((s) => (
-									<Baris key={s.id} kiri={`${s.tingkatLabel} aktif: ${s.karyawanNama}`} kanan={s.nomor} />
+                                {queue.slice(0, 5).map((a) => (
+                                    <Baris key={`${a.type}-${a.id}`} kiri={`${a.number} — ${a.employeeName} — ${a.summary}`} kanan={`Tahap ${a.stage}`} />
+                                ))}
+                                {kontrak.slice(0, 5).map((k) => (
+                                    <Baris key={k.id} kiri={`Kontrak ${k.employeeName} berakhir ${tanggalId(new Date(k.endDate))}`} kanan={`H-${k.remainingDays}`} />
+                                ))}
+                                {probationList.slice(0, 5).map((r) => (
+                                    <Baris key={r.id} kiri={`Probasi ${r.employeeName} berakhir ${r.endDate}`} kanan={r.remainingDays < 0 ? `lewat ${-r.remainingDays} hari` : `H-${r.remainingDays}`} />
+                                ))}
+                                {activeWarnings.map((s) => (
+									<Baris key={s.id} kiri={`${s.levelLabel} aktif: ${s.employeeName}`} kanan={s.number} />
 								))}
 								{alpaHariIni.map((r) => (
 									<Baris key={r.karyawan.nomorKaryawan} kiri={`${r.karyawan.namaLengkap} tidak hadir hari ini`} kanan="ALPA" />
@@ -267,8 +267,8 @@ export default async function DashboardPage() {
 		);
 	}
 
-	if (role === "MANAJER" && karyawan) {
-		const antrian = await getAntrianSaya(session.user.id);
+  if (role === "MANAJER" && karyawan) {
+    const queue = await getMyQueue(session.user.id);
 		const tim = await prisma.karyawan.findMany({
 			where: { atasanLangsungId: karyawan.id },
 			select: {
@@ -295,7 +295,7 @@ export default async function DashboardPage() {
 			<>
 				<HeaderJudul judul="Dashboard Manajer" />
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-					<Card title="Persetujuan Menunggu" value={String(antrian.length)} href="/approval" linkText="Proses" />
+					<Card title="Persetujuan Menunggu" value={String(queue.length)} href="/approval" linkText="Proses" />
 					<Card title="Anggota Tim" value={String(tim.length)} href="/team" linkText="Lihat Tim" />
 				</div>
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
@@ -306,12 +306,12 @@ export default async function DashboardPage() {
 				</div>
 				<div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
 					<Panel title="Antrean Saya" href="/approval" linkText="Proses Semua">
-						{antrian.length === 0 ? (
+						{queue.length === 0 ? (
 							<Kosong teks="Tidak ada pengajuan menunggu." />
 						) : (
 							<ul>
-								{antrian.slice(0, 5).map((a) => (
-									<Baris key={`${a.type}-${a.id}`} kiri={`${a.nomor} · ${a.karyawanNama} — ${a.ringkasan}`} kanan={`Tahap ${a.tahap}`} />
+								{queue.slice(0, 5).map((a) => (
+									<Baris key={`${a.type}-${a.id}`} kiri={`${a.number} · ${a.employeeName} — ${a.summary}`} kanan={`Tahap ${a.stage}`} />
 								))}
 							</ul>
 						)}
@@ -379,11 +379,11 @@ export default async function DashboardPage() {
 	}
 
 	const tahun = new Date().getFullYear();
-	const [hariIni, saldo, slips] = await Promise.all([
-		karyawan ? hitungRekapHarian(karyawan.id, new Date()) : null,
-		karyawan ? getSisaSaldoSaya(karyawan.id, tahun) : [],
-		karyawan ? getSlipSaya(karyawan.id) : [],
-	]);
+  const [hariIni, saldo, slips] = await Promise.all([
+    karyawan ? calculateDailyRecap(karyawan.id, new Date()) : null,
+    karyawan ? getMyRemainingBalance(karyawan.id, tahun) : [],
+    karyawan ? getMySlip(karyawan.id) : [],
+  ]);
 	const [pengajuanAktif, pengajuanTerakhir, shiftSaya] = await Promise.all([
 		karyawan
 			? prisma.pengajuanKetidakhadiran.count({
@@ -411,7 +411,7 @@ export default async function DashboardPage() {
 			<HeaderJudul judul={`Halo, ${karyawan?.namaLengkap ?? session.user.name ?? "Karyawan"}`} sub="Ringkasan Anda hari ini." />
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
 				<Card title="Status Hari Ini" value={hariIni?.status.replaceAll("_", " ") ?? "-"} href="/account/attendance" linkText="Presensi" />
-				<Card title="Sisa Cuti" value={saldo.length > 0 ? saldo.map((s) => `${s.sisa}`).join(" + ") : "-"} href="/account/requests" linkText="Ajukan" />
+				<Card title="Sisa Cuti" value={saldo.length > 0 ? saldo.map((s) => `${s.remaining}`).join(" + ") : "-"} href="/account/requests" linkText="Ajukan" />
 				<Card title="Pengajuan Berjalan" value={String(pengajuanAktif)} href="/account/requests" linkText="Lacak" />
 				<Card title="Slip Terakhir" value={slips[0]?.periode ?? "-"} href="/account/payslip" linkText="Slip Saya" />
 			</div>
@@ -433,7 +433,7 @@ export default async function DashboardPage() {
 					) : (
 						<ul>
 							{saldo.map((s) => (
-								<Baris key={s.jenis} kiri={s.jenis} kanan={`${s.sisa} hari`} />
+								<Baris key={s.leaveType} kiri={s.leaveType} kanan={`${s.remaining} hari`} />
 							))}
 						</ul>
 					)}

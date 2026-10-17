@@ -4,15 +4,15 @@ import { getPayslip } from "@/src/modules/payroll/actions/payroll.actions";
 
 const rupiah = new Intl.NumberFormat("id-ID");
 
-export default async function PayslipPage({ params }: { params: Promise<{ nomor: string }> }) {
+export default async function PayslipPage({ params }: { params: Promise<{ number: string }> }) {
 	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
-	const { nomor } = await params;
-	const slip = await getPayslip(decodeURIComponent(nomor));
+	const { number } = await params;
+	const slip = await getPayslip(decodeURIComponent(number));
 	if (!slip) notFound();
 
-	const pendapatan = slip.rincian.filter((r) => r.kelompok === "PENDAPATAN" || r.kelompok === "TUNJANGAN");
-	const potongan = slip.rincian.filter((r) => r.kelompok === "POTONGAN" || r.kelompok === "IURAN");
-	const biayaPerusahaan = slip.rincian.filter((r) => r.kelompok === "BIAYA_PERUSAHAAN");
+	const pendapatan = slip.lines.filter((r) => r.group === "PENDAPATAN" || r.group === "TUNJANGAN");
+	const potongan = slip.lines.filter((r) => r.group === "POTONGAN" || r.group === "IURAN");
+	const biayaPerusahaan = slip.lines.filter((r) => r.group === "BIAYA_PERUSAHAAN");
 
 	return (
 		<>
@@ -21,10 +21,10 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 					<div>
 						<h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Slip Gaji {slip.periode}</h1>
 						<p className="mt-2 text-sm text-slate-500">
-							{slip.karyawanNama} ({slip.nomorKaryawan}) • {slip.nomor}
+							{slip.employeeName} ({slip.employeeNumber}) • {slip.number}
 						</p>
 					</div>
-					<a href={`/api/payroll/slip/${encodeURIComponent(slip.nomor)}`} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700">
+					<a href={`/api/payroll/slip/${encodeURIComponent(slip.number)}`} className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700">
 						Unduh PDF
 					</a>
 				</div>
@@ -35,14 +35,14 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 					<h2 className="text-lg font-semibold">Pendapatan</h2>
 					<ul className="mt-3 space-y-2 text-sm">
 						{pendapatan.map((r) => (
-							<li key={r.kode} className="flex justify-between gap-4">
-								<span>{r.nama}</span>
-								<span className="font-medium">{rupiah.format(r.jumlah)}</span>
+							<li key={r.code} className="flex justify-between gap-4">
+								<span>{r.name}</span>
+								<span className="font-medium">{rupiah.format(r.amount)}</span>
 							</li>
 						))}
 						<li className="flex justify-between gap-4 border-t border-blue-100 pt-2 font-semibold dark:border-blue-900/60">
 							<span>Total</span>
-							<span>{rupiah.format(Number(slip.totalPendapatan))}</span>
+							<span>{rupiah.format(Number(slip.totalEarnings))}</span>
 						</li>
 					</ul>
 				</div>
@@ -52,14 +52,14 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 					<ul className="mt-3 space-y-2 text-sm">
 						{potongan.length === 0 ? <li className="text-slate-500">Tidak ada.</li> : null}
 						{potongan.map((r) => (
-							<li key={r.kode} className="flex justify-between gap-4">
-								<span>{r.nama}</span>
-								<span className="font-medium">{rupiah.format(r.jumlah)}</span>
+							<li key={r.code} className="flex justify-between gap-4">
+								<span>{r.name}</span>
+								<span className="font-medium">{rupiah.format(r.amount)}</span>
 							</li>
 						))}
 						<li className="flex justify-between gap-4 border-t border-blue-100 pt-2 font-semibold dark:border-blue-900/60">
 							<span>Total</span>
-							<span>{rupiah.format(Number(slip.totalPotongan))}</span>
+							<span>{rupiah.format(Number(slip.totalDeductions))}</span>
 						</li>
 					</ul>
 				</div>
@@ -69,11 +69,11 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 			<div className="flex items-center justify-between">
 				<span className="text-lg font-semibold">Gaji Bersih</span>
 				<span className="text-2xl font-bold text-emerald-700 dark:text-emerald-200">
-					{rupiah.format(Number(slip.gajiBersih))}
+					{rupiah.format(Number(slip.netPay))}
 				</span>
 			</div>
 			<p className="mt-1 text-xs text-slate-500">
-				Hadir {slip.hariHadir} hari • Alpa {slip.hariAlpa} hari
+				Hadir {slip.presentDays} hari • Alpa {slip.absentDays} hari
 			</p>
 		</div>
 
@@ -82,14 +82,14 @@ export default async function PayslipPage({ params }: { params: Promise<{ nomor:
 				<h2 className="text-lg font-semibold">Ditanggung Perusahaan (tidak memotong gaji)</h2>
 				<ul className="mt-3 space-y-2 text-sm">
 					{biayaPerusahaan.map((r) => (
-						<li key={r.kode} className="flex justify-between gap-4">
-							<span>{r.nama}</span>
-							<span className="font-medium">{rupiah.format(r.jumlah)}</span>
+						<li key={r.code} className="flex justify-between gap-4">
+							<span>{r.name}</span>
+							<span className="font-medium">{rupiah.format(r.amount)}</span>
 						</li>
 					))}
 					<li className="flex justify-between gap-4 border-t border-sky-200 pt-2 font-semibold dark:border-sky-900/60">
 						<span>Total</span>
-						<span>{rupiah.format(Number(slip.totalBiayaPerusahaan))}</span>
+						<span>{rupiah.format(Number(slip.totalCompanyCost))}</span>
 					</li>
 				</ul>
 			</div>

@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getTimHariIni } from "@/src/modules/employee/actions/team.actions";
+import { getTodayTeam } from "@/src/modules/employee/actions/team.actions";
 import TeamTable from "./team-table";
 
-const hariIniIso = () => {
-  const kini = new Date();
-  return `${kini.getFullYear()}-${String(kini.getMonth() + 1).padStart(2, "0")}-${String(kini.getDate()).padStart(2, "0")}`;
+const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
-export default async function TimPage({
+export default async function TeamPage({
   searchParams,
 }: {
   searchParams: Promise<{ tanggal?: string }>;
@@ -17,8 +17,8 @@ export default async function TimPage({
   const session = await getCurrentSession();
   if (!session) redirect("/login");
   const { tanggal } = await searchParams;
-  const tgl = tanggal ?? hariIniIso();
-  const anggota = await getTimHariIni(session.user.id, tgl);
+  const date = tanggal ?? todayIso();
+  const members = await getTodayTeam(session.user.id, date);
 
   return (
     <>
@@ -34,7 +34,7 @@ export default async function TimPage({
             <input
               type="date"
               name="tanggal"
-              defaultValue={tgl}
+              defaultValue={date}
               className="h-10 rounded-lg border border-blue-200 bg-white px-3 text-sm dark:border-blue-900/60 dark:bg-slate-900"
             />
             <button type="submit" className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
@@ -46,7 +46,7 @@ export default async function TimPage({
 
       <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <div className="mt-2">
-          <TeamTable anggota={anggota} />
+          <TeamTable members={members} />
         </div>
       </div>
     </>

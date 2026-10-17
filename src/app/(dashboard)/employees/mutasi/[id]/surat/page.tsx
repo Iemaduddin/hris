@@ -26,25 +26,25 @@ export default async function SuratMutasiPage({ params }: { params: Promise<{ id
           <h1 className="text-xl font-bold">{company?.name ?? "Perusahaan"}</h1>
           {[company?.address, company?.cityName].filter(Boolean).join(", ") || null}
           <h2 className="mt-6 text-lg font-bold underline">
-            SURAT KEPUTUSAN {detail.jenis === "PROMOSI" ? "PROMOSI" : detail.jenis === "DEMOSI" ? "DEMOSI" : "MUTASI"}
+            SURAT KEPUTUSAN {detail.kind === "PROMOSI" ? "PROMOSI" : detail.kind === "DEMOSI" ? "DEMOSI" : "MUTASI"}
           </h2>
-          <p className="mt-1 text-sm">Nomor: {detail.nomor}</p>
+          <p className="mt-1 text-sm">Nomor: {detail.number}</p>
         </div>
 
         <div className="mt-6 space-y-3 text-sm leading-relaxed">
           <p>
-            Berdasarkan persetujuan atasan langsung dan HR, dengan ini ditetapkan {detail.jenisLabel.toLowerCase()}{" "}
-            bagi karyawan berikut terhitung mulai tanggal {tanggalId(detail.tanggalEfektif)}:
+            Berdasarkan persetujuan atasan langsung dan HR, dengan ini ditetapkan {detail.kindLabel.toLowerCase()}{" "}
+            bagi karyawan berikut terhitung mulai tanggal {tanggalId(detail.effectiveDate)}:
           </p>
           <table className="w-full text-sm">
             <tbody>
-              <tr><td className="w-40 py-1 align-top">Nama</td><td className="py-1">: {detail.karyawanNama}</td></tr>
-              <tr><td className="py-1 align-top">Dari</td><td className="py-1">: {detail.dari}</td></tr>
-              <tr><td className="py-1 align-top">Menjadi</td><td className="py-1">: {detail.ke}</td></tr>
-              {detail.keAtasanNama ? (
-                <tr><td className="py-1 align-top">Atasan baru</td><td className="py-1">: {detail.keAtasanNama}</td></tr>
+              <tr><td className="w-40 py-1 align-top">Nama</td><td className="py-1">: {detail.employeeName}</td></tr>
+              <tr><td className="py-1 align-top">Dari</td><td className="py-1">: {detail.from}</td></tr>
+              <tr><td className="py-1 align-top">Menjadi</td><td className="py-1">: {detail.to}</td></tr>
+              {detail.toSupervisorName ? (
+                <tr><td className="py-1 align-top">Atasan baru</td><td className="py-1">: {detail.toSupervisorName}</td></tr>
               ) : null}
-              <tr><td className="py-1 align-top">Alasan</td><td className="py-1">: {detail.alasan}</td></tr>
+              <tr><td className="py-1 align-top">Alasan</td><td className="py-1">: {detail.reason}</td></tr>
             </tbody>
           </table>
           <p>
@@ -56,12 +56,12 @@ export default async function SuratMutasiPage({ params }: { params: Promise<{ id
         <div className="mt-10 flex justify-between text-sm">
           <div className="text-center">
             <p>Karyawan yang bersangkutan,</p>
-            <p className="mt-16 font-semibold underline">{detail.karyawanNama.split(" (")[0]}</p>
+            <p className="mt-16 font-semibold underline">{detail.employeeName.split(" (")[0]}</p>
           </div>
           <div className="text-center">
             <p>
               {company?.cityName ?? "Jakarta"},{" "}
-              {tanggalId(detail.diterapkanPada ?? new Date().toISOString())}
+              {tanggalId(detail.appliedAt ?? new Date().toISOString())}
             </p>
             <p>Hormat kami,</p>
             <p className="mt-16 font-semibold underline">HRD</p>
