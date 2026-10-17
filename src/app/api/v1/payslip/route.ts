@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
   if (number) {
     const slip = await getPayslip(number, ctx.karyawanId);
     if (!slip) return fail("Slip tidak ditemukan.", 404);
-    return ok({ slip });
+    const { periode, ...rest } = slip;
+    return ok({ slip: { ...rest, period: periode } });
   }
 
   const slips = await getMySlip(ctx.karyawanId);
-  return ok({ items: slips });
+  return ok({
+    items: slips.map(({ number, periode, netPay }) => ({ number, period: periode, netPay })),
+  });
 }

@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
       : { status: "TANPA_JADWAL" },
     leaveBalance: balance,
     pendingRequests: { leave, overtime, duty, total: leave + overtime + duty },
-    latestSlip: slips[0] ?? null,
+    latestSlip: slips[0]
+      ? { number: slips[0].number, period: slips[0].periode, netPay: slips[0].netPay }
+      : null,
     todayShift: shift?.shift
       ? {
           code: shift.shift.kode,
