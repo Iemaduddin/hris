@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import prisma from "@/src/lib/prisma";
 import { fail, ok, requireApiSession } from "@/src/lib/api-v1";
 import { dateOnlyInput } from "@/src/lib/time";
+import { getOvertimeCategoryMap } from "@/src/modules/payroll/lib/calculate";
 
 /**
- * GET: jadwal saya — roster + penugasan kalender + shift hari ini.
+ * GET: jadwal saya — roster + penugasan kalender + tanggal libur (HariLibur/kalender/weekend).
  * Query: ?start=YYYY-MM-DD&end=YYYY-MM-DD (default 7 hari ke depan).
  */
 export async function GET(request: NextRequest) {
@@ -37,6 +38,20 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  const dates: Date[] = [];
+  for (
+    let t = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+    t <= end.getTime();
+    t += 86_400_000
+  ) {
+    dates.push(new Date(t));
+  }
+  const categories = await getOvertimeCategoryMap(ctx.karyawanId, dates);
+  const libur = [...categories.entries()]
+    .filter(([, category]) => category.startsWith("LIBUR"))
+    .map(([dateKey]) => dateKey)
+    .sort();
+
   const fmtTime = (d: Date | null) => {
     if (!d) return null;
     const p = (n: number) => String(n).padStart(2, "0");
@@ -57,5 +72,6 @@ export async function GET(request: NextRequest) {
       start: dateOnlyInput(p.tanggalMulai),
       end: p.tanggalSelesai ? dateOnlyInput(p.tanggalSelesai) : null,
     })),
+    libur,
   });
 }
