@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/src/lib/auth";
 import prisma from "@/src/lib/prisma";
 import { fail, readJson, str } from "@/src/lib/api-v1";
+import { clearRateLimit, hitRateLimit, rateLimitKey } from "@/src/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
 	const body = await readJson(request);
@@ -10,6 +11,23 @@ export async function POST(request: NextRequest) {
 
 	if (!email || !password) {
 		return fail("Email dan password wajib diisi.", 422);
+	}
+
+	// Brute-force: batasi per IP dan per akun. better-auth hanya membatasi
+	// permintaan HTTP-nya sendiri, bukan panggilan auth.api di route ini.
+	const batasIp = hitRateLimit(rateLimitKey(request, "login-ip"), 30, 60);
+	if (!batasIp.ok) {
+		return fail(
+			`Terlalu banyak percobaan masuk. Coba lagi dalam ${batasIp.retryAfterSeconds} detik.`,
+			429,
+		);
+	}
+	const batasAkun = hitRateLimit(rateLimitKey(request, "login-akun", email), 10, 60);
+	if (!batasAkun.ok) {
+		return fail(
+			`Terlalu banyak percobaan untuk akun ini. Coba lagi dalam ${batasAkun.retryAfterSeconds} detik.`,
+			429,
+		);
 	}
 
 	const res = await auth.api.signInEmail({
@@ -57,6 +75,9 @@ export async function POST(request: NextRequest) {
 	// Cookie diutamakan; fallback ke token yang sudah dikembalikan better-auth.
 	const cookieToken = extractSessionToken(cookies);
 	const token = cookieToken ?? (typeof payload.token === "string" ? payload.token : undefined);
+
+	// Login sah: buka hitungan per akun supaya pengguna asli tak ikut terkunci.
+	clearRateLimit(rateLimitKey(request, "login-akun", email));
 
 	return NextResponse.json(
 		{ success: true, data: { ...payload, token } },
