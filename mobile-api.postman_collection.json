@@ -305,7 +305,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/approval",
-            "description": "Untuk atasan langsung (timnya) dan HR (semua). Karyawan biasa: count 0."
+            "description": "Untuk atasan langsung (timnya) dan HR (semua). Karyawan biasa: count 0. Tiap item memuat date (YYYY-MM-DD) dan amount (nominal rupiah) untuk ringkasan di mobile."
           }
         },
         {
@@ -323,7 +323,7 @@
               "mode": "raw",
               "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"decision\": \"SETUJU\",\n  \"note\": \"OK\"\n}"
             },
-            "description": "type: CUTI/LEMBUR/DINAS/MUTASI/RESIGN/PROBATION/TUKAR_SHIFT/KOREKSI/REIMBURSE/UANGDINAS (UPDATE_DATA web-only). decision: SETUJU | TOLAK."
+            "description": "type: CUTI/LEMBUR/DINAS/MUTASI/RESIGN/PROBATION/TUKAR_SHIFT/KOREKSI/REIMBURSE/UANGDINAS/KASBON (UPDATE_DATA web-only). decision: SETUJU | TOLAK. Kasbon: tahap 1 atasan, tahap 2 ADMIN_HR (FINANCE boleh di tahap 2)."
           }
         },
         {
@@ -341,6 +341,27 @@
               "mode": "raw",
               "raw": "{\n  \"type\": \"CUTI\",\n  \"id\": \"PASTE_ID_PENGAJUAN\",\n  \"decision\": \"TOLAK\",\n  \"note\": \"Stok tim menipis\"\n}"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tim & Direktori",
+      "item": [
+        {
+          "name": "Tim Saya Hari Ini",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/team",
+            "description": "MANAJER/ADMIN_HR/SUPER_ADMIN. Status rekap+shift hari ini, siapa cuti/dinas, plus kontak & penempatan (non-sensitif)."
+          }
+        },
+        {
+          "name": "Direktori Karyawan",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/employees?query=",
+            "description": "ADMIN_HR/SUPER_ADMIN. Cari nama/nomor (maks 50, aktif/probasi). Tanpa NIK/NPWP/bank/gaji."
           }
         }
       ]
@@ -807,6 +828,24 @@
             "header": []
           },
           "description": "Pengumuman tayang (global + unit sendiri) + ultah/anniv minggu ini."
+        },
+        {
+          "name": "Terbitkan (HR)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/pengumuman",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Perubahan jam kerja Jumat\",\n  \"body\": \"Mulai Jumat ini jam kerja berakhir 16.30.\"\n}"
+            },
+            "description": "Khusus ADMIN_HR/SUPER_ADMIN. Teks saja, langsung terbit + notifikasi ke karyawan aktif."
+          }
         }
       ]
     },
