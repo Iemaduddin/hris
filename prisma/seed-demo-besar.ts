@@ -53,6 +53,11 @@ const KHUSUS = [
   { nama: "Iemaduddin", gender: "LAKI_LAKI" as const, email: "iemaduddin@example.com", password: "Iemaduddin123!" },
   { nama: "Didin", gender: "LAKI_LAKI" as const, email: "didin@example.com", password: "Didin123!" },
   { nama: "Izzah Nabila", gender: "PEREMPUAN" as const, email: "izzah@example.com", password: "Izzah123!" },
+  // Akun non-ESS (FINANCE/ADMIN_HR/SUPER_ADMIN) tetap diberi data karyawan agar
+  // bisa login ke aplikasi mobile (endpoint ESS butuh tautan karyawan).
+  { nama: "Finance", gender: "PEREMPUAN" as const, email: "finance@example.com", password: "Finance123!" },
+  { nama: "Admin HR", gender: "PEREMPUAN" as const, email: "admin@example.com", password: "Admin123!" },
+  { nama: "Super Admin", gender: "LAKI_LAKI" as const, email: "superadmin@example.com", password: "SuperAdmin123!" },
 ];
 
 const auth = betterAuth({
