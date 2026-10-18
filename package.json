@@ -21,7 +21,8 @@
     "seed:jadwal": "npx tsx prisma/seed-penugasan-kalender.ts",
     "seed:demo": "npx tsx prisma/seed-demo.ts",
     "seed:demo-besar": "npx tsx prisma/seed-demo-besar.ts",
-    "seed:all": "npm run seed:users && npm run seed:wilayah && npm run seed:perusahaan && npm run seed:org && npm run seed:posisi && npm run seed:kalender && npm run seed:karyawan && npm run seed:komponen && npm run seed:pph21 && npm run seed:cuti && npm run seed:jadwal && npm run seed:demo"
+    "seed:all": "npm run seed:users && npm run seed:wilayah && npm run seed:perusahaan && npm run seed:org && npm run seed:posisi && npm run seed:kalender && npm run seed:karyawan && npm run seed:komponen && npm run seed:pph21 && npm run seed:cuti && npm run seed:jadwal && npm run seed:demo",
+    "reminder:harian": "npx tsx scripts/reminder-harian.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.5.3",

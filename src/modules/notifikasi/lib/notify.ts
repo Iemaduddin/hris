@@ -83,6 +83,29 @@ export async function sendNotification(input: NotificationInput): Promise<void> 
 }
 
 /** ID user approver untuk satu tahap: personal (karyawan) atau semua HR aktif. */
+
+/** Kirim notifikasi ke banyak karyawan sekaligus (mis. slip terbit). Kembalikan jumlah penerima. */
+export async function notifyEmployees(
+  karyawanIds: string[],
+  input: {
+    title: string;
+    body: string;
+    kind?: NotificationKindInput;
+    referenceType?: string;
+    referenceId?: string;
+    url?: string;
+    pushData?: Record<string, unknown>;
+  },
+): Promise<number> {
+  if (karyawanIds.length === 0) return 0;
+  const rows = await prisma.karyawan.findMany({
+    where: { id: { in: karyawanIds }, userId: { not: null } },
+    select: { userId: true },
+  });
+  const userIds = [...new Set(rows.map((r) => r.userId).filter((u): u is string => Boolean(u)))];
+  for (const userId of userIds) await sendNotification({ userId, ...input });
+  return userIds.length;
+}
 export async function getStageApproverUsers(step: {
   approverKaryawanId: string | null;
   approverRole: string | null;

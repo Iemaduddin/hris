@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
 import { defaultExpiryDate, LEVEL_LABELS, validateEscalation } from "@/src/modules/employee/lib/disiplin";
+import { notifyEmployees } from "@/src/modules/notifikasi/lib/notify";
 
 export type DisiplinActionResult = { success: boolean; message: string; id?: string };
 
@@ -264,6 +265,14 @@ export async function publishDisiplin(id: string, userId: string): Promise<Disip
     },
   });
   revalidatePath("/employees/disiplin");
+  await notifyEmployees([row.karyawanId], {
+    title: "Surat peringatan diterbitkan",
+    body: `${row.nomor} (${LEVEL_LABELS[row.tingkat] ?? row.tingkat}) telah diterbitkan. Buka aplikasi untuk membacanya.`,
+    kind: "INFO",
+    referenceType: "SP",
+    referenceId: id,
+    url: "/account/disiplin",
+  });
   return { success: true, message: `${row.nomor} diterbitkan.` };
 }
 

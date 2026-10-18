@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
 import { getTerBrackets } from "../lib/calculate";
+import { notifyEmployees } from "@/src/modules/notifikasi/lib/notify";
 import {
   calculateMarginalTerPph,
   terCategoryFromPtkp,
@@ -191,7 +192,7 @@ export async function finalizeThrRun(runId: string): Promise<ThrActionResult> {
 export async function publishThrRun(runId: string): Promise<ThrActionResult> {
   const run = await prisma.thrRun.findUnique({
     where: { id: runId },
-    select: { status: true, detail: { select: { id: true, kodeVerifikasi: true } } },
+    select: { status: true, detail: { select: { id: true, kodeVerifikasi: true, karyawanId: true } } },
   });
   if (!run) return { success: false, message: "THR run tidak ditemukan." };
   if (run.status !== "FINAL") return { success: false, message: "Finalisasi dulu sebelum terbit." };
@@ -204,6 +205,17 @@ export async function publishThrRun(runId: string): Promise<ThrActionResult> {
     await tx.thrRun.update({ where: { id: runId }, data: { status: "DITERBITKAN" } });
   });
   revalidatePath("/payroll/thr");
+  await notifyEmployees(
+    run.detail.map((d) => d.karyawanId),
+    {
+      title: "Slip THR terbit",
+      body: "Slip THR Anda sudah dapat diunduh di aplikasi.",
+      kind: "INFO",
+      referenceType: "THR",
+      referenceId: runId,
+      url: "/account/thr",
+    },
+  );
   return { success: true, message: "Slip THR diterbitkan." };
 }
 

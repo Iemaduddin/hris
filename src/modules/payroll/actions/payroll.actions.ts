@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import { recordAudit } from "@/src/modules/audit/lib/audit";
+import { notifyEmployees } from "@/src/modules/notifikasi/lib/notify";
 import { createVerificationCode } from "../lib/verifikasi";
 import { splitDisbursement, buildDisbursementCsv } from "../lib/disburse";
 import { getPayrollSettingMap, calculateEmployeeSalary, resetSettingsCache, toStoredRincian, fromStoredRincian, type AnnualPphAccumulation, type SalaryLineItem } from "../lib/calculate";
@@ -648,6 +649,17 @@ export async function publishRun(runId: string): Promise<PayrollActionResult> {
 	});
 
 	revalidatePath("/payroll");
+	await notifyEmployees(
+		run.detail.map((d) => d.karyawanId),
+		{
+			title: "Slip gaji terbit",
+			body: `Slip gaji periode ${run.periode} sudah dapat diunduh di aplikasi.`,
+			kind: "INFO",
+			referenceType: "PAYSLIP",
+			referenceId: runId,
+			url: "/account/payslip",
+		},
+	);
 	return { success: true, message: "Payslip diterbitkan." };
 }
 
