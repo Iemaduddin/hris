@@ -1,236 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { LuBanknote, LuBadgeCheck, LuBell, LuBriefcase, LuBuilding2, LuCalendarCheck, LuCalendarDays, LuCalendarRange, LuCalendarX, LuChevronDown, LuCircleDollarSign, LuFileSpreadsheet, LuFingerprint, LuHandCoins, LuHouse, LuLayers, LuList, LuListChecks, LuLogOut, LuMapPin, LuNetwork, LuPlane, LuMail, LuPencilLine, LuReceipt, LuRepeat, LuSend, LuSettings, LuStamp, LuTimer, LuTreePalm, LuTriangleAlert, LuUser, LuUserRoundCog, LuUsers, LuWallet, LuChartColumn } from "react-icons/lu";
-import type { IconType } from "react-icons";
+import { LuChevronDown } from "react-icons/lu";
 import type { UserRole } from "@/src/modules/users/types/user.type";
-import Button from "../../ui/button";
 import Image from "next/image";
-import { authClient } from "@/src/lib/auth-client";
-import { toast } from "react-toastify";
+import { filterSectionsByRole, sidebarSections, type SidebarItem } from "./sections";
 
 type SidebarCompany = {
 	name: string;
 	logo: string | null;
 } | null;
 
-type SidebarItem = {
-	id: string;
-	label: string;
-	href?: string;
-	icon?: IconType;
-	allowedRoles?: UserRole[];
-	children?: SidebarItem[];
-};
-
-type SidebarSection = {
-	id: string;
-	label: string;
-	allowedRoles?: UserRole[];
-	items: SidebarItem[];
-};
-
-const HR_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR"];
-const APPROVER_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "MANAJER"];
-const FINANCE_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "FINANCE"];
-const REPORT_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN_HR", "MANAJER", "FINANCE"];
-
-const sidebarSections: SidebarSection[] = [
-	{
-		id: "main",
-		label: "Main",
-		items: [{ id: "dashboard", label: "Dashboard", href: "/", icon: LuHouse }],
-	},
-	{
-		id: "tim",
-		label: "Tim",
-		allowedRoles: [...HR_ROLES, "MANAJER"],
-		items: [{ id: "tim-saya", label: "Tim Saya", href: "/team", icon: LuUsers }],
-	},
-	{
-		id: "akun",
-		label: "Akun",
-		items: [
-			{ id: "profil-saya", label: "Profil Saya", href: "/account/profile", icon: LuUser },
-			{ id: "notifikasi-saya", label: "Notifikasi", href: "/notifications", icon: LuBell },
-			{ id: "presensi-saya", label: "Presensi Saya", href: "/account/attendance", icon: LuCalendarCheck },
-			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/account/requests", icon: LuSend },
-			{ id: "slip-saya", label: "Slip Gaji Saya", href: "/account/payslip", icon: LuWallet },
-			{ id: "kasbon-saya", label: "Kasbon Saya", href: "/account/kasbon", icon: LuHandCoins },
-			{ id: "reimbursement-saya", label: "Reimbursement", href: "/account/reimbursement", icon: LuReceipt },
-			{ id: "uangdinas-saya", label: "Uang Dinas", href: "/account/uang-dinas", icon: LuPlane },
-			{ id: "onboarding-saya", label: "Onboarding Saya", href: "/account/onboarding", icon: LuListChecks },
-			{ id: "disiplin-saya", label: "SP Saya", href: "/account/disiplin", icon: LuTriangleAlert },
-			{ id: "tukar-saya", label: "Tukar Shift", href: "/account/tukar", icon: LuRepeat },
-			{ id: "koreksi-saya", label: "Koreksi Presensi", href: "/account/koreksi", icon: LuPencilLine },
-			{ id: "pengumuman-saya", label: "Pengumuman", href: "/account/pengumuman", icon: LuMail },
-			{ id: "update-data-saya", label: "Update Data", href: "/account/update-data", icon: LuUser },
-			{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
-		],
-	},
-	{
-		id: "master-data",
-		label: "Master Data",
-		allowedRoles: HR_ROLES,
-		items: [
-			{
-				id: "users",
-				label: "Users Management",
-				href: "/users",
-				icon: LuUserRoundCog,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "employees",
-				label: "Employees",
-				href: "/employees",
-				icon: LuUsers,
-				allowedRoles: [...HR_ROLES, "MANAJER"],
-				children: [
-					{ id: "employee-list", label: "Employee List", href: "/employees", icon: LuList, allowedRoles: HR_ROLES },
-					{ id: "kontrak", label: "Kontrak", href: "/employees/kontrak", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
-					{ id: "mutasi", label: "Mutasi / Promosi", href: "/employees/mutasi", icon: LuRepeat, allowedRoles: [...HR_ROLES, "MANAJER"] },
-					{ id: "surat", label: "Surat Keluar", href: "/employees/surat", icon: LuMail, allowedRoles: HR_ROLES },
-					{ id: "disiplin", label: "Disiplin / SP", href: "/employees/disiplin", icon: LuTriangleAlert, allowedRoles: [...HR_ROLES, "MANAJER"] },
-					{ id: "onboarding", label: "Onboarding", href: "/employees/onboarding", icon: LuListChecks, allowedRoles: [...HR_ROLES, "MANAJER"] },
-					{ id: "probation", label: "Probation", href: "/employees/probation", icon: LuBadgeCheck, allowedRoles: [...HR_ROLES, "MANAJER"] },
-					{ id: "offboarding", label: "Offboarding", href: "/employees/offboarding", icon: LuLogOut, allowedRoles: HR_ROLES },
-					{ id: "pengumuman", label: "Pengumuman", href: "/employees/pengumuman", icon: LuMail, allowedRoles: HR_ROLES },
-					{ id: "update-data", label: "Update Data", href: "/employees/update-data", icon: LuUser, allowedRoles: HR_ROLES },
-					{ id: "import", label: "Impor & Kualitas", href: "/employees/import", icon: LuFileSpreadsheet, allowedRoles: HR_ROLES },
-				],
-			},
-		],
-	},
-	{
-		id: "transactions",
-		label: "Transactions",
-		allowedRoles: HR_ROLES,
-		items: [
-			{
-				id: "roster",
-				label: "Roster & Penugasan",
-				href: "/roster",
-				icon: LuCalendarRange,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "presensi",
-				label: "Presensi Harian",
-				href: "/attendance",
-				icon: LuFingerprint,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "rekap",
-				label: "Rekap Kehadiran",
-				href: "/recap",
-				icon: LuFileSpreadsheet,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "cuti",
-				label: "Cuti & Izin",
-				href: "/leave",
-				icon: LuTreePalm,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "lembur",
-				label: "Lembur",
-				href: "/overtime",
-				icon: LuTimer,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "dinas",
-				label: "Dinas & WFH",
-				href: "/duty",
-				icon: LuPlane,
-				allowedRoles: HR_ROLES,
-			},
-			{
-				id: "approval",
-				label: "Approval Center",
-				href: "/approval",
-				icon: LuStamp,
-				allowedRoles: APPROVER_ROLES,
-			},
-			{
-				id: "payroll",
-				label: "Payroll",
-				icon: LuBanknote,
-				allowedRoles: FINANCE_ROLES,
-				children: [
-					{ id: "salary-run", label: "Salary Run", href: "/payroll", icon: LuCircleDollarSign },
-					{ id: "thr", label: "THR Keagamaan", href: "/payroll/thr", icon: LuWallet },
-					{ id: "kasbon", label: "Kasbon", href: "/payroll/kasbon", icon: LuHandCoins },
-					{ id: "reimbursement", label: "Reimbursement", href: "/payroll/reimbursement", icon: LuReceipt },
-					{ id: "uang-dinas", label: "Uang Dinas", href: "/payroll/uang-dinas", icon: LuPlane },
-					{ id: "komponen", label: "Komponen Gaji", href: "/payroll/salary-components", icon: LuReceipt },
-					{ id: "aturan", label: "Aturan Payroll", href: "/payroll/settings", icon: LuSettings },
-				],
-			},
-		],
-	},
-	{
-		id: "reports",
-		label: "Reports",
-		allowedRoles: REPORT_ROLES,
-		items: [
-			{ id: "laporan", label: "Laporan", href: "/reports", icon: LuChartColumn, allowedRoles: REPORT_ROLES },
-			{ id: "audit", label: "Audit Log", href: "/audit", icon: LuList, allowedRoles: FINANCE_ROLES },
-		],
-	},
-	{
-		id: "settings",
-		label: "Settings",
-		allowedRoles: HR_ROLES,
-		items: [
-			{ 
-				id: "company-data", 
-				label: "Data Perusahaan",
-				icon: LuSettings,
-				allowedRoles: HR_ROLES,
-				children:[
-					{ id: "company-data-item", label: "Profil", href: "/settings/company-data", icon: LuBuilding2 },
-					{ id: "organizational-unit-item", label: "Struktur Organisasi", href: "/settings/organizational-unit", icon: LuNetwork },
-					{ id: "job-grade-item", label: "Golongan Posisi", href: "/settings/job-grade", icon: LuLayers },
-					{ id: "position-item", label: "Posisi", href: "/settings/position", icon: LuBriefcase },
-					{ id: "work-location-item", label: "Lokasi Kerja", href: "/settings/work-location", icon: LuMapPin },
-					{ id: "work-schedule-item", label: "Jadwal Kerja", href: "/settings/work-schedule", icon: LuCalendarDays },
-					{ id: "shift-item", label: "Shift Kerja", href: "/settings/shift", icon: LuRepeat },
-					{ id: "jenis-item", label: "Jenis Ketidakhadiran", href: "/settings/leave-types", icon: LuCalendarX },
-					{ id: "surat-item", label: "Template Surat", href: "/settings/surat", icon: LuMail },
-				]
-			 }
-		],
-	},
-];
 
 const normalizePath = (path: string) => (path === "/" ? "/" : path.replace(/\/$/, ""));
-
-function isAllowed(allowedRoles: UserRole[] | undefined, userRole: UserRole): boolean {
-	if (!allowedRoles || allowedRoles.length === 0) return true;
-	return allowedRoles.includes(userRole);
-}
-
-function filterSectionsByRole(sections: SidebarSection[], userRole: UserRole): SidebarSection[] {
-	return sections
-		.filter((section) => isAllowed(section.allowedRoles, userRole))
-		.map((section) => ({
-			...section,
-			items: section.items
-				.filter((item) => isAllowed(item.allowedRoles, userRole))
-				.map((item) => ({
-					...item,
-					children: item.children?.filter((child) => isAllowed(child.allowedRoles, userRole)),
-				})),
-		}))
-		.filter((section) => section.items.length > 0);
-}
 
 const isItemActive = (item: SidebarItem, pathname: string): boolean => {
 	const currentPath = normalizePath(pathname);
@@ -425,7 +209,6 @@ type SidebarProps = {
 
 export default function Sidebar({ company, collapsed = false, userRole }: SidebarProps) {
 	const pathname = usePathname();
-	const  router = useRouter();
 	const visibleSections = useMemo(() => filterSectionsByRole(sidebarSections, userRole), [userRole]);
 	const defaultOpenState = useMemo(() => {
 		const open: Record<string, boolean> = {};
@@ -457,16 +240,6 @@ export default function Sidebar({ company, collapsed = false, userRole }: Sideba
 		setOpenFlyoutId(null);
 	}, [pathname, collapsed]);
 
-	  const handleSignOut = async () => {
-		try {
-		  await authClient.signOut();
-		  router.push("/login");
-		  router.refresh();
-		}catch (error) {
-		  console.error("Error during sign out:", error);
-		  toast.error("Gagal melakukan logout. Silakan coba lagi.");
-		}
-	  }
 	return (
 		<aside className="relative z-20 flex h-full w-full shrink-0 flex-col border-r border-blue-100 bg-white dark:border-blue-900/60 dark:bg-slate-900">
 			<div className={`flex items-center p-4 ${collapsed ? "justify-center" : "gap-2"}`}>
@@ -511,19 +284,6 @@ export default function Sidebar({ company, collapsed = false, userRole }: Sideba
 					))}
 				</div>
 			</nav>
-
-			<div className={`py-4 ${collapsed ? "px-2" : "px-4"}`}>
-				<Button
-				onClick={handleSignOut}
-					variant="danger"
-					title="Logout"
-					aria-label="Logout"
-					rightIcon={<LuLogOut className="h-4 w-4" />}
-					fullWidth={!collapsed}
-				>
-					{collapsed ? "" : "Logout"}
-				</Button>
-			</div>
 		</aside>
 	);
 }

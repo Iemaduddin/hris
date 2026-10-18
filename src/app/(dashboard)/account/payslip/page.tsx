@@ -39,7 +39,7 @@ export default async function SlipSayaPage() {
 			</div>
 		</div>
 
-		<div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
+		<div id="slip-thr" className="mt-5 scroll-mt-6 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 			<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Slip THR Saya</h2>
 			<div className="mt-3">
 				<ThrSlipTable slips={thrSlips} />

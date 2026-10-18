@@ -209,11 +209,11 @@ export async function publishThrRun(runId: string): Promise<ThrActionResult> {
     run.detail.map((d) => d.karyawanId),
     {
       title: "Slip THR terbit",
-      body: "Slip THR Anda sudah dapat diunduh di aplikasi.",
+      body: "Slip THR Anda sudah terbit. Buka Keuangan Saya > Slip Gaji untuk mengunduhnya.",
       kind: "INFO",
       referenceType: "THR",
       referenceId: runId,
-      url: "/account/thr",
+      url: "/account/payslip#slip-thr",
     },
   );
   return { success: true, message: "Slip THR diterbitkan." };

@@ -4,7 +4,7 @@ import { getMyQueue, getMyApprovalHistory } from "@/src/modules/approval/actions
 import ApprovalClient from "@/src/modules/approval/components/approval-client";
 
 export default async function ApprovalPage() {
-	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "MANAJER"]);
+	await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "MANAJER", "FINANCE"]);
 	const session = await getCurrentSession();
 	if (!session) redirect("/login");
 
