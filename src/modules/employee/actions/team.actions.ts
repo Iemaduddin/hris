@@ -2,7 +2,7 @@
 
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
-import { calculateDailyRecap } from "@/src/modules/recap/lib/recap-engine";
+import { calculateDailyRecapBatch } from "@/src/modules/recap/lib/recap-engine";
 
 export type TeamDayMember = {
   employeeId: string;
@@ -33,43 +33,23 @@ export async function getTodayTeam(userId: string, dateIso: string): Promise<Tea
     select: { id: true, namaLengkap: true, nomorKaryawan: true },
   });
 
-  const result: TeamDayMember[] = [];
-  for (const m of members) {
-    const [recap, roster, leave, duty] = await Promise.all([
-      calculateDailyRecap(m.id, date),
-      prisma.rosterShift.findUnique({
-        where: { karyawanId_tanggal: { karyawanId: m.id, tanggal: date } },
-        select: { shift: { select: { nama: true } } },
-      }),
-      prisma.pengajuanKetidakhadiran.findFirst({
-        where: {
-          karyawanId: m.id,
-          status: "DISETUJUI",
-          tanggalMulai: { lte: new Date(date.getTime() + 86_400_000 - 1) },
-          tanggalSelesai: { gte: date },
-        },
-        select: { jenisKetidakhadiran: { select: { nama: true } } },
-      }),
-      prisma.dinasWFH.findFirst({
-        where: {
-          karyawanId: m.id,
-          status: "DISETUJUI",
-          tanggalMulai: { lte: date },
-          tanggalSelesai: { gte: date },
-        },
-        select: { jenis: true },
-      }),
-    ]);
-    result.push({
+  const status = await calculateDailyRecapBatch(
+    members.map((m) => m.id),
+    date,
+  );
+
+  return members.map((m) => {
+    const row = status.get(m.id);
+    const dutyJenis = row?.dutyJenis ?? null;
+    return {
       employeeId: m.id,
       name: m.namaLengkap,
       employeeNumber: m.nomorKaryawan,
-      status: recap?.status.replaceAll("_", " ") ?? "-",
-      shift: roster?.shift.nama ?? null,
-      info: leave?.jenisKetidakhadiran.nama ?? (duty ? (duty.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH") : null),
-    });
-  }
-  return result;
+      status: row?.recap?.status.replaceAll("_", " ") ?? "-",
+      shift: row?.shiftName ?? null,
+      info: row?.leaveName ?? (dutyJenis ? (dutyJenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH") : null),
+    };
+  });
 }
 
 export type TeamOverviewMember = TeamDayMember & {
