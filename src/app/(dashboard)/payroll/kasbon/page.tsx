@@ -1,10 +1,11 @@
-import { requireUserRole } from "@/src/lib/auth-guard";
+import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { listSalaryAdvances } from "@/src/modules/payroll/actions/kasbon.actions";
 import KasbonListClient from "@/src/modules/payroll/components/kasbon-list-client";
 
 export default async function KasbonPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "FINANCE"]);
+  const session = await getCurrentSession();
   const [items, karyawan] = await Promise.all([
     listSalaryAdvances(),
     prisma.karyawan.findMany({
@@ -26,6 +27,7 @@ export default async function KasbonPage() {
       <div className="mt-5">
         <KasbonListClient
           items={items}
+          userId={session?.user.id ?? ""}
           karyawanOptions={karyawan.map((k) => ({ value: k.id, label: `${k.namaLengkap} (${k.nomorKaryawan})` }))}
         />
       </div>

@@ -10,10 +10,9 @@ import {
   cancelSalaryAdvance,
   createSalaryAdvance,
   deleteSalaryAdvance,
-  approveSalaryAdvance,
-  rejectSalaryAdvance,
   type SalaryAdvanceItem,
 } from "../actions/kasbon.actions";
+import { processSubmissionAction } from "@/src/modules/approval/actions/approval.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 const rupiah = new Intl.NumberFormat("id-ID");
@@ -21,9 +20,11 @@ const rupiah = new Intl.NumberFormat("id-ID");
 export default function KasbonListClient({
   items,
   karyawanOptions,
+  userId,
 }: {
   items: SalaryAdvanceItem[];
   karyawanOptions: Array<{ value: string; label: string }>;
+  userId: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -62,14 +63,20 @@ export default function KasbonListClient({
     });
   }
 
+  function handleDecision(kind: "SETUJU" | "TOLAK", id: string, note?: string) {
+    startTransition(async () => {
+      const result = await processSubmissionAction(userId, "KASBON", id, kind, note);
+      refresh(result.success, result.message);
+      if (result.success) {
+        setTolakId("");
+        setTolakCatatan("");
+      }
+    });
+  }
+
   function handleTolak() {
     if (!tolakId) return;
-    startTransition(async () => {
-      const result = await rejectSalaryAdvance(tolakId, tolakCatatan);
-      refresh(result.success, result.message);
-      setTolakId("");
-      setTolakCatatan("");
-    });
+    handleDecision("TOLAK", tolakId, tolakCatatan);
   }
 
   const kolomKasbon: DataTableColumn<SalaryAdvanceItem>[] = [
@@ -131,7 +138,7 @@ export default function KasbonListClient({
           ) : null}
           {k.status === "DIAJUKAN" ? (
             <>
-              <button type="button" disabled={isPending} onClick={() => startTransition(async () => { const r = await approveSalaryAdvance(k.id); refresh(r.success, r.message); })} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              <button type="button" disabled={isPending} onClick={() => handleDecision("SETUJU", k.id)} className="rounded-lg border border-emerald-200 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
                 Setujui
               </button>
               <button type="button" disabled={isPending} onClick={() => setTolakId(k.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60">

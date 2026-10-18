@@ -20,6 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
   UPDATE_DATA: "Update Data",
   REIMBURSE: "Reimbursement",
   UANGDINAS: "Uang Dinas",
+  KASBON: "Kasbon",
 };
 
 export default function ApprovalClient({

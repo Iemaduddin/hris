@@ -16,6 +16,7 @@ const KIND_SLUGS: Record<ReferensiType, string> = {
   UPDATE_DATA: "updatedata",
   REIMBURSE: "reimburse",
   UANGDINAS: "uangdinas",
+  KASBON: "kasbon",
 };
 
 export type DecisionStatus = "DISETUJUI" | "DITOLAK";

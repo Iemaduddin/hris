@@ -13,6 +13,7 @@ export const REFERENSI_KOREKSI = "KOREKSI";
 export const REFERENSI_REIMBURSE = "REIMBURSE";
 export const REFERENSI_UANGDINAS = "UANGDINAS";
 export const REFERENSI_UPDATEDATA = "UPDATE_DATA";
+export const REFERENSI_KASBON = "KASBON";
 
 export type ReferensiType =
 	| typeof REFERENSI_CUTI
@@ -25,7 +26,8 @@ export type ReferensiType =
 	| typeof REFERENSI_KOREKSI
 	| typeof REFERENSI_REIMBURSE
 	| typeof REFERENSI_UANGDINAS
-	| typeof REFERENSI_UPDATEDATA;
+	| typeof REFERENSI_UPDATEDATA
+	| typeof REFERENSI_KASBON;
 
 /**
  * Tipe yang bisa diputus dari mobile (P4-4). UPDATE_DATA dikecualikan:
@@ -43,6 +45,7 @@ export const TIPE_APPROVAL_MOBILE: readonly ReferensiType[] = [
 	REFERENSI_KOREKSI,
 	REFERENSI_REIMBURSE,
 	REFERENSI_UANGDINAS,
+	REFERENSI_KASBON,
 ];
 
 type SetStatus = (
@@ -71,6 +74,9 @@ async function applyRequestStatus(type: ReferensiType, id: string, status: Param
 		await prisma.uangDinas.update({ where: { id }, data: { status: status as never } });
 	} else if (type === REFERENSI_UPDATEDATA) {
 		await prisma.updateDataRequest.update({ where: { id }, data: { status: status as never } });
+	} else if (type === REFERENSI_KASBON) {
+		const mapped = status === "DISETUJUI" ? "DISETUJUI" : status === "DITOLAK" ? "DITOLAK" : "DIAJUKAN";
+		await prisma.kasbon.update({ where: { id }, data: { status: mapped as never } });
 	} else {
 		await prisma.dinasWFH.update({ where: { id }, data: { status: status as never } });
 	}
@@ -115,6 +121,10 @@ async function getRequesterEmployeeId(type: ReferensiType, id: string): Promise<
 	}
 	if (type === REFERENSI_UPDATEDATA) {
 		const r = await prisma.updateDataRequest.findUnique({ where: { id }, select: { karyawanId: true } });
+		return r?.karyawanId ?? null;
+	}
+	if (type === REFERENSI_KASBON) {
+		const r = await prisma.kasbon.findUnique({ where: { id }, select: { karyawanId: true } });
 		return r?.karyawanId ?? null;
 	}
 	const r = await prisma.dinasWFH.findUnique({ where: { id }, select: { karyawanId: true } });
@@ -214,7 +224,11 @@ export async function processApproval(input: ProcessApprovalInput): Promise<Appr
   const isHr = input.approverRole === "SUPER_ADMIN" || input.approverRole === "ADMIN_HR";
   const canLead = current.approverKaryawanId !== null && input.approverEmployeeId === current.approverKaryawanId;
   const canHr = current.approverRole === "ADMIN_HR" && isHr;
-  if (!canLead && !canHr) {
+  // Kasbon: tahap akhir (peran ADMIN_HR) juga boleh diputus FINANCE —
+  // pemutus historisnya di web, aksinya kini lewat engine yang sama.
+  const canFinance =
+    input.type === REFERENSI_KASBON && current.approverRole === "ADMIN_HR" && input.approverRole === "FINANCE";
+  if (!canLead && !canHr && !canFinance) {
     return { success: false, message: "Anda bukan approver tahap ini." };
   }
 
@@ -264,6 +278,10 @@ export type QueueItem = {
   employeeName: string;
   employeeNumber: string;
   summary: string;
+  /** Tanggal relevan pengajuan (YYYY-MM-DD) untuk ringkasan; null bila tak relevan. */
+  date: string | null;
+  /** Nominal rupiah bila pengajuan bernilai uang. */
+  amount: number | null;
   stage: number;
   submittedAt: string | null;
 };
@@ -289,12 +307,16 @@ function getTypeName(type: ReferensiType): string {
 					? "Reimbursement"
 					: type === REFERENSI_UANGDINAS
 						? "Uang Dinas"
-						: "Dinas/WFH";
+						: type === REFERENSI_KASBON
+							? "Kasbon"
+							: "Dinas/WFH";
 }
 
 export async function getApprovalQueue(
   approverEmployeeId: string | null,
   isHr: boolean,
+  /** FINANCE: hanya melihat tahap akhir KASBON (pemutus historis di web, kini juga mobile). */
+  canFinance = false,
 ): Promise<QueueItem[]> {
   const steps = await prisma.approvalStep.findMany({
     where: { status: "MENUNGGU" },
@@ -305,7 +327,8 @@ export async function getApprovalQueue(
   for (const step of steps) {
     const mine =
       (step.approverKaryawanId !== null && step.approverKaryawanId === approverEmployeeId) ||
-      (step.approverRole === "ADMIN_HR" && isHr);
+      (step.approverRole === "ADMIN_HR" &&
+        (isHr || (canFinance && step.referensiType === REFERENSI_KASBON)));
     if (!mine) continue;
 
     const earlierPending = await prisma.approvalStep.count({
@@ -344,6 +367,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `${r.jenisKetidakhadiran.nama} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)} • ${r.jumlahHari} hari`,
+      date: r.tanggalMulai.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -360,6 +385,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Lembur ${r.jumlahJam} jam • ${r.alasan}`,
+      date: r.tanggal.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.createdAt.toISOString(),
     };
   }
@@ -383,6 +410,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `${getTransferTypeLabel(r.jenis)} • ${from} → ${to} • efektif ${r.tanggalEfektif.toISOString().slice(0, 10)}`,
+      date: r.tanggalEfektif.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -399,6 +428,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Resign • rencana ${r.tanggalRencana.toISOString().slice(0, 10)} • ${r.alasan}`,
+      date: r.tanggalRencana.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -415,6 +446,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Probation s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}${r.hasil ? ` • ${getProbationResultLabel(r.hasil)}` : ""}`,
+      date: r.tanggalSelesai.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -434,6 +467,8 @@ export async function getRequestSummary(
       employeeName: r.pemohon.namaLengkap,
       employeeNumber: r.pemohon.nomorKaryawan,
       summary: `Tukar ${r.tanggal.toISOString().slice(0, 10)} ↔ ${r.pasangan.namaLengkap}`,
+      date: r.tanggal.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -450,6 +485,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Koreksi ${r.tipe} → ${r.waktuBaru.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} • ${r.alasan}`,
+      date: r.tanggal.toISOString().slice(0, 10),
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -466,6 +503,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Reimburse ${r.kategori} Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.keterangan}`,
+      date: r.tanggalKwitansi?.toISOString().slice(0, 10) ?? null,
+      amount: Number(r.nominal),
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -483,6 +522,8 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `${getCategoryLabel(r.kategori)} • ${summarizeDataUpdate(r.kategori, (r.dataBaru ?? {}) as Record<string, unknown>)}`,
+      date: r.diajukanPada?.toISOString().slice(0, 10) ?? null,
+      amount: null,
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
@@ -499,9 +540,29 @@ export async function getRequestSummary(
       employeeName: r.karyawan.namaLengkap,
       employeeNumber: r.karyawan.nomorKaryawan,
       summary: `Uang muka Rp${Number(r.nominalMuka).toLocaleString("id-ID")}`,
+      date: (r.tanggalSerah ?? r.diajukanPada)?.toISOString().slice(0, 10) ?? null,
+      amount: Number(r.nominalMuka),
       submittedAt: r.diajukanPada?.toISOString() ?? null,
     };
   }
+	if (type === REFERENSI_KASBON) {
+		const r = await prisma.kasbon.findUnique({
+			where: { id },
+			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
+		});
+		if (!r) return null;
+		return {
+			id: r.id,
+			number: r.nomor,
+			employeeId: r.karyawanId,
+			employeeName: r.karyawan.namaLengkap,
+			employeeNumber: r.karyawan.nomorKaryawan,
+			summary: `Kasbon Rp${Number(r.nominal).toLocaleString("id-ID")} • ${r.tenorBulan}x Rp${Number(r.angsuranPerBulan).toLocaleString("id-ID")} • potong mulai ${r.mulaiPotong.toISOString().slice(0, 10)}`,
+			date: r.mulaiPotong.toISOString().slice(0, 10),
+			amount: Number(r.nominal),
+			submittedAt: r.createdAt.toISOString(),
+		};
+	}
 	const r = await prisma.dinasWFH.findUnique({
 		where: { id },
 		include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
@@ -515,6 +576,8 @@ export async function getRequestSummary(
     employeeNumber: r.karyawan.nomorKaryawan,
     summary: `${r.jenis === "DINAS_LUAR" ? "Dinas Luar" : "WFH"} • ${r.tanggalMulai.toISOString().slice(0, 10)} s/d ${r.tanggalSelesai.toISOString().slice(0, 10)}`,
     submittedAt: r.diajukanPada?.toISOString() ?? null,
+    date: r.tanggalMulai.toISOString().slice(0, 10),
+    amount: null,
   };
 }
 

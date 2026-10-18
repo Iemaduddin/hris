@@ -8,6 +8,7 @@ import { openClearance } from "@/src/modules/employee/actions/offboarding.action
 import { applyDataUpdate } from "@/src/modules/employee/lib/updatedata";
 import { executeSwap } from "@/src/modules/roster/actions/tukar.actions";
 import { applyCorrection } from "@/src/modules/attendance/actions/koreksi.actions";
+import { approveSalaryAdvance } from "@/src/modules/payroll/actions/kasbon.actions";
 import { notifyRequestDecision } from "../lib/approval-notify";
 import {
   getApprovalQueue,
@@ -50,7 +51,7 @@ function isHr(role: string): boolean {
 
 export async function getMyQueue(userId: string): Promise<QueueItem[]> {
   const approver = await resolveApprover(userId);
-  return getApprovalQueue(approver.employeeId, isHr(approver.role));
+  return getApprovalQueue(approver.employeeId, isHr(approver.role), approver.role === "FINANCE");
 }
 
 export async function processSubmissionAction(
@@ -89,7 +90,9 @@ export async function processSubmissionAction(
               ? async () => applyCorrection(id)
               : type === "UPDATE_DATA"
                 ? async () => applyDataUpdate(id)
-                : undefined;
+                : type === "KASBON"
+                  ? async () => approveSalaryAdvance(id, userId)
+                  : undefined;
 
   const result = await processApproval({
     type,
@@ -113,10 +116,19 @@ export async function processSubmissionAction(
   revalidateBestEffort("/account/update-data");
   revalidateBestEffort("/account/tukar");
   revalidateBestEffort("/roster");
+  revalidateBestEffort("/payroll/kasbon");
 
   // PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
   if (result.success && result.outcome) {
     await notifyRequestDecision(type, id, result.outcome);
+  }
+
+  // Kasbon ditolak final → catat alasan & pemutus di baris kasbon.
+  if (result.success && result.outcome === "DITOLAK" && type === "KASBON") {
+    await prisma.kasbon.update({
+      where: { id },
+      data: { catatan: note?.trim() || null, approvedById: userId, approvedAt: new Date() },
+    });
   }
 
   // Offboarding disetujui final → buka fase clearance.

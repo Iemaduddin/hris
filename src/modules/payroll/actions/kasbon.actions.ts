@@ -152,9 +152,10 @@ export async function submitSalaryAdvance(id: string, employeeId?: string): Prom
   if (!row) return { success: false, message: "Kasbon tidak ditemukan." };
   if (employeeId && row.karyawanId !== employeeId) return { success: false, message: "Bukan milik Anda." };
   if (row.status !== "DRAFT") return { success: false, message: "Hanya draf yang bisa diajukan." };
-  await prisma.kasbon.update({ where: { id }, data: { status: "DIAJUKAN" } });
+  const { startApprovalFlow, REFERENSI_KASBON } = await import("@/src/modules/approval/lib/approval-engine");
+  await startApprovalFlow(REFERENSI_KASBON, id);
   revalidateBestEffort("/payroll/kasbon");
-  return { success: true, message: "Kasbon diajukan ke Finance." };
+  return { success: true, message: "Kasbon diajukan untuk persetujuan." };
 }
 
 export async function approveSalaryAdvance(id: string, approverId?: string): Promise<SalaryAdvanceActionResult> {
