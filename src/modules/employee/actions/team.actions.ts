@@ -71,3 +71,45 @@ export async function getTodayTeam(userId: string, dateIso: string): Promise<Tea
   }
   return result;
 }
+
+export type TeamOverviewMember = TeamDayMember & {
+  phone: string | null;
+  email: string | null;
+  positionName: string | null;
+  unitName: string | null;
+};
+
+/** Direktori tim: status hari ini + kontak & penempatan (non-sensitif). */
+export async function getTeamOverview(userId: string, dateIso: string): Promise<TeamOverviewMember[]> {
+  const day = await getTodayTeam(userId, dateIso);
+  if (day.length === 0) return [];
+
+  const rows = await prisma.karyawan.findMany({
+    where: { id: { in: day.map((m) => m.employeeId) } },
+    select: {
+      id: true,
+      telepon: true,
+      email: true,
+      posisiKaryawan: {
+        where: { isCurrent: true },
+        take: 1,
+        select: {
+          posisi: { select: { nama: true } },
+          unitOrganisasi: { select: { nama: true } },
+        },
+      },
+    },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return day.map((m) => {
+    const row = byId.get(m.employeeId);
+    const placement = row?.posisiKaryawan[0] ?? null;
+    return {
+      ...m,
+      phone: row?.telepon ?? null,
+      email: row?.email ?? null,
+      positionName: placement?.posisi?.nama ?? null,
+      unitName: placement?.unitOrganisasi?.nama ?? null,
+    };
+  });
+}
