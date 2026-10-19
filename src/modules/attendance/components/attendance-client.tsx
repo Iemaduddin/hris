@@ -85,6 +85,40 @@ export default function AttendanceClient({ date, items, employeeOptions }: Atten
     { id: "sumber", header: "Sumber", accessor: "source" },
     { id: "status", header: "Status", accessor: "status" },
     {
+      id: "penanda",
+      header: "Penanda",
+      sortable: false,
+      searchable: false,
+      render: (item) => (
+        <div className="flex flex-wrap items-center gap-1">
+          {item.terlambatKirim ? (
+            <span
+              className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+              title="Perangkat mengirim presensi dari antrean offline, jadi waktu event berasal dari perangkat."
+            >
+              Terlambat kirim
+            </span>
+          ) : null}
+          {item.isOutsideRadius ? (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
+              Luar radius
+            </span>
+          ) : null}
+          {item.isMocked ? (
+            <span
+              className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
+              title="Perangkat melaporkan/dicurigai lokasi simulasi (mock)."
+            >
+              Lokasi dicurigai
+            </span>
+          ) : null}
+          {!item.terlambatKirim && !item.isOutsideRadius && !item.isMocked ? (
+            <span className="text-xs text-slate-400">—</span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
       id: "aksi",
       header: "Aksi",
       headerClassName: "text-right",

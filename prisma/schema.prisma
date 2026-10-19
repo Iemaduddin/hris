@@ -574,6 +574,10 @@ model Absensi {
   diLuarRadius Boolean?
   // PRD mobile Bag. 5.4 — deteksi GPS simulasi/placeholder di perangkat.
   isMocked     Boolean  @default(false)
+  // P6-5 — presensi mobile dari antrean offline: waktu event berasal dari
+  // perangkat, jadi kiriman yang tiba jauh setelah kejadian ditandai agar HR
+  // dapat meninjau (waktu event tidak lagi sama dengan waktu server terima).
+  terlambatKirim Boolean @default(false)
   lokasiKerjaId String?
   lokasiKerja   LokasiKerja? @relation(fields: [lokasiKerjaId], references: [id])
   status StatusAbsensi @default(VALID)

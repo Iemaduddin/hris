@@ -21,6 +21,12 @@ export type AttendanceListItem = {
   source: string;
   status: string;
   note: string | null;
+  /** true bila perangkat melaporkan/dicurigai GPS simulasi. */
+  isMocked: boolean;
+  /** Hasil validasi radius saat pencatatan (null = tidak dinilai). */
+  isOutsideRadius: boolean | null;
+  /** P6-5 — presensi mobile dari antrean offline yang tiba terlambat. */
+  terlambatKirim: boolean;
 };
 
 export type AttendanceActionResult = {
@@ -33,10 +39,24 @@ export type AttendanceActionResult = {
   /** Jarak ke pusat lokasi kerja dalam meter, bila tersedia. */
   distanceMeters?: number | null;
   workLocationId?: string | null;
+  /** P6-5 — event mobile yang dikirim lewat antrean offline (waktu perangkat). */
+  terlambatKirim?: boolean;
 };
 
 const TYPE_LIST = Object.keys(TipeAbsensi) as AttendanceType[];
 const SOURCE_LIST = Object.keys(SumberAbsensi) as AttendanceSource[];
+
+/**
+ * P6-5 — ambang "terlambat kirim": selisih waktu terima server vs waktu event.
+ * Hanya untuk sumber MOBILE: antrean offline mengirim waktu dari perangkat,
+ * sedangkan pencatatan manual HR memang boleh menunjuk waktu lampau.
+ */
+const TERLAMBAT_KIRIM_MS = 5 * 60 * 1000;
+
+function hitungTerlambatKirim(source: AttendanceSource, waktu: Date): boolean {
+  if (source !== "MOBILE") return false;
+  return Date.now() - waktu.getTime() >= TERLAMBAT_KIRIM_MS;
+}
 
 function isValidEventType(value: string): value is AttendanceType {
   return (TYPE_LIST as string[]).includes(value);
@@ -66,6 +86,9 @@ export async function getDailyAttendance(date: string): Promise<AttendanceListIt
     source: r.sumber,
     status: r.status,
     note: r.catatan,
+    isMocked: r.isMocked,
+    isOutsideRadius: r.diLuarRadius,
+    terlambatKirim: r.terlambatKirim,
   }));
 }
 
@@ -164,6 +187,10 @@ export async function recordAttendance(input: {
     }
   }
 
+  // P6-5 — antrean offline mobile mengirim waktu event dari perangkat, jadi
+  // selisih waktu terima ditandai agar HR dapat meninjau.
+  const terlambatKirim = hitungTerlambatKirim(source, time);
+
   await prisma.absensi.create({
     data: {
       karyawanId: input.employeeId,
@@ -176,6 +203,7 @@ export async function recordAttendance(input: {
       longitude,
       diLuarRadius: isOutsideRadius,
       isMocked: input.isMocked === true,
+      terlambatKirim,
       status: StatusAbsensi.VALID,
       catatan: input.note || null,
     },
@@ -212,6 +240,7 @@ export async function recordAttendance(input: {
     isMocked: input.isMocked === true,
     distanceMeters,
     workLocationId,
+    terlambatKirim,
   };
 }
 

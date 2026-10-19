@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         status: true,
         diLuarRadius: true,
         isMocked: true,
+        terlambatKirim: true,
         catatan: true,
       },
     }),
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
       status: e.status,
       isOutsideRadius: e.diLuarRadius,
       isMocked: e.isMocked,
+      terlambatKirim: e.terlambatKirim,
       note: e.catatan,
     })),
   });
