@@ -105,7 +105,7 @@ export default function RosterClient({
 
   function handleSaveAssignment() {
     if (!assignEmployee || !assignCalendar || !assignStart) {
-      toast.error("Karyawan, kalender, dan tanggal mulai wajib diisi.");
+      toast.error("Employee, kalender, dan tanggal mulai wajib diisi.");
       return;
     }
     startTransition(async () => {
@@ -138,7 +138,7 @@ export default function RosterClient({
   }
 
   const assignmentColumns: DataTableColumn<CalendarAssignmentItem>[] = [
-    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "karyawan", header: "Employee", accessor: "employeeName" },
     { id: "kalender", header: "Kalender", accessor: "calendarName" },
     {
       id: "periode",
@@ -171,7 +171,7 @@ export default function RosterClient({
     { id: "tanggal", header: "Tanggal", accessor: "date" },
     {
       id: "karyawan",
-      header: "Karyawan",
+      header: "Employee",
       render: (r) => (
         <span>
           {r.employeeName} <span className="text-xs text-slate-500">({r.employeeNumber})</span>
@@ -203,7 +203,7 @@ export default function RosterClient({
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           <FloatingSelect
             name="assignEmployee"
-            label="Karyawan"
+            label="Employee"
             value={assignEmployee}
             onValueChange={setAssignEmployee}
             options={employeeOptions}
@@ -260,7 +260,7 @@ export default function RosterClient({
           </div>
         </div>
         <div className="mt-4">
-          <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">Karyawan ({checked.length} dipilih)</p>
+          <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">Employee ({checked.length} dipilih)</p>
           <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-xl border border-blue-100 p-3 md:grid-cols-3 dark:border-blue-900/60">
             {employeeOptions.map((k) => (
               <label key={k.value} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">

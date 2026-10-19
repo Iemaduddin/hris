@@ -1,6 +1,6 @@
 import prisma from "@/src/lib/prisma";
 import { getRequestSummary, type ReferensiType } from "./approval-engine";
-import { sendNotification } from "@/src/modules/notifikasi/lib/notify";
+import { sendNotification } from "@/src/modules/notifications/lib/notifications";
 
 /** Beritahu pemohon saat pengajuan disetujui/ditolak (best-effort). */
 

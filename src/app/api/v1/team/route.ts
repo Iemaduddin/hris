@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, isHr, ok, requireApiSession } from "@/src/lib/api-v1";
 import { dateOnlyInput } from "@/src/lib/time";
-import { getTeamOverview } from "@/src/modules/employee/actions/team.actions";
+import { getTeamOverview } from "@/src/modules/employees/actions/team.actions";
 
 /**
  * GET: tim saya — siapa cuti/dinas hari ini + direktori bawahan

@@ -1,6 +1,6 @@
 import prisma from "@/src/lib/prisma";
-import { getTransferTypeLabel } from "@/src/modules/employee/lib/mutasi";
-import { getProbationResultLabel } from "@/src/modules/employee/lib/probation";
+import { getTransferTypeLabel } from "@/src/modules/employees/lib/transfers";
+import { getProbationResultLabel } from "@/src/modules/employees/lib/probation";
 
 export const REFERENSI_CUTI = "CUTI";
 export const REFERENSI_LEMBUR = "LEMBUR";
@@ -178,7 +178,7 @@ export async function startApprovalFlow(type: ReferensiType, id: string): Promis
 
 	// P4-3: beritahu approver tahap berjalan (in-app + push + email per preferensi).
   try {
-    const { notifyNewApprover } = await import("@/src/modules/notifikasi/lib/notify");
+    const { notifyNewApprover } = await import("@/src/modules/notifications/lib/notifications");
     const detail = await getRequestSummary(type, id);
     if (detail) {
       await notifyNewApprover(
@@ -514,7 +514,7 @@ export async function getRequestSummary(
 			include: { karyawan: { select: { namaLengkap: true, nomorKaryawan: true } } },
 		});
 		if (!r) return null;
-    const { summarizeDataUpdate, getCategoryLabel } = await import("@/src/modules/employee/lib/updatedata");
+    const { summarizeDataUpdate, getCategoryLabel } = await import("@/src/modules/employees/lib/data-updates");
     return {
       id: r.id,
       number: r.nomor,

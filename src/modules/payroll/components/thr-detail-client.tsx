@@ -34,7 +34,7 @@ export default function ThrDetailClient({ run, detail }: { run: ThrRunItem; deta
   const kolomThrDetail: DataTableColumn<ThrDetailItem>[] = [
     {
       id: "karyawan",
-      header: "Karyawan",
+      header: "Employee",
       render: (d) => (
         <span>
           {d.employeeName} <span className="text-xs text-slate-500">({d.employeeNumber})</span>

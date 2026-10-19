@@ -80,7 +80,7 @@ export default function RekapClient({ tahun, bulan, karyawanId, items, employeeO
     },
     {
       id: "karyawan",
-      header: "Karyawan",
+      header: "Employee",
       render: (item) => (
         <span>
           {item.employeeName} <span className="text-xs text-slate-500">({item.employeeNumber})</span>
@@ -156,7 +156,7 @@ export default function RekapClient({ tahun, bulan, karyawanId, items, employeeO
           <div className="min-w-64 flex-1">
             <FloatingSelect
               name="employeeId"
-              label="Karyawan (kosongkan = semua)"
+              label="Employee (kosongkan = semua)"
               value={filterEmployee}
               onValueChange={(v) => {
                 setFilterEmployee(v);

@@ -62,7 +62,7 @@ export default function ApprovalClient({
     { id: "nomor", header: "Nomor", accessor: "number" },
     {
       id: "karyawan",
-      header: "Karyawan",
+      header: "Employee",
       render: (item) => (
         <span>
           {item.employeeName} <span className="text-xs text-slate-500">({item.employeeNumber})</span>

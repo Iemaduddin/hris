@@ -18,7 +18,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ pa
 	const [ownerType, ownerId] = relativePath.split("/");
 	if (ownerType !== "perusahaan") {
 		const isHr = ctx.role === "SUPER_ADMIN" || ctx.role === "ADMIN_HR";
-		// Karyawan boleh mengunduh berkas folder miliknya sendiri (mis. foto profil).
+		// Employee boleh mengunduh berkas folder miliknya sendiri (mis. foto profil).
 		const milikSendiri = ownerType === "karyawan" && !!ownerId && ownerId === ctx.karyawanId;
 		if (!isHr && !milikSendiri) {
 			return NextResponse.json({ error: "Akses ditolak." }, { status: 403 });

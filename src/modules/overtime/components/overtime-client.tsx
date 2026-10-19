@@ -43,7 +43,7 @@ export default function LemburClient({
 
   const overtimeColumns: DataTableColumn<OvertimeItem>[] = [
     { id: "tanggal", header: "Tanggal", accessor: "date" },
-    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "karyawan", header: "Employee", accessor: "employeeName" },
     {
       id: "jam",
       header: "Jam",
@@ -96,7 +96,7 @@ export default function LemburClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Buat Pengajuan</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingSelect name="employeeId" label="Karyawan" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="employeeId" label="Employee" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
           <FloatingInput name="date" label="Tanggal" type="date" value={date} onChange={(e) => setDate(e.currentTarget.value)} />
           <FloatingInput name="startTime" label="Jam Mulai" type="time" value={startTime} onChange={(e) => setStartTime(e.currentTarget.value)} />
           <FloatingInput name="endTime" label="Jam Selesai" type="time" value={endTime} onChange={(e) => setEndTime(e.currentTarget.value)} />

@@ -6,7 +6,7 @@ export type AuditInput = {
 	entityType: string;
 	entityId?: string | null;
 	sebelum?: unknown;
-	alasan?: string | null;
+	reason?: string | null;
 	sesudah?: unknown;
 };
 
@@ -42,7 +42,7 @@ export async function recordAudit(input: AuditInput): Promise<void> {
         entityId: input.entityId ?? null,
         sebelum: toJson(input.sebelum),
         sesudah: toJson(input.sesudah),
-        alasan: input.alasan ?? null,
+        alasan: input.reason ?? null,
       },
     });
 	} catch {
@@ -84,7 +84,7 @@ export async function getAuditLogs(filter: AuditFilter = {}) {
 		aksi: r.aksi,
 		entityType: r.entityType,
 		entityId: r.entityId,
-		alasan: r.alasan,
+		reason: r.alasan,
 		sebelum: (r.sebelum ?? null) as unknown,
 		sesudah: (r.sesudah ?? null) as unknown,
 	}));

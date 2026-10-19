@@ -89,7 +89,7 @@ export default function AuditClient({ initial }: { initial: AuditRow[] }) {
 					{ringkas(r.sebelum)} → {ringkas(r.sesudah)}
 				</span>
 			),
-			searchValue: (r) => r.alasan ?? "",
+			searchValue: (r) => r.reason ?? "",
 		},
 	];
 
@@ -98,13 +98,13 @@ export default function AuditClient({ initial }: { initial: AuditRow[] }) {
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
 				<h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Audit Log</h1>
 				<p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-					Jejak aksi sensitif: actor + aksi + entity + sebelum/sesudah + alasan. Koreksi presensi langsung
+					Jejak aksi sensitif: actor + aksi + entity + sebelum/sesudah + reason. Koreksi presensi langsung
 					ditutup — wajib via pengajuan + approval.
 				</p>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
 					<FloatingInput name="aksi" label="Filter aksi (mis. PAYROLL)" value={aksi} onChange={(e) => setAksi(e.currentTarget.value)} />
 					<FloatingInput name="entity" label="Filter entity (mis. SalaryRun)" value={entity} onChange={(e) => setEntity(e.currentTarget.value)} />
-					<FloatingInput name="q" label="Cari actor / alasan / id" value={q} onChange={(e) => setQ(e.currentTarget.value)} />
+					<FloatingInput name="q" label="Cari actor / reason / id" value={q} onChange={(e) => setQ(e.currentTarget.value)} />
 					<div className="flex items-end">
 						<button
 							type="button"

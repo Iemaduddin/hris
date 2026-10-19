@@ -373,7 +373,7 @@
           "name": "Daftar Slip Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/payslip",
+            "url": "{{baseUrl}}/api/v1/payslips",
             "description": "Hanya slip yang sudah DITERBITKAN."
           }
         },
@@ -382,7 +382,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/api/v1/payslip?number=SLIP-2026-10-XXXXXX",
+              "raw": "{{baseUrl}}/api/v1/payslips?number=SLIP-2026-10-XXXXXX",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -543,7 +543,7 @@
           "name": "Daftar Kasbon Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/kasbon",
+            "url": "{{baseUrl}}/api/v1/salary-advances",
             "header": []
           }
         },
@@ -551,7 +551,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/kasbon",
+            "url": "{{baseUrl}}/api/v1/salary-advances",
             "header": [
               {
                 "key": "Content-Type",
@@ -568,7 +568,7 @@
           "name": "Ajukan / Batal",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/kasbon",
+            "url": "{{baseUrl}}/api/v1/salary-advances",
             "header": [
               {
                 "key": "Content-Type",
@@ -630,7 +630,7 @@
           "name": "Milik + Masuk Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/tukar",
+            "url": "{{baseUrl}}/api/v1/shift-swaps",
             "header": []
           }
         },
@@ -638,7 +638,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/tukar",
+            "url": "{{baseUrl}}/api/v1/shift-swaps",
             "header": [
               {
                 "key": "Content-Type",
@@ -655,7 +655,7 @@
           "name": "Ajukan / Batal / Setuju / Tolak",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/tukar",
+            "url": "{{baseUrl}}/api/v1/shift-swaps",
             "header": [
               {
                 "key": "Content-Type",
@@ -678,7 +678,7 @@
           "name": "Daftar Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/koreksi",
+            "url": "{{baseUrl}}/api/v1/attendance-corrections",
             "header": []
           }
         },
@@ -686,7 +686,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/koreksi",
+            "url": "{{baseUrl}}/api/v1/attendance-corrections",
             "header": [
               {
                 "key": "Content-Type",
@@ -703,7 +703,7 @@
           "name": "Ajukan / Batal",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/koreksi",
+            "url": "{{baseUrl}}/api/v1/attendance-corrections",
             "header": [
               {
                 "key": "Content-Type",
@@ -726,7 +726,7 @@
           "name": "Daftar Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/update-data",
+            "url": "{{baseUrl}}/api/v1/data-updates",
             "header": []
           }
         },
@@ -734,7 +734,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/update-data",
+            "url": "{{baseUrl}}/api/v1/data-updates",
             "header": [
               {
                 "key": "Content-Type",
@@ -752,7 +752,7 @@
           "name": "Ajukan / Batal",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/update-data",
+            "url": "{{baseUrl}}/api/v1/data-updates",
             "header": [
               {
                 "key": "Content-Type",
@@ -824,7 +824,7 @@
           "name": "Tayang + Peristiwa",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/pengumuman",
+            "url": "{{baseUrl}}/api/v1/announcements",
             "header": []
           },
           "description": "Pengumuman tayang (global + unit sendiri) + ultah/anniv minggu ini."
@@ -833,7 +833,7 @@
           "name": "Terbitkan (HR)",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/pengumuman",
+            "url": "{{baseUrl}}/api/v1/announcements",
             "header": [
               {
                 "key": "Content-Type",
@@ -856,7 +856,7 @@
           "name": "Daftar Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/reimburse",
+            "url": "{{baseUrl}}/api/v1/reimbursements",
             "header": []
           }
         },
@@ -864,7 +864,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/reimburse",
+            "url": "{{baseUrl}}/api/v1/reimbursements",
             "header": [
               {
                 "key": "Content-Type",
@@ -881,7 +881,7 @@
           "name": "Ajukan / Batal",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/reimburse",
+            "url": "{{baseUrl}}/api/v1/reimbursements",
             "header": [
               {
                 "key": "Content-Type",
@@ -904,7 +904,7 @@
           "name": "Daftar Saya",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "url": "{{baseUrl}}/api/v1/business-travel",
             "header": []
           }
         },
@@ -912,7 +912,7 @@
           "name": "Opsi Dinas Disetujui",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/uang-dinas?duty=1",
+            "url": "{{baseUrl}}/api/v1/business-travel?duty=1",
             "header": []
           },
           "description": "Dinas DISETUJUI milik sendiri yang belum punya uang muka."
@@ -921,7 +921,7 @@
           "name": "Buat Draf",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "url": "{{baseUrl}}/api/v1/business-travel",
             "header": [
               {
                 "key": "Content-Type",
@@ -938,7 +938,7 @@
           "name": "Ajukan / Batal / LPJ",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/uang-dinas",
+            "url": "{{baseUrl}}/api/v1/business-travel",
             "header": [
               {
                 "key": "Content-Type",

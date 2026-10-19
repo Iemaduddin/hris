@@ -1,6 +1,6 @@
 import { requireAuthenticatedUser } from "@/src/lib/auth-guard";
-import { getMyNotifications, getMyPreferences } from "@/src/modules/notifikasi/actions/notifikasi.actions";
-import NotificationClient from "@/src/modules/notifikasi/components/notifikasi-client";
+import { getMyNotifications, getMyPreferences } from "@/src/modules/notifications/actions/notifications.actions";
+import NotificationClient from "@/src/modules/notifications/components/notifications-client";
 
 export default async function NotificationsPage() {
   await requireAuthenticatedUser();

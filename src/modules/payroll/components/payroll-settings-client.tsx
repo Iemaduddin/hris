@@ -19,8 +19,8 @@ import {
 import {
   SALARY_ADVANCE_MAX_AMOUNT_KEY,
   SALARY_ADVANCE_MAX_TENOR_KEY,
-} from "../lib/kasbon";
-import { UNPAID_SUSPENSION_KEY } from "@/src/modules/employee/lib/disiplin";
+} from "../lib/salary-advances";
+import { UNPAID_SUSPENSION_KEY } from "@/src/modules/employees/lib/disciplinary";
 
 const SKORSING_OPTIONS = [
   { value: "0", label: "Tetap dibayar" },

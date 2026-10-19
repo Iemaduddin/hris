@@ -12,7 +12,7 @@ export type AuditRow = {
 	aksi: string;
 	entityType: string;
 	entityId: string | null;
-	alasan: string | null;
+	reason: string | null;
 	sebelum: unknown;
 	sesudah: unknown;
 };

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getProbationDetail } from "@/src/modules/employee/actions/probation.actions";
-import ProbationDetailClient from "@/src/modules/employee/components/probation-detail-client";
+import { getProbationDetail } from "@/src/modules/employees/actions/probation.actions";
+import ProbationDetailClient from "@/src/modules/employees/components/probation-detail-client";
 
 export default async function ProbationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { role } = await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "MANAJER"]);

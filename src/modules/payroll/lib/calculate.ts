@@ -12,10 +12,10 @@ import {
   resolveAlphaDivisor,
 } from "./potongan";
 import { OVERTIME_DEFAULT_SETTINGS, OVERTIME_DIVISOR_KEY, OVERTIME_TIERED_KEY } from "./lembur";
-import { SALARY_ADVANCE_DEFAULT_SETTINGS } from "./kasbon";
-import { calculateSalaryAdvanceDeduction } from "./kasbon";
-import { UNPAID_SUSPENSION_KEY } from "@/src/modules/employee/lib/disiplin";
-import { suspensionDaysInPeriod } from "@/src/modules/employee/lib/disiplin";
+import { SALARY_ADVANCE_DEFAULT_SETTINGS } from "./salary-advances";
+import { calculateSalaryAdvanceDeduction } from "./salary-advances";
+import { UNPAID_SUSPENSION_KEY } from "@/src/modules/employees/lib/disciplinary";
+import { suspensionDaysInPeriod } from "@/src/modules/employees/lib/disciplinary";
 import {
   calculateDailyOvertime,
   calculateHourlyRate,
@@ -255,7 +255,7 @@ export async function getTerBrackets(category: "A" | "B" | "C"): Promise<TerBrac
       return brackets;
     }
   } catch {
-    // Tabel belum termigrasi (mis. test) → fallback kode.
+    // SwapTable belum termigrasi (mis. test) → fallback kode.
   }
   return TER_FALLBACK[category];
 }

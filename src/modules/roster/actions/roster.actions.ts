@@ -152,7 +152,7 @@ export async function saveCalendarAssignment(input: {
   const startDate = parseDay(input.startDate);
   const endDate = input.endDate ? parseDay(input.endDate) : null;
   if (!input.employeeId || !startDate || !input.calendarId) {
-    return { success: false, message: "Karyawan, kalender, dan tanggal mulai wajib diisi." };
+    return { success: false, message: "Employee, kalender, dan tanggal mulai wajib diisi." };
   }
   if (endDate && endDate < startDate) {
     return { success: false, message: "Tanggal selesai tidak boleh sebelum tanggal mulai." };

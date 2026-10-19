@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/src/lib/prisma";
 import { recordAudit } from "@/src/modules/audit/lib/audit";
 import { deductBalance } from "@/src/modules/leave/lib/balance";
-import { openClearance } from "@/src/modules/employee/actions/offboarding.actions";
-import { applyDataUpdate } from "@/src/modules/employee/lib/updatedata";
-import { executeSwap } from "@/src/modules/roster/actions/tukar.actions";
-import { applyCorrection } from "@/src/modules/attendance/actions/koreksi.actions";
-import { approveSalaryAdvance } from "@/src/modules/payroll/actions/kasbon.actions";
+import { openClearance } from "@/src/modules/employees/actions/offboarding.actions";
+import { applyDataUpdate } from "@/src/modules/employees/lib/data-updates";
+import { executeSwap } from "@/src/modules/roster/actions/shift-swaps.actions";
+import { applyCorrection } from "@/src/modules/attendance/actions/corrections.actions";
+import { approveSalaryAdvance } from "@/src/modules/payroll/actions/salary-advances.actions";
 import { notifyRequestDecision } from "../lib/approval-notify";
 import {
   getApprovalQueue,
@@ -109,21 +109,21 @@ export async function processSubmissionAction(
   revalidateBestEffort("/leave");
   revalidateBestEffort("/overtime");
   revalidateBestEffort("/duty");
-  revalidateBestEffort("/employees/mutasi");
+  revalidateBestEffort("/employees/transfers");
   revalidateBestEffort("/employees/offboarding");
   revalidateBestEffort("/employees/probation");
-  revalidateBestEffort("/employees/update-data");
-  revalidateBestEffort("/account/update-data");
-  revalidateBestEffort("/account/tukar");
+  revalidateBestEffort("/employees/data-updates");
+  revalidateBestEffort("/account/data-updates");
+  revalidateBestEffort("/account/shift-swaps");
   revalidateBestEffort("/roster");
-  revalidateBestEffort("/payroll/kasbon");
+  revalidateBestEffort("/payroll/salary-advances");
 
   // PRD mobile Bag. 5.8 — notifikasi push ke pemohon saat keputusan final.
   if (result.success && result.outcome) {
     await notifyRequestDecision(type, id, result.outcome);
   }
 
-  // Kasbon ditolak final → catat alasan & pemutus di baris kasbon.
+  // Kasbon ditolak final → catat reason & pemutus di baris kasbon.
   if (result.success && result.outcome === "DITOLAK" && type === "KASBON") {
     await prisma.kasbon.update({
       where: { id },
@@ -150,7 +150,7 @@ export async function processSubmissionAction(
       entityId: id,
       sebelum: { status: "MENUNGGU_APPROVAL" },
       sesudah: { status: "DITOLAK" },
-      alasan: note ?? null,
+      reason: note ?? null,
     });
   }
 

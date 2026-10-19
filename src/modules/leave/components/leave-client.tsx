@@ -73,7 +73,7 @@ export default function LeaveClient({ items, balance, year, employeeOptions, lea
       sortValue: (item) => item.number,
       searchValue: (item) => item.number,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "karyawan", header: "Employee", accessor: "employeeName" },
     { id: "jenis", header: "Jenis", accessor: "leaveTypeName" },
     {
       id: "periode",
@@ -123,7 +123,7 @@ export default function LeaveClient({ items, balance, year, employeeOptions, lea
   ];
 
   const balanceColumns: DataTableColumn<LeaveBalanceItem>[] = [
-    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "karyawan", header: "Employee", accessor: "employeeName" },
     { id: "jenis", header: "Jenis", accessor: "leaveTypeName" },
     {
       id: "openingBalance",
@@ -150,7 +150,7 @@ export default function LeaveClient({ items, balance, year, employeeOptions, lea
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Buat Pengajuan</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingSelect name="employeeId" label="Karyawan" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="employeeId" label="Employee" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
           <FloatingSelect name="leaveTypeId" label="Jenis" value={leaveTypeId} onValueChange={setLeaveTypeId} options={leaveTypeOptions.map((j) => ({ value: String(j.value), label: j.label }))} placeholder="Pilih jenis" />
           <FloatingInput name="startDate" label="Tanggal Mulai" type="date" value={startDate} onChange={(e) => setStartDate(e.currentTarget.value)} />
           <FloatingInput name="endDate" label="Tanggal Selesai" type="date" value={endDate} onChange={(e) => setEndDate(e.currentTarget.value)} />

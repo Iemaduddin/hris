@@ -62,7 +62,7 @@ export default function RunListClient({ runs }: { runs: SalaryRunItem[] }) {
 		},
 		{
 			id: "employeeCount",
-			header: "Karyawan",
+			header: "Employee",
 			headerClassName: "text-right",
 			cellClassName: "text-right",
 			render: (r) => <span>{r.employeeCount}</span>,

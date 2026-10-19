@@ -1,7 +1,7 @@
 "use client";
 
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { TeamDayMember } from "@/src/modules/employee/actions/team.actions";
+import type { TeamDayMember } from "@/src/modules/employees/actions/team.actions";
 
 const teamColumns: DataTableColumn<TeamDayMember>[] = [
   {

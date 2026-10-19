@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getMyOffboarding } from "@/src/modules/employee/actions/offboarding.actions";
-import OffboardingSayaClient from "@/src/modules/employee/components/offboarding-saya-client";
+import { getMyOffboarding } from "@/src/modules/employees/actions/offboarding.actions";
+import OffboardingSayaClient from "@/src/modules/employees/components/offboarding-saya-client";
 
 export default async function OffboardingSayaPage() {
   const session = await getCurrentSession();

@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
 import { getTerBrackets } from "../lib/calculate";
-import { notifyEmployees } from "@/src/modules/notifikasi/lib/notify";
+import { notifyEmployees } from "@/src/modules/notifications/lib/notifications";
 import {
   calculateMarginalTerPph,
   terCategoryFromPtkp,
@@ -213,7 +213,7 @@ export async function publishThrRun(runId: string): Promise<ThrActionResult> {
       kind: "INFO",
       referenceType: "THR",
       referenceId: runId,
-      url: "/account/payslip#slip-thr",
+      url: "/account/payslips#slip-thr",
     },
   );
   return { success: true, message: "Slip THR diterbitkan." };

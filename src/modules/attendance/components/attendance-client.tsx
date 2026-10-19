@@ -66,7 +66,7 @@ export default function AttendanceClient({ date, items, employeeOptions }: Atten
     },
     {
       id: "karyawan",
-      header: "Karyawan",
+      header: "Employee",
       render: (item) => (
         <span>
           {item.employeeName} <span className="text-xs text-slate-500">({item.employeeNumber})</span>
@@ -130,7 +130,7 @@ export default function AttendanceClient({ date, items, employeeOptions }: Atten
           <div className="inline-flex items-center gap-2">
             <span className="text-xs text-slate-400">Via pengajuan</span>
             <Link
-              href="/account/koreksi"
+              href="/account/attendance-corrections"
               onClick={handleCorrection}
               className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50"
             >
@@ -161,7 +161,7 @@ export default function AttendanceClient({ date, items, employeeOptions }: Atten
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           <FloatingSelect
             name="employeeId"
-            label="Karyawan"
+            label="Employee"
             value={employeeId}
             onValueChange={setEmployeeId}
             options={employeeOptions}

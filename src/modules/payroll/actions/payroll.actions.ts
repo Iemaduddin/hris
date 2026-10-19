@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/src/lib/prisma";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import { recordAudit } from "@/src/modules/audit/lib/audit";
-import { notifyEmployees } from "@/src/modules/notifikasi/lib/notify";
+import { notifyEmployees } from "@/src/modules/notifications/lib/notifications";
 import { createVerificationCode } from "../lib/verifikasi";
 import { splitDisbursement, buildDisbursementCsv } from "../lib/disburse";
 import { getPayrollSettingMap, calculateEmployeeSalary, resetSettingsCache, toStoredRincian, fromStoredRincian, type AnnualPphAccumulation, type SalaryLineItem } from "../lib/calculate";
@@ -31,12 +31,12 @@ import {
   SALARY_ADVANCE_MAX_AMOUNT_KEY,
   SALARY_ADVANCE_MAX_TENOR_KEY,
   parseMaxSalaryAdvanceAmount,
-} from "../lib/kasbon";
+} from "../lib/salary-advances";
 import {
   UNPAID_SUSPENSION_KEY,
   SUSPENSION_DEFAULT_SETTINGS,
   SUSPENSION_SETTING_DESCRIPTIONS,
-} from "@/src/modules/employee/lib/disiplin";
+} from "@/src/modules/employees/lib/disciplinary";
 
 export type PayrollActionResult = { success: boolean; message: string; id?: string };
 
@@ -333,7 +333,7 @@ export async function savePayrollSettings(input: {
 				[SALARY_ADVANCE_MAX_TENOR_KEY]: String(advanceTenor),
 				[UNPAID_SUSPENSION_KEY]: suspension,
 			},
-			alasan: null,
+			reason: null,
 		});
 	} catch {
 		// abaikan
@@ -367,7 +367,7 @@ export async function getEmployeeSalaryMap(): Promise<EmployeeSalaryItem[]> {
 }
 
 export async function saveEmployeeSalaries(employeeId: string, componentIds: string[]): Promise<PayrollActionResult> {
-	if (!employeeId) return { success: false, message: "Karyawan wajib dipilih." };
+	if (!employeeId) return { success: false, message: "Employee wajib dipilih." };
 	await prisma.$transaction(async (tx) => {
 		await tx.gajiKaryawan.deleteMany({ where: { karyawanId: employeeId } });
 		if (componentIds.length > 0) {
@@ -429,7 +429,7 @@ export async function createSalaryRun(periode: string, createdById?: string): Pr
 			entityId: created.id,
 			sebelum: null,
 			sesudah: { periode: created.periode },
-			alasan: null,
+			reason: null,
 		});
 		revalidatePath("/payroll");
 		return { success: true, message: "Salary run dibuat.", id: created.id };
@@ -586,7 +586,7 @@ export async function calculateSalaryRun(runId: string): Promise<PayrollActionRe
 		entityId: runId,
 		sebelum: { periode: run.periode, status: run.status },
 		sesudah: { periode: run.periode, status: "DIHITUNG", jumlahKaryawan: employees.length },
-		alasan: null,
+		reason: null,
 	});
 
 	revalidatePath("/payroll");
@@ -607,7 +607,7 @@ export async function finalizeRun(runId: string): Promise<PayrollActionResult> {
 		entityId: runId,
 		sebelum: { periode: run.periode, status: run.status },
 		sesudah: { periode: run.periode, status: "FINAL" },
-		alasan: null,
+		reason: null,
 	});
 	revalidatePath("/payroll");
 	return { success: true, message: "Run dikunci (FINAL)." };
@@ -645,7 +645,7 @@ export async function publishRun(runId: string): Promise<PayrollActionResult> {
 		entityId: runId,
 		sebelum: { periode: run.periode, status: run.status },
 		sesudah: { periode: run.periode, status: "DITERBITKAN", jumlahSlip: run.detail.length },
-		alasan: null,
+		reason: null,
 	});
 
 	revalidatePath("/payroll");
@@ -657,7 +657,7 @@ export async function publishRun(runId: string): Promise<PayrollActionResult> {
 			kind: "INFO",
 			referenceType: "PAYSLIP",
 			referenceId: runId,
-			url: "/account/payslip",
+			url: "/account/payslips",
 		},
 	);
 	return { success: true, message: "Payslip diterbitkan." };
@@ -712,7 +712,7 @@ export async function deleteRun(runId: string): Promise<PayrollActionResult> {
 		entityId: runId,
 		sebelum: { status: run.status },
 		sesudah: null,
-		alasan: null,
+		reason: null,
 	});
 	revalidatePath("/payroll");
 	return { success: true, message: "Run dihapus." };

@@ -244,11 +244,11 @@ export default function KomponenClient({
 			</div>
 
 			<div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Komponen per Karyawan</h2>
+				<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Komponen per Employee</h2>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
 					<FloatingSelect
 						name="assignKaryawan"
-						label="Karyawan"
+						label="Employee"
 						value={assignKaryawan}
 						onValueChange={pickAssignKaryawan}
 						options={assignMap.map((a) => ({ value: a.employeeId, label: a.employeeName }))}

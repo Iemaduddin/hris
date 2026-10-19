@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getOffboardingList, getOffboardingOptions } from "@/src/modules/employee/actions/offboarding.actions";
-import OffboardingListClient from "@/src/modules/employee/components/offboarding-list-client";
+import { getOffboardingList, getOffboardingOptions } from "@/src/modules/employees/actions/offboarding.actions";
+import OffboardingListClient from "@/src/modules/employees/components/offboarding-list-client";
 
 export default async function OffboardingPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR"]);

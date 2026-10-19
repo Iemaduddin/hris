@@ -165,7 +165,7 @@ export default function MyRequestsClient({ employeeId, leave, overtime, duty, le
                 disabled={isPending}
                 onClick={() => {
                   if (!startTime || !endTime || !reason.trim()) {
-                    toast.error("Lengkapi jam dan alasan.");
+                    toast.error("Lengkapi jam dan reason.");
                     return;
                   }
                   run(createOvertime({ employeeId, date, startTime, endTime, reason }));

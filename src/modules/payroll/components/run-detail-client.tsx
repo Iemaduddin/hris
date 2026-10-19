@@ -34,7 +34,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 	const kolomDetail: DataTableColumn<RunDetailItem>[] = [
 		{
 			id: "karyawan",
-			header: "Karyawan",
+			header: "Employee",
 			render: (d) => (
 				<span>
 					{d.employeeName} <span className="text-xs text-slate-500">({d.employeeNumber})</span>
@@ -112,7 +112,7 @@ export default function RunDetailClient({ run, detail }: { run: SalaryRunItem; d
 			searchable: false,
 			render: (d) =>
 				run.status === "DITERBITKAN" ? (
-					<Link href={`/payroll/payslip/SLIP-${run.periode}-${d.employeeId.slice(-6).toUpperCase()}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
+					<Link href={`/payroll/payslips/SLIP-${run.periode}-${d.employeeId.slice(-6).toUpperCase()}`} className="rounded-lg border border-blue-200 px-3 py-1 text-xs hover:bg-blue-50">
 						Slip
 					</Link>
 				) : (

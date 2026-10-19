@@ -5,11 +5,11 @@ import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { toDbDate } from "@/src/lib/time";
 import { getMyQueue } from "@/src/modules/approval/actions/approval.actions";
-import { getExpiringContracts } from "@/src/modules/employee/actions/employee.actions";
+import { getExpiringContracts } from "@/src/modules/employees/actions/employee.actions";
 import { getMyRemainingBalance } from "@/src/modules/leave/actions/leave.actions";
 import { getMySlip } from "@/src/modules/payroll/actions/payroll.actions";
-import { getUpcomingProbation } from "@/src/modules/employee/actions/probation.actions";
-import { getActiveWarnings } from "@/src/modules/employee/actions/disiplin.actions";
+import { getUpcomingProbation } from "@/src/modules/employees/actions/probation.actions";
+import { getActiveWarnings } from "@/src/modules/employees/actions/disciplinary.actions";
 import { calculateDailyRecap } from "@/src/modules/recap/lib/recap-engine";
 import { Baris, Kosong, Panel } from "@/src/components/dashboard/panel";
 import KehadiranChart, { type IrisanKehadiran } from "@/src/components/dashboard/kehadiran-chart";
@@ -179,7 +179,7 @@ export default async function DashboardPage() {
 			<>
 				<HeaderJudul judul="Dashboard HR" sub="Ringkasan operasional hari ini." />
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
-					<Card title="Karyawan Aktif" value={String(headcount)} href="/employees" linkText="Kelola" />
+					<Card title="Employee Aktif" value={String(headcount)} href="/employees" linkText="Kelola" />
 					<Card title="Kontrak H-30" value={String(kontrak.length)} href="/employees" linkText="Lihat" />
           <Card title="Approval Menunggu" value={String(queue.length)} href="/approval" linkText="Proses" />
 					<Card title="Keterlambatan 7 Hari" value={String(telat)} href="/recap" linkText="Rekap" />
@@ -224,7 +224,7 @@ export default async function DashboardPage() {
 				</div>
 
 				<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-					<Panel title="Orang Bulan Ini" href="/employees" linkText="Karyawan">
+					<Panel title="Orang Bulan Ini" href="/employees" linkText="Employee">
 						<ul>
 							{ultah.map((k) => (
 								<Baris key={k.namaLengkap} kiri={`${k.namaLengkap} berulang tahun`} kanan={k.tanggalLahir ? tanggalId(k.tanggalLahir) : ""} />
@@ -408,12 +408,12 @@ export default async function DashboardPage() {
 
 	return (
 		<>
-			<HeaderJudul judul={`Halo, ${karyawan?.namaLengkap ?? session.user.name ?? "Karyawan"}`} sub="Ringkasan Anda hari ini." />
+			<HeaderJudul judul={`Halo, ${karyawan?.namaLengkap ?? session.user.name ?? "Employee"}`} sub="Ringkasan Anda hari ini." />
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-4">
 				<Card title="Status Hari Ini" value={hariIni?.status.replaceAll("_", " ") ?? "-"} href="/account/attendance" linkText="Presensi" />
 				<Card title="Sisa Cuti" value={saldo.length > 0 ? saldo.map((s) => `${s.remaining}`).join(" + ") : "-"} href="/account/requests" linkText="Ajukan" />
 				<Card title="Pengajuan Berjalan" value={String(pengajuanAktif)} href="/account/requests" linkText="Lacak" />
-				<Card title="Slip Terakhir" value={slips[0]?.periode ?? "-"} href="/account/payslip" linkText="Slip Saya" />
+				<Card title="Slip Terakhir" value={slips[0]?.periode ?? "-"} href="/account/payslips" linkText="Slip Saya" />
 			</div>
 			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
 				<Panel title="Jadwal Saya Hari Ini" href="/account/attendance" linkText="Presensi">

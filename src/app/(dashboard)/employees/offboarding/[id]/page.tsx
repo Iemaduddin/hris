@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getOffboardingDetail } from "@/src/modules/employee/actions/offboarding.actions";
-import OffboardingDetailClient from "@/src/modules/employee/components/offboarding-detail-client";
+import { getOffboardingDetail } from "@/src/modules/employees/actions/offboarding.actions";
+import OffboardingDetailClient from "@/src/modules/employees/components/offboarding-detail-client";
 
 export default async function OffboardingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { role } = await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "MANAJER", "FINANCE"]);

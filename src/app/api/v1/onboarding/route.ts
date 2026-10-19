@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { fail, ok, readJson, requireApiSession, str } from "@/src/lib/api-v1";
-import { getMyOnboarding, getOnboardingDetail, toggleChecklistItem } from "@/src/modules/employee/actions/onboarding.actions";
+import { getMyOnboarding, getOnboardingDetail, toggleChecklistItem } from "@/src/modules/employees/actions/onboarding.actions";
 
 /**
  * GET: checklist onboarding milik sendiri (opsional ?id= untuk detail).

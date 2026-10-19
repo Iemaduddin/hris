@@ -55,7 +55,7 @@ export default function DinasClient({
       sortValue: (item) => item.number,
       searchValue: (item) => item.number,
     },
-    { id: "karyawan", header: "Karyawan", accessor: "employeeName" },
+    { id: "karyawan", header: "Employee", accessor: "employeeName" },
     {
       id: "jenis",
       header: "Jenis",
@@ -106,7 +106,7 @@ export default function DinasClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Buat Pengajuan</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FloatingSelect name="employeeId" label="Karyawan" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
+          <FloatingSelect name="employeeId" label="Employee" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} placeholder="Pilih karyawan" searchable />
           <FloatingSelect name="dutyType" label="Jenis" value={dutyType} onValueChange={setDutyType} options={DUTY_TYPE_OPTIONS} />
           <FloatingInput name="startDate" label="Tanggal Mulai" type="date" value={startDate} onChange={(e) => setStartDate(e.currentTarget.value)} />
           <FloatingInput name="endDate" label="Tanggal Selesai" type="date" value={endDate} onChange={(e) => setEndDate(e.currentTarget.value)} />

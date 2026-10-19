@@ -20,7 +20,7 @@ import {
   getNotificationSummary,
   markNotifications,
   type NotificationItem,
-} from "@/src/modules/notifikasi/actions/notifikasi.actions";
+} from "@/src/modules/notifications/actions/notifications.actions";
 
 type OpenMenu = "notification" | "avatar" | null;
 

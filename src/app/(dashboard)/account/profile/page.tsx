@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { maskNilai } from "@/src/lib/masking";
-import { getEmployeeWizardDetail } from "@/src/modules/employee/actions/employee.actions";
+import { getEmployeeWizardDetail } from "@/src/modules/employees/actions/employee.actions";
 
 export default async function ProfilSayaPage() {
 	const session = await getCurrentSession();

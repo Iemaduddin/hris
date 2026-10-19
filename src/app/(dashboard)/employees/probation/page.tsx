@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getProbationList, getProbationOptions } from "@/src/modules/employee/actions/probation.actions";
-import ProbationListClient from "@/src/modules/employee/components/probation-list-client";
+import { getProbationList, getProbationOptions } from "@/src/modules/employees/actions/probation.actions";
+import ProbationListClient from "@/src/modules/employees/components/probation-list-client";
 
 export default async function ProbationPage() {
   await requireUserRole(["SUPER_ADMIN", "ADMIN_HR", "MANAJER"]);

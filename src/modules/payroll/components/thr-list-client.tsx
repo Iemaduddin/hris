@@ -86,7 +86,7 @@ export default function ThrListClient({ runs }: { runs: ThrRunItem[] }) {
     },
     {
       id: "employeeCount",
-      header: "Karyawan",
+      header: "Employee",
       headerClassName: "text-right",
       cellClassName: "text-right",
       render: (r) => <span>{r.employeeCount}</span>,

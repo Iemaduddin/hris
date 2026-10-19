@@ -106,7 +106,7 @@ export async function recordAttendance(input: {
   deviceName?: string;
   platform?: string;
 }): Promise<AttendanceActionResult> {
-  if (!input.employeeId) return { success: false, message: "Karyawan wajib dipilih." };
+  if (!input.employeeId) return { success: false, message: "Employee wajib dipilih." };
   if (!isValidEventType(input.eventType)) return { success: false, message: "Tipe presensi tidak valid." };
 
   const source = (SOURCE_LIST as string[]).includes(input.source ?? "")
@@ -127,7 +127,7 @@ export async function recordAttendance(input: {
       },
     },
   });
-  if (!employee) return { success: false, message: "Karyawan tidak ditemukan." };
+  if (!employee) return { success: false, message: "Employee tidak ditemukan." };
 
   // PRD mobile Bag. 5.4 — lokasi acuan diambil dari penempatan aktif karyawan
   // agar tidak dapat diklaim sembarang klien; fallback ke input (kasus HR).
@@ -226,7 +226,7 @@ export async function recordAttendance(input: {
         lokasiKerjaId: workLocationId,
         catatan: input.note || null,
       },
-      alasan: input.note || null,
+      reason: input.note || null,
     });
   } catch {
     // abaikan
@@ -251,7 +251,7 @@ export async function rejectDirectCorrection(
 ): Promise<AttendanceActionResult> {
   if (!id) return { success: false, message: "ID presensi tidak valid." };
   // P0-9: koreksi langsung ditutup — wajib lewat pengajuan ESS + ApprovalStep
-  // (P2-4: /account/koreksi → atasan → HR). Upaya langsung dicatat di audit.
+  // (P2-4: /account/attendance-corrections → atasan → HR). Upaya langsung dicatat di audit.
   try {
     const session = await getCurrentSession();
     const previous = await prisma.absensi.findUnique({
@@ -265,13 +265,13 @@ export async function rejectDirectCorrection(
       entityId: id,
       sebelum: previous,
       sesudah: { diminta: status },
-      alasan: note || null,
+      reason: note || null,
     });
   } catch {
     // abaikan
   }
   return {
     success: false,
-    message: "Koreksi langsung ditutup. Ajukan via Koreksi Presensi (/account/koreksi) — diproses atasan → HR.",
+    message: "Koreksi langsung ditutup. Ajukan via Koreksi Presensi (/account/attendance-corrections) — diproses atasan → HR.",
   };
 }

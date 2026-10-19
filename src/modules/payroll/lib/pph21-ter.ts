@@ -2,7 +2,7 @@
  * PPh 21 TER (PP 58/2023 + PMK 168/2023).
  * Bulanan: PPh = bruto × tarif kategori A/B/C. Desember: koreksi tahunan
  * Pasal 17 dikurangi akumulasi Jan–Nov. Bruto = totalPendapatan.
- * Tabel TER_*_BRACKETS = salinan lampiran PP 58/2023 (fallback bila tabel DB kosong).
+ * SwapTable TER_*_BRACKETS = salinan lampiran PP 58/2023 (fallback bila tabel DB kosong).
  */
 
 export type TerCategory = "A" | "B" | "C";
@@ -65,7 +65,7 @@ export function calculateAnnualArticle17Tax(taxableIncome: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Tabel TER lampiran PP 58/2023 (fallback bila DB kosong)
+// SwapTable TER lampiran PP 58/2023 (fallback bila DB kosong)
 // ---------------------------------------------------------------------------
 
 export const TER_A_BRACKETS: TerBracket[] = [

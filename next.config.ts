@@ -14,14 +14,6 @@ const nextConfig: NextConfig = {
   // memakai `Authorization: Bearer` sehingga tidak butuh `credentials`.
   // Preflight OPTIONS dijawab otomatis Next (204) — header di bawah ikut
   // menempel karena diterapkan per-path tanpa memandang method.
-  // Kompatibilitas: path lama /akun* dan /api/v1/me/profil (versi mobile lama).
-  async redirects() {
-    return [
-      { source: "/akun/:path*", destination: "/account/:path*", permanent: true },
-      { source: "/api/akun/:path*", destination: "/api/account/:path*", permanent: true },
-      { source: "/api/v1/me/profil", destination: "/api/v1/me/profile", permanent: true },
-    ];
-  },
   async headers() {    return [
       {
         source: "/:path*",

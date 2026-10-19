@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { getMyOnboarding } from "@/src/modules/employee/actions/onboarding.actions";
+import type { getMyOnboarding } from "@/src/modules/employees/actions/onboarding.actions";
 
 type OnboardingSayaRow = Awaited<ReturnType<typeof getMyOnboarding>>[number];
 

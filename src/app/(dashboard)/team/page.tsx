@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, requireUserRole } from "@/src/lib/auth-guard";
-import { getTodayTeam } from "@/src/modules/employee/actions/team.actions";
+import { getTodayTeam } from "@/src/modules/employees/actions/team.actions";
 import TeamTable from "./team-table";
 
 const todayIso = () => {

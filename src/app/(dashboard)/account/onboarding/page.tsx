@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getMyOnboarding } from "@/src/modules/employee/actions/onboarding.actions";
+import { getMyOnboarding } from "@/src/modules/employees/actions/onboarding.actions";
 import OnboardingTable from "./onboarding-table";
 
 export default async function OnboardingSayaPage() {

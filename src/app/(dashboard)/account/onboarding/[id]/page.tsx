@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
-import { getOnboardingDetail } from "@/src/modules/employee/actions/onboarding.actions";
-import OnboardingDetailClient from "@/src/modules/employee/components/onboarding-detail-client";
+import { getOnboardingDetail } from "@/src/modules/employees/actions/onboarding.actions";
+import OnboardingDetailClient from "@/src/modules/employees/components/onboarding-detail-client";
 
 export default async function OnboardingSayaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getCurrentSession();
