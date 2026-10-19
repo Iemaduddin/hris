@@ -12,7 +12,6 @@ import {
   deleteOnboarding,
   deleteTemplate,
   saveTemplate,
-  seedDefaultTemplates,
   closeOnboarding,
   type OnboardingItem,
   type TemplateItem,
@@ -211,14 +210,6 @@ export default function OnboardingListClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Template Checklist</h2>
-          <button
-            type="button"
-            onClick={() => runAction(seedDefaultTemplates())}
-            disabled={isPending}
-            className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-          >
-            Seed Bawaan
-          </button>
         </div>
         <div className="mt-3">
           <DataTable

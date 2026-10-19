@@ -91,9 +91,9 @@ async function main() {
 	}
 
 	const total = await prisma.unitOrganisasi.count();
-	console.log(`   ✅ Dibuat: ${created} unit baru`);
-	console.log(`   ⏭️  Lewat: ${skipped} unit sudah ada`);
-	console.log(`\n🎉 Selesai! Total unit organisasi: ${total}`);
+	console.log(`   Dibuat: ${created} unit baru`);
+	console.log(`   Lewat: ${skipped} unit sudah ada`);
+	console.log(`\nSelesai! Total unit organisasi: ${total}`);
 }
 
 main()

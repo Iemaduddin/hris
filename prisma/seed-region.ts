@@ -150,7 +150,7 @@ async function main() {
 	}
 	console.log(`   ✅ ${desaCount} desa/kelurahan baru diimport\n`);
 
-	console.log("🎉 Import data wilayah selesai!");
+	console.log(" Import data wilayah selesai!");
 }
 
 main()

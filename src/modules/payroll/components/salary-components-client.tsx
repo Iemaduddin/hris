@@ -8,7 +8,6 @@ import FloatingSelect from "@/src/components/ui/floating-input/select";
 import {
 	deleteComponent,
 	saveComponent,
-	seedDefaultComponents,
 	saveEmployeeSalaries,
 	type EmployeeSalaryItem,
 	type ComponentItem,
@@ -101,18 +100,6 @@ export default function KomponenClient({
 			}
 			toast.success(result.message);
 			applySelection("");
-			router.refresh();
-		});
-	}
-
-	function handleSeed() {
-		startTransition(async () => {
-			const result = await seedDefaultComponents();
-			if (!result.success) {
-				toast.error(result.message);
-				return;
-			}
-			toast.success(result.message);
 			router.refresh();
 		});
 	}
@@ -210,9 +197,6 @@ export default function KomponenClient({
 					<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
 						{selectedId ? "Edit Komponen" : "Komponen Baru"}
 					</h2>
-					<button type="button" onClick={handleSeed} disabled={isPending} className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-						Seed Default MVP
-					</button>
 				</div>
 				<div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
 					<FloatingInput name="code" label="Kode" value={code} onChange={(e) => setKode(e.currentTarget.value.toUpperCase())} />
@@ -238,7 +222,7 @@ export default function KomponenClient({
 						data={items}
 						columns={kolomKomponen}
 						getRowId={(item) => item.id}
-						emptyMessage="Belum ada komponen. Klik “Seed Default MVP”."
+						emptyMessage="Belum ada komponen."
 					/>
 				</div>
 			</div>

@@ -2,19 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/src/lib/auth-guard";
 import prisma from "@/src/lib/prisma";
 import { getMyAnnouncementsCore, getThisWeekEvents } from "@/src/modules/employees/actions/announcements.actions";
-import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
-import type { AnnouncementItem } from "@/src/modules/employees/actions/announcements.actions";
-
-const kolom: DataTableColumn<AnnouncementItem>[] = [
-	{ id: "title", header: "Judul", accessor: "title" },
-	{
-		id: "target",
-		header: "Target",
-		render: (r) => <span>{r.unitName ?? "Semua"}</span>,
-		sortValue: (r) => r.unitName ?? "Semua",
-	},
-	{ id: "body", header: "Isi", accessor: "body" },
-];
+import AnnouncementsListClient from "@/src/modules/employees/components/announcements-list-client";
 
 export default async function MyAnnouncementsPage() {
 	const session = await getCurrentSession();
@@ -41,7 +29,7 @@ export default async function MyAnnouncementsPage() {
 
 			{peristiwa.length > 0 && (
 				<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
-					<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Minggu Ini 🎉</h2>
+					<h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Minggu Ini</h2>
 					<ul className="mt-2 space-y-1 text-sm">
 						{peristiwa.map((p) => (
 							<li key={`${p.kind}-${p.employeeNumber}`}>
@@ -53,12 +41,7 @@ export default async function MyAnnouncementsPage() {
 			)}
 
 			<div className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
-				<DataTable
-					data={items}
-					columns={kolom}
-					getRowId={(r) => r.id}
-					emptyMessage="Belum ada pengumuman untuk Anda."
-				/>
+				<AnnouncementsListClient items={items} />
 			</div>
 		</>
 	);

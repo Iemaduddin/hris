@@ -271,7 +271,7 @@ async function main() {
 		prisma.posisi.count(),
 	]);
 
-	console.log("🎉 Selesai!");
+	console.log("	Selesai!");
 	console.log(`   Golongan Posisi : ${totalGol}`);
 	console.log(`   Lokasi Kerja   : ${totalLok}`);
 	console.log(`   Posisi         : ${totalPos}`);

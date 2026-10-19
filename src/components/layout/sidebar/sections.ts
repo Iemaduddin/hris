@@ -33,7 +33,7 @@ export const sidebarSections: SidebarSection[] = [
 		id: "tim",
 		label: "Tim",
 		allowedRoles: [...HR_ROLES, "MANAJER"],
-		items: [{ id: "tim-saya", label: "Tim Saya", href: "/team", icon: LuUsers }],
+		items: [{ id: "tim-saya", label: "Tim", href: "/team", icon: LuUsers }],
 	},
 	{
 		id: "akun",
@@ -41,18 +41,18 @@ export const sidebarSections: SidebarSection[] = [
 		items: [
 			{
 				id: "presensi-saya",
-				label: "Presensi Saya",
+				label: "Presensi",
 				icon: LuCalendarCheck,
 				children: [
 					{ id: "presensi-bulanan-saya", label: "Rekap Bulanan", href: "/account/attendance", icon: LuCalendarCheck },
 					{ id: "koreksi-saya", label: "Koreksi Presensi", href: "/account/attendance-corrections", icon: LuPencilLine },
 				],
 			},
-			{ id: "pengajuan-saya", label: "Pengajuan Saya", href: "/account/requests", icon: LuSend },
+			{ id: "pengajuan-saya", label: "Pengajuan", href: "/account/requests", icon: LuSend },
 			{ id: "pengumuman-saya", label: "Pengumuman", href: "/account/announcements", icon: LuMail },
 			{
 				id: "keuangan-saya",
-				label: "Keuangan Saya",
+				label: "Keuangan",
 				icon: LuWallet,
 				children: [
 					{ id: "slip-saya", label: "Slip Gaji", href: "/account/payslips", icon: LuWallet },
@@ -63,13 +63,13 @@ export const sidebarSections: SidebarSection[] = [
 			},
 			{
 				id: "administrasi-saya",
-				label: "Administrasi Saya",
+				label: "Administrasi",
 				icon: LuFileSpreadsheet,
 				children: [
 					{ id: "update-data-saya", label: "Update Data", href: "/account/data-updates", icon: LuUser },
 					{ id: "tukar-saya", label: "Tukar Shift", href: "/account/shift-swaps", icon: LuRepeat },
 					{ id: "onboarding-saya", label: "Onboarding", href: "/account/onboarding", icon: LuListChecks },
-					{ id: "disiplin-saya", label: "SP Saya", href: "/account/disciplinary-actions", icon: LuTriangleAlert },
+					{ id: "disiplin-saya", label: "SP", href: "/account/disciplinary-actions", icon: LuTriangleAlert },
 					{ id: "resign-saya", label: "Pengajuan Resign", href: "/account/offboarding", icon: LuLogOut },
 				],
 			},

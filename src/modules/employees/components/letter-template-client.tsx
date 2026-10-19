@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import FloatingInput from "@/src/components/ui/floating-input/input";
 import FloatingTextarea from "@/src/components/ui/floating-input/textarea";
-import { deleteTemplate, saveTemplate, seedDefaultTemplates } from "@/src/modules/employees/actions/letters.actions";
+import { deleteTemplate, saveTemplate } from "@/src/modules/employees/actions/letters.actions";
 import DataTable, { type DataTableColumn } from "@/src/components/ui/data-table";
 
 type SuratTemplateRow = { id: string; code: string; name: string; title: string; isActive: boolean };
@@ -117,21 +117,13 @@ export default function SuratTemplateClient({
       <div className="rounded-2xl border border-blue-100 bg-white p-5 dark:border-blue-900/60 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Template Aktif</h2>
-          <button
-            type="button"
-            onClick={() => runAction(seedDefaultTemplates(userId))}
-            disabled={isPending}
-            className="inline-flex h-9 items-center rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-          >
-            Seed Bawaan
-          </button>
         </div>
         <div className="mt-3">
           <DataTable
             data={items}
             columns={kolomTemplate}
             getRowId={(t) => t.id}
-            emptyMessage="Belum ada template. Klik “Seed Bawaan”."
+            emptyMessage="Belum ada template."
           />
         </div>
       </div>
