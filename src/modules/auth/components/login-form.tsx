@@ -55,6 +55,7 @@ export default function LoginForm() {
 				type="password"
 				label="Password"
 				autoComplete="current-password"
+				showPasswordToggle
 				value={password}
 				onChange={(event) => setPassword(event.currentTarget.value)}
 				required

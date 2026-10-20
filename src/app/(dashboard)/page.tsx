@@ -204,7 +204,7 @@ export default async function DashboardPage() {
 									<Baris key={s.id} kiri={`${s.levelLabel} aktif: ${s.employeeName}`} kanan={s.number} />
 								))}
 								{alpaHariIni.map((r) => (
-									<Baris key={r.karyawan.nomorKaryawan} kiri={`${r.karyawan.namaLengkap} tidak hadir hari ini`} kanan="ALPA" />
+									<Baris key={r.id} kiri={`${r.karyawan.namaLengkap} tidak hadir hari ini`} kanan="ALPA" />
 								))}
 							</ul>
 						)}

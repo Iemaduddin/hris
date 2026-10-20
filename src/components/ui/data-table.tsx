@@ -34,6 +34,7 @@ export type DataTableProps<TData> = {
 	pageSizeOptions?: number[];
 	initialPageSize?: number;
 	initialSortState?: { columnId: string; direction: SortDirection } | null;
+	selectable?: boolean;
 	onSelectionChange?: (selectedIds: string[]) => void;
 	selectionResetKey?: string | number;
 };
@@ -79,6 +80,7 @@ export default function DataTable<TData>({
 	pageSizeOptions = [10, 20, 50],
 	initialPageSize = 10,
 	initialSortState = null,
+	selectable = false,
 	onSelectionChange,
 	selectionResetKey,
 }: DataTableProps<TData>) {
@@ -91,7 +93,7 @@ export default function DataTable<TData>({
 
 	const searchableColumns = useMemo(() => {
 		if (!searchable) return [];
-		return columns.filter((column) => column.searchable || (!column.render && column.accessor));
+		return columns.filter((column) => column.searchable || column.searchValue || (!column.render && column.accessor));
 	}, [columns, searchable]);
 
 	const filteredRows = useMemo(() => {
@@ -216,7 +218,7 @@ export default function DataTable<TData>({
 				</div>
 
 				<div className="flex items-center gap-2">
-					{selectedIds.size > 0 && (
+					{selectable && selectedIds.size > 0 && (
 						<Button variant="soft" size="sm" onClick={() => setSelectedIds(new Set())}>
 							Clear Selected ({selectedIds.size})
 						</Button>
@@ -242,17 +244,19 @@ export default function DataTable<TData>({
 				<table className="min-w-full border-separate border-spacing-0 text-sm">
 					<thead>
 						<tr>
-							<th className="w-10 border-b border-blue-100 px-2 py-3 text-left dark:border-blue-900/60">
-								<input
-									type="checkbox"
-									checked={allPageSelected}
-									ref={(input) => {
-										if (input) input.indeterminate = !allPageSelected && somePageSelected;
-									}}
-									onChange={toggleSelectAllPage}
-									className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-								/>
-							</th>
+							{selectable ? (
+								<th className="w-10 border-b border-blue-100 px-2 py-3 text-left dark:border-blue-900/60">
+									<input
+										type="checkbox"
+										checked={allPageSelected}
+										ref={(input) => {
+											if (input) input.indeterminate = !allPageSelected && somePageSelected;
+										}}
+										onChange={toggleSelectAllPage}
+										className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+									/>
+								</th>
+							) : null}
 							{columns.map((column) => {
 								const isSorted = sortState?.columnId === column.id;
 								const isHiddenMobile = column.responsiveHidden;
@@ -293,7 +297,7 @@ export default function DataTable<TData>({
 						{paginatedRows.length === 0 ? (
 							<tr>
 								<td
-									colSpan={columns.length + 2}
+									colSpan={columns.length + (selectable ? 2 : 1)}
 									className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
 								>
 									{emptyMessage}
@@ -308,14 +312,16 @@ export default function DataTable<TData>({
 								return (
 									<Fragment key={rowId}>
 										<tr className="hover:bg-blue-50/60 dark:hover:bg-blue-900/20">
-											<td className="border-b border-blue-100 px-2 py-3 align-top dark:border-blue-900/60">
-												<input
-													type="checkbox"
-													checked={isSelected}
-													onChange={() => toggleSelectRow(rowId)}
-													className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-												/>
-											</td>
+											{selectable ? (
+												<td className="border-b border-blue-100 px-2 py-3 align-top dark:border-blue-900/60">
+													<input
+														type="checkbox"
+														checked={isSelected}
+														onChange={() => toggleSelectRow(rowId)}
+														className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+													/>
+												</td>
+											) : null}
 
 											{columns.map((column) => {
 												const cell = column.render

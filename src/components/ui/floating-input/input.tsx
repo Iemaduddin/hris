@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useId, useState, type InputHTMLAttributes } from "react";
+import { LuEye, LuEyeOff } from "react-icons/lu";
 
 type FloatingInputType = InputHTMLAttributes<HTMLInputElement>["type"] | "currency" | "nominal";
 
@@ -16,6 +17,7 @@ export type FloatingInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "ty
 	helperText?: string;
 	errorText?: string;
 	containerClassName?: string;
+	showPasswordToggle?: boolean;
 	onCurrencyValueChange?: (value: CurrencyValue) => void;
 };
 
@@ -59,6 +61,7 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 		errorText,
 		onChange,
 		onCurrencyValueChange,
+		showPasswordToggle = false,
 		value,
 		defaultValue,
 		placeholder,
@@ -71,6 +74,7 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 	const resolvedId = id ?? generatedId;
 	const isCurrency = type === "currency";
 	const isNominal = type === "nominal";
+	const isPassword = type === "password";
 	const isNumeric = isCurrency || isNominal;
 	const isControlled = value !== undefined;
 
@@ -81,8 +85,13 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 
 	const sourceValue = isControlled ? String(value ?? "") : internalValue;
 	const displayValue = isCurrency ? formatRupiah(sourceValue) : isNominal ? formatNominal(sourceValue) : sourceValue;
+	const [showPassword, setShowPassword] = useState(false);
 
-	const inputType: InputHTMLAttributes<HTMLInputElement>["type"] = isNumeric ? "text" : type;
+	const inputType: InputHTMLAttributes<HTMLInputElement>["type"] = isNumeric
+		? "text"
+		: isPassword && showPassword
+			? "text"
+			: type;
 
 	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		if (!isNumeric) {
@@ -130,10 +139,21 @@ const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(function 
 						"dark:disabled:bg-slate-800 dark:disabled:text-slate-400",
 						errorText && "border-red-400 focus:border-red-500",
 						errorText && "dark:border-red-500/70 dark:focus:border-red-400",
+						showPasswordToggle && isPassword && "pr-11",
 						className,
 					)}
 					{...props}
 				/>
+				{showPasswordToggle && isPassword ? (
+					<button
+						type="button"
+						onClick={() => setShowPassword((visible) => !visible)}
+						aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+						className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+					>
+						{showPassword ? <LuEyeOff className="h-4 w-4" /> : <LuEye className="h-4 w-4" />}
+					</button>
+				) : null}
 				<label
 					htmlFor={resolvedId}
 					className={cn(
