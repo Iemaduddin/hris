@@ -1,6 +1,6 @@
 # HRIS Web & API
 
-Aplikasi web HRIS sekaligus backend REST API untuk <a href="https://github.com/Iemaduddin/hris">Mobile Apps HRIS</a>. Dibangun
+Aplikasi web HRIS sekaligus backend REST API untuk <a href="https://github.com/Iemaduddin/mobile-hris">Mobile Apps HRIS</a>. Dibangun
 dengan Next.js App Router dan digunakan untuk mengelola data karyawan,
 presensi, pengajuan, persetujuan, payroll, serta administrasi HR.
 
